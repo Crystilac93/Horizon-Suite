@@ -298,6 +298,16 @@ local OptionCategories = {
             { type = "toggle", name = "Animations", desc = "Enable slide and fade for quests.", dbKey = "animations", get = function() return getDB("animations", true) end, set = function(v) setDB("animations", v) end },
             { type = "toggle", name = "Objective progress flash", desc = "Show green flash when an objective completes.", dbKey = "objectiveProgressFlash", get = function() return getDB("objectiveProgressFlash", true) end, set = function(v) setDB("objectiveProgressFlash", v) end },
             { type = "toggle", name = "Suppress untracked until reload", desc = "When on, right-click untrack on world quests and in-zone weeklies/dailies hides them until you reload or start a new session. When off, they reappear when you return to the zone.", dbKey = "suppressUntrackedUntilReload", get = function() return getDB("suppressUntrackedUntilReload", false) end, set = function(v) setDB("suppressUntrackedUntilReload", v) end },
+            { type = "toggle", name = "Permanently suppress untracked quests", desc = "When on, right-click untracked world quests and in-zone weeklies/dailies are hidden permanently (persists across reloads). Takes priority over 'Suppress until reload'. Accepting a suppressed quest removes it from the blacklist.", dbKey = "permanentlySuppressUntracked", get = function() return getDB("permanentlySuppressUntracked", false) end, set = function(v) setDB("permanentlySuppressUntracked", v) end },
+        },
+    },
+    {
+        key = "Blacklist",
+        name = "Blacklisted quests",
+        moduleKey = "focus",
+        options = {
+            { type = "section", name = "Permanently suppressed quests", desc = "Right-click untrack quests with 'Permanently suppress untracked quests' enabled to add them here." },
+            { type = "blacklistGrid", name = "Blacklisted quests" },
         },
     },
     {

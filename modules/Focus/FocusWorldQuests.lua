@@ -215,6 +215,24 @@ local function GetWorldAndCallingQuestIDsToShow(nearbySet, taskQuestOnlySet)
             end
         end
     end
+    -- Add all WQT-tracked quests (from any zone) - they should show up like tracked WQs
+    if addon.wqtTrackedQuests then
+        local wqtCount = 0
+        for questID, _ in pairs(addon.wqtTrackedQuests) do
+            wqtCount = wqtCount + 1
+            if not seen[questID] then
+                seen[questID] = true
+                -- Mark as tracked so they appear without ** suffix
+                out[#out + 1] = { questID = questID, isTracked = true }
+                if addon.HSPrint then
+                    addon.HSPrint("[WQT Data] Adding quest " .. tostring(questID) .. " to list")
+                end
+            end
+        end
+        if addon.HSPrint and wqtCount > 0 then
+            addon.HSPrint("[WQT Data] Total in wqtTrackedQuests table: " .. wqtCount .. ", added to output: " .. #out)
+        end
+    end
     if nearbySet and (addon.IsQuestWorldQuest or C_QuestLog.IsWorldQuest) then
         local recentlyUntracked = addon.recentlyUntrackedWorldQuests
         local ids = {}

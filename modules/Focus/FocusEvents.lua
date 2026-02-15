@@ -179,6 +179,7 @@ end
 local function OnQuestAccepted(questID)
     if not addon.enabled then ScheduleRefresh(); return end
     if not questID or questID <= 0 then ScheduleRefresh(); return end
+    
     if addon.GetDB("autoTrackOnAccept", true) then
         local isWQ = (addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(questID))
             or (C_QuestLog and C_QuestLog.IsWorldQuest and C_QuestLog.IsWorldQuest(questID))
@@ -197,6 +198,13 @@ local function OnQuestWatchListChanged(questID, added)
             addon.recentlyUntrackedWorldQuests[questID] = nil
         else
             addon.recentlyUntrackedWorldQuests[questID] = true
+            -- When removed from watch list, also remove from WQT tracking if present
+            if addon.wqtTrackedQuests and addon.wqtTrackedQuests[questID] then
+                addon.wqtTrackedQuests[questID] = nil
+                if addon.HSPrint then
+                    addon.HSPrint("[Events] Removed WQ " .. tostring(questID) .. " from WQT tracking (watch list removed)")
+                end
+            end
         end
     end
     ScheduleRefresh()
@@ -209,7 +217,6 @@ local function OnZoneChanged(event)
     if event == "ZONE_CHANGED_NEW_AREA" then
         if not addon.GetDB("suppressUntrackedUntilReload", false) then
             if addon.recentlyUntrackedWorldQuests then wipe(addon.recentlyUntrackedWorldQuests) end
-            if addon.recentlyUntrackedWeekliesAndDailies then wipe(addon.recentlyUntrackedWeekliesAndDailies) end
         end
         C_Timer.After(2.5, function() if addon.enabled then ScheduleRefresh() end end)
     end

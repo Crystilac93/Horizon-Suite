@@ -450,6 +450,15 @@ resizeLineV:SetColorTexture(gripR, gripG, gripB, gripA)
 function addon.UpdateResizeHandleVisibility()
     resizeHandle:SetShown(not (HorizonDB and HorizonDB.lockPosition))
 end
+-- Call on ADDON_LOADED to ensure it reflects current state
+local visUpdateFrame = CreateFrame("Frame")
+visUpdateFrame:RegisterEvent("ADDON_LOADED")
+visUpdateFrame:SetScript("OnEvent", function(self, event, addonName)
+    if addonName == "HorizonSuite" then
+        addon.UpdateResizeHandleVisibility()
+        self:UnregisterEvent("ADDON_LOADED")
+    end
+end)
 addon.UpdateResizeHandleVisibility()
 
 local function RestoreSavedPosition()

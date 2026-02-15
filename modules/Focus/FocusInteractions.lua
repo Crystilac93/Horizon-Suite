@@ -141,14 +141,24 @@ for i = 1, addon.POOL_SIZE do
                 return
             end
 
-            -- Non-world quests that are not yet tracked: add to tracker (respect Ctrl safety if enabled).
+            -- Non-world quests that are not yet tracked or not yet accepted: handle appropriately.
             if not isWorldQuest and self.isTracked == false then
                 if requireCtrl and not IsControlKeyDown() then
                     -- Safety: ignore plain Left-click when Ctrl is required.
                     return
                 end
-                if C_QuestLog.AddQuestWatch then
-                    C_QuestLog.AddQuestWatch(self.questID)
+                -- Check if quest is accepted
+                local isAccepted = (C_QuestLog and C_QuestLog.IsOnQuest and C_QuestLog.IsOnQuest(self.questID)) or false
+                if isAccepted then
+                    -- Quest is accepted but not tracked: add to tracker
+                    if C_QuestLog.AddQuestWatch then
+                        C_QuestLog.AddQuestWatch(self.questID)
+                    end
+                else
+                    -- Quest not yet accepted: set waypoint to quest giver/start location
+                    if C_SuperTrack and C_SuperTrack.SetSuperTrackedQuestID then
+                        C_SuperTrack.SetSuperTrackedQuestID(self.questID)
+                    end
                 end
                 addon.ScheduleRefresh()
                 return
@@ -241,18 +251,22 @@ for i = 1, addon.POOL_SIZE do
                     end
                 end
 
+                local usePermanent = addon.GetDB("permanentlySuppressUntracked", false)
+                
                 if addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(self.questID) and addon.RemoveWorldQuestWatch then
                     addon.RemoveWorldQuestWatch(self.questID)
-                    -- Always add to suppression so in-zone-only WQs (not on watch list) also disappear until zone change.
-                    if not addon.recentlyUntrackedWorldQuests then addon.recentlyUntrackedWorldQuests = {} end
-                    addon.recentlyUntrackedWorldQuests[self.questID] = true
+                    -- Add to suppression: permanent or temporary
+                    if usePermanent then
+                        if not HorizonDB.permanentQuestBlacklist then HorizonDB.permanentQuestBlacklist = {} end
+                        HorizonDB.permanentQuestBlacklist[self.questID] = true
+                        -- Trigger blacklist grid refresh
+                        if addon.RefreshBlacklistGrid then addon.RefreshBlacklistGrid() end
+                    else
+                        if not addon.recentlyUntrackedWorldQuests then addon.recentlyUntrackedWorldQuests = {} end
+                        addon.recentlyUntrackedWorldQuests[self.questID] = true
+                    end
                 elseif C_QuestLog.RemoveQuestWatch then
                     C_QuestLog.RemoveQuestWatch(self.questID)
-                end
-                -- Weeklies/dailies in zone: add to suppression so they stay hidden until zone change.
-                if self.category == "WEEKLY" or self.category == "DAILY" then
-                    if not addon.recentlyUntrackedWeekliesAndDailies then addon.recentlyUntrackedWeekliesAndDailies = {} end
-                    addon.recentlyUntrackedWeekliesAndDailies[self.questID] = true
                 end
                 addon.ScheduleRefresh()
             end

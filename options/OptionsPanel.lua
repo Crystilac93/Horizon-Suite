@@ -37,6 +37,7 @@ panel:SetSize(PAGE_WIDTH, PAGE_HEIGHT)
 panel:SetFrameStrata("DIALOG")
 panel:SetClampedToScreen(true)
 panel:SetMovable(true)
+panel:EnableMouse(true)
 panel:RegisterForDrag("LeftButton")
 panel:Hide()
 
@@ -147,6 +148,86 @@ scrollFrame:SetScrollChild(tabFrames[1])
 for i = 2, #tabFrames do tabFrames[i]:Hide() end
 
 -- Version at bottom of sidebar
+-- Resize handle: drag bottom-right corner to resize options panel
+local resizeHandle = CreateFrame("Frame", nil, panel)
+resizeHandle:SetSize(20, 20)
+resizeHandle:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", 0, 0)
+resizeHandle:EnableMouse(true)
+resizeHandle:SetFrameLevel(panel:GetFrameLevel() + 10)
+resizeHandle:SetScript("OnEnter", function(self)
+    if GameTooltip then
+        GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
+        GameTooltip:SetText("Drag to resize", nil, nil, nil, nil, true)
+        GameTooltip:Show()
+    end
+end)
+resizeHandle:SetScript("OnLeave", function()
+    if GameTooltip then GameTooltip:Hide() end
+end)
+local isResizing = false
+local startWidth, startHeight, startMouseX, startMouseY
+resizeHandle:RegisterForDrag("LeftButton")
+local function ResizeOnUpdate(self, elapsed)
+    if not isResizing then return end
+    local scale = UIParent and UIParent:GetEffectiveScale() or 1
+    local curX = select(1, GetCursorPosition()) / scale
+    local curY = select(2, GetCursorPosition()) / scale
+    local deltaX = curX - startMouseX
+    local deltaY = curY - startMouseY
+    local newWidth = math.max(600, math.min(1400, startWidth + deltaX))
+    local newHeight = math.max(500, math.min(1200, startHeight - deltaY))
+    panel:SetSize(newWidth, newHeight)
+    PAGE_WIDTH = newWidth
+    PAGE_HEIGHT = newHeight
+    -- Update content width for tab frames
+    local newContentWidth = newWidth - PADDING * 2 - SIDEBAR_WIDTH - 12
+    for _, tabFrame in ipairs(tabFrames) do
+        if tabFrame then
+            tabFrame:SetWidth(newContentWidth)
+        end
+    end
+    -- Update blacklist grid height dynamically when window resizes
+    if addon.blacklistGridCard then
+        local minHeight = 450
+        local dynamicHeight = math.max(minHeight, PAGE_HEIGHT - 300)
+        addon.blacklistGridCard.contentHeight = dynamicHeight
+        -- Actually resize the card frame
+        addon.blacklistGridCard:SetHeight(dynamicHeight + CardPadding)
+        if addon.blacklistGridCard.updateScrollBars then
+            addon.blacklistGridCard.updateScrollBars()
+        end
+    end
+end
+resizeHandle:SetScript("OnDragStart", function(self)
+    isResizing = true
+    startWidth = panel:GetWidth()
+    startHeight = panel:GetHeight()
+    local scale = UIParent and UIParent:GetEffectiveScale() or 1
+    startMouseX = select(1, GetCursorPosition()) / scale
+    startMouseY = select(2, GetCursorPosition()) / scale
+    self:SetScript("OnUpdate", ResizeOnUpdate)
+end)
+resizeHandle:SetScript("OnDragStop", function(self)
+    if not isResizing then return end
+    isResizing = false
+    self:SetScript("OnUpdate", nil)
+    if HorizonDB then
+        HorizonDB.optionsPanelWidth = panel:GetWidth()
+        HorizonDB.optionsPanelHeight = panel:GetHeight()
+    end
+end)
+
+-- Sleek L-shaped corner grip indicator
+local gripR, gripG, gripB, gripA = 0.55, 0.56, 0.6, 0.65
+local resizeLineH = resizeHandle:CreateTexture(nil, "OVERLAY")
+resizeLineH:SetSize(12, 2)
+resizeLineH:SetPoint("BOTTOMRIGHT", resizeHandle, "BOTTOMRIGHT", 0, 0)
+resizeLineH:SetColorTexture(gripR, gripG, gripB, gripA)
+local resizeLineV = resizeHandle:CreateTexture(nil, "OVERLAY")
+resizeLineV:SetSize(2, 12)
+resizeLineV:SetPoint("BOTTOMRIGHT", resizeHandle, "BOTTOMRIGHT", 0, 0)
+resizeLineV:SetColorTexture(gripR, gripG, gripB, gripA)
+
 local versionLabel = sidebar:CreateFontString(nil, "OVERLAY")
 versionLabel:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", Def.SectionSize or 10, "OUTLINE")
 SetTextColor(versionLabel, Def.TextColorSection)
@@ -644,6 +725,400 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
                     if ovCurrentZone and ovCurrentZone.Refresh then ovCurrentZone:Refresh() end
                 end,
             })
+        elseif opt.type == "blacklistGrid" then
+            if currentCard then FinalizeCard(currentCard) end
+            currentCard = OptionsWidgets_CreateSectionCard(tab, anchor)
+            anchor = currentCard
+            
+            -- Scrollable container for the grid (dynamically sized, scrollbars outside content)
+            local gridWrapper = CreateFrame("Frame", nil, currentCard)
+            gridWrapper:SetPoint("TOPLEFT", currentCard, "TOPLEFT", CardPadding, -CardPadding)
+            gridWrapper:SetPoint("BOTTOMRIGHT", currentCard, "BOTTOMRIGHT", -CardPadding, CardPadding)
+            
+            local scrollFrame = CreateFrame("ScrollFrame", nil, gridWrapper)
+            scrollFrame:SetPoint("TOPLEFT", gridWrapper, "TOPLEFT", 0, 0)
+            scrollFrame:SetPoint("BOTTOMRIGHT", gridWrapper, "BOTTOMRIGHT", -14, 14)  -- Space for scrollbars
+            scrollFrame:EnableMouseWheel(true)
+            
+            local scrollChild = CreateFrame("Frame", nil, scrollFrame)
+            scrollChild:SetSize(900, 1)  -- Wide enough for all columns
+            scrollFrame:SetScrollChild(scrollChild)
+            
+            -- Vertical scrollbar (outside content area)
+            local vScrollBar = CreateFrame("Slider", nil, gridWrapper)
+            vScrollBar:SetOrientation("VERTICAL")
+            vScrollBar:SetPoint("TOPRIGHT", gridWrapper, "TOPRIGHT", 0, 0)
+            vScrollBar:SetPoint("BOTTOMRIGHT", gridWrapper, "BOTTOMRIGHT", 0, 14)
+            vScrollBar:SetWidth(12)
+            vScrollBar:SetValueStep(1)
+            vScrollBar:SetObeyStepOnDrag(true)
+            local vScrollBg = vScrollBar:CreateTexture(nil, "BACKGROUND")
+            vScrollBg:SetAllPoints(vScrollBar)
+            vScrollBg:SetColorTexture(0.1, 0.1, 0.12, 0.8)
+            local vScrollThumb = vScrollBar:CreateTexture(nil, "OVERLAY")
+            vScrollThumb:SetSize(12, 30)
+            vScrollThumb:SetColorTexture(0.3, 0.3, 0.35, 0.9)
+            vScrollBar:SetThumbTexture(vScrollThumb)
+            vScrollBar:SetScript("OnValueChanged", function(self, value)
+                scrollFrame:SetVerticalScroll(value)
+            end)
+            
+            -- Horizontal scrollbar (outside content area)
+            local hScrollBar = CreateFrame("Slider", nil, gridWrapper)
+            hScrollBar:SetOrientation("HORIZONTAL")
+            hScrollBar:SetPoint("BOTTOMLEFT", gridWrapper, "BOTTOMLEFT", 0, 0)
+            hScrollBar:SetPoint("BOTTOMRIGHT", gridWrapper, "BOTTOMRIGHT", -14, 0)
+            hScrollBar:SetHeight(12)
+            hScrollBar:SetValueStep(1)
+            hScrollBar:SetObeyStepOnDrag(true)
+            local hScrollBg = hScrollBar:CreateTexture(nil, "BACKGROUND")
+            hScrollBg:SetAllPoints(hScrollBar)
+            hScrollBg:SetColorTexture(0.1, 0.1, 0.12, 0.8)
+            local hScrollThumb = hScrollBar:CreateTexture(nil, "OVERLAY")
+            hScrollThumb:SetSize(30, 12)
+            hScrollThumb:SetColorTexture(0.3, 0.3, 0.35, 0.9)
+            hScrollBar:SetThumbTexture(hScrollThumb)
+            hScrollBar:SetScript("OnValueChanged", function(self, value)
+                scrollFrame:SetHorizontalScroll(value)
+            end)
+            
+            -- Mouse wheel scrolling: up/down = vertical, Ctrl+wheel = horizontal
+            scrollFrame:SetScript("OnMouseWheel", function(self, delta)
+                if IsControlKeyDown() then
+                    -- Horizontal scroll (hold Ctrl)
+                    local current = self:GetHorizontalScroll()
+                    local maxScroll = math.max(0, scrollChild:GetWidth() - self:GetWidth())
+                    local new = math.max(0, math.min(current - (delta * 20), maxScroll))
+                    self:SetHorizontalScroll(new)
+                    hScrollBar:SetValue(new)
+                else
+                    -- Vertical scroll (normal)
+                    local current = self:GetVerticalScroll()
+                    local maxScroll = math.max(0, scrollChild:GetHeight() - self:GetHeight())
+                    local new = math.max(0, math.min(current - (delta * 20), maxScroll))
+                    self:SetVerticalScroll(new)
+                    vScrollBar:SetValue(new)
+                end
+            end)
+            
+            -- Update scrollbar ranges when content changes
+            local function UpdateScrollBars()
+                local maxV = math.max(0, scrollChild:GetHeight() - scrollFrame:GetHeight())
+                local maxH = math.max(0, scrollChild:GetWidth() - scrollFrame:GetWidth())
+                vScrollBar:SetMinMaxValues(0, maxV)
+                hScrollBar:SetMinMaxValues(0, maxH)
+                -- Set initial thumb position to force visibility
+                vScrollBar:SetValue(scrollFrame:GetVerticalScroll())
+                hScrollBar:SetValue(scrollFrame:GetHorizontalScroll())
+                vScrollBar:SetShown(maxV > 0)
+                hScrollBar:SetShown(maxH > 0)
+            end
+            
+            local gridContainer = scrollChild
+            currentCard.contentAnchor = gridWrapper
+            -- Dynamic height: wrapper fills card, card height grows with window
+            currentCard.contentHeight = math.max(450, PAGE_HEIGHT - 300)
+            currentCard.updateScrollBars = UpdateScrollBars
+            -- Store reference so resize handler can update this card's height
+            addon.blacklistGridCard = currentCard
+            
+            -- Update scrollbars when wrapper resizes (follows window resize)
+            gridWrapper:SetScript("OnSizeChanged", function()
+                if currentCard.updateScrollBars then
+                    currentCard.updateScrollBars()
+                end
+            end)
+            
+            -- Sorting state: column (id, title, type, zone) and direction (asc/desc)
+            local sortColumn = "id"
+            local sortAscending = false  -- default: ID descending
+            
+            local function BuildBlacklistGrid()
+                -- Clear existing children
+                local children = {gridContainer:GetChildren()}
+                for _, child in ipairs(children) do child:Hide() end
+                
+                -- If no blacklist, just show empty grid (no placeholder text)
+                if not HorizonDB or not HorizonDB.permanentQuestBlacklist or not next(HorizonDB.permanentQuestBlacklist) then
+                    gridContainer:SetSize(900, 40)
+                    scrollChild:SetHeight(40)
+                    if currentCard.updateScrollBars then currentCard.updateScrollBars() end
+                    return
+                end
+                
+                -- Build blacklist table
+                local blacklistData = {}
+                for questID in pairs(HorizonDB.permanentQuestBlacklist) do
+                    local title = C_QuestLog.GetTitleForQuestID(questID) or "Unknown Quest"
+                    local questType = "Quest"
+                    local zone = "Unknown"
+                    local color = addon.QUEST_COLORS and addon.QUEST_COLORS.DEFAULT or {0.78, 0.78, 0.78}
+                    
+                    -- Determine quest type and color
+                    if addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(questID) then
+                        questType = "World Quest"
+                        color = addon.QUEST_COLORS and addon.QUEST_COLORS.WORLD or color
+                    elseif addon.IsQuestDailyOrWeekly then
+                        local freq = addon.IsQuestDailyOrWeekly(questID)
+                        if freq == "weekly" then
+                            questType = "Weekly"
+                            color = addon.QUEST_COLORS and addon.QUEST_COLORS.WEEKLY or color
+                        elseif freq == "daily" then
+                            questType = "Daily"
+                            color = addon.QUEST_COLORS and addon.QUEST_COLORS.DAILY or color
+                        end
+                    end
+                    
+                    -- Get zone info
+                    local mapID = C_TaskQuest.GetQuestZoneID and C_TaskQuest.GetQuestZoneID(questID)
+                    if not mapID and C_QuestLog.GetQuestInfo then
+                        local info = C_QuestLog.GetQuestInfo(questID)
+                        if info then zone = info.zoneName or zone end
+                    end
+                    if mapID then
+                        local mapInfo = C_Map.GetMapInfo(mapID)
+                        if mapInfo then zone = mapInfo.name end
+                    end
+                    
+                    table.insert(blacklistData, {questID = questID, title = title, questType = questType, zone = zone, color = color})
+                end
+                
+                -- Sort based on current column and direction
+                table.sort(blacklistData, function(a, b)
+                    if not a or not b then return false end
+                    local valA, valB
+                    if sortColumn == "id" then
+                        valA, valB = a.questID or 0, b.questID or 0
+                        return sortAscending and (valA < valB) or (valA > valB)
+                    elseif sortColumn == "title" then
+                        valA = (a.title or ""):lower()
+                        valB = (b.title or ""):lower()
+                        return sortAscending and (valA < valB) or (valA > valB)
+                    elseif sortColumn == "type" then
+                        valA = (a.questType or ""):lower()
+                        valB = (b.questType or ""):lower()
+                        return sortAscending and (valA < valB) or (valA > valB)
+                    elseif sortColumn == "zone" then
+                        valA = (a.zone or ""):lower()
+                        valB = (b.zone or ""):lower()
+                        return sortAscending and (valA < valB) or (valA > valB)
+                    end
+                    return false
+                end)
+                
+                -- Header row with distinct styling
+                local header = CreateFrame("Frame", nil, gridContainer)
+                header:SetSize(900, 24)
+                header:SetPoint("TOPLEFT", gridContainer, "TOPLEFT", 0, 0)
+                local headerBg = header:CreateTexture(nil, "BACKGROUND")
+                headerBg:SetAllPoints(header)
+                headerBg:SetColorTexture(0.18, 0.19, 0.22, 1)
+                
+                -- Header bottom border
+                local headerBorder = header:CreateTexture(nil, "BORDER")
+                headerBorder:SetSize(900, 2)
+                headerBorder:SetPoint("BOTTOMLEFT", header, "BOTTOMLEFT", 0, 0)
+                headerBorder:SetColorTexture(0.3, 0.32, 0.36, 1)
+                
+                -- Helper to create clickable header with vertical dividers
+                local function MakeHeaderButton(parent, text, column, xPos, width)
+                    local btn = CreateFrame("Button", nil, parent)
+                    btn:SetSize(width, 24)
+                    btn:SetPoint("LEFT", parent, "LEFT", xPos, 0)
+                    
+                    -- Vertical divider (right edge)
+                    local divider = btn:CreateTexture(nil, "OVERLAY")
+                    divider:SetSize(1, 18)
+                    divider:SetPoint("RIGHT", btn, "RIGHT", 0, 0)
+                    divider:SetColorTexture(0.25, 0.27, 0.30, 0.8)
+                    
+                    local lbl = btn:CreateFontString(nil, "OVERLAY")
+                    lbl:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", (Def.LabelSize or 13), "OUTLINE")
+                    SetTextColor(lbl, {0.85, 0.87, 0.90})
+                    lbl:SetPoint("LEFT", btn, "LEFT", 4, 0)
+                    btn.label = lbl
+                    btn.column = column
+                    local arrow = btn:CreateFontString(nil, "OVERLAY")
+                    arrow:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+                    arrow:SetPoint("LEFT", lbl, "RIGHT", 3, 0)
+                    btn.arrow = arrow
+                    btn:SetScript("OnClick", function()
+                        if sortColumn == column then
+                            sortAscending = not sortAscending
+                        else
+                            sortColumn = column
+                            sortAscending = true
+                        end
+                        BuildBlacklistGrid()
+                    end)
+                    btn:SetScript("OnEnter", function() SetTextColor(lbl, Def.TextColorHighlight or {0.4, 0.7, 1}) end)
+                    btn:SetScript("OnLeave", function() SetTextColor(lbl, {0.85, 0.87, 0.90}) end)
+                    -- Update text and arrow
+                    lbl:SetText(text)
+                    if sortColumn == column then
+                        arrow:SetText(sortAscending and "^" or "v")
+                        SetTextColor(arrow, Def.TextColorHighlight or {0.4, 0.7, 1})
+                    else
+                        arrow:SetText("")
+                    end
+                    return btn
+                end
+                
+                -- Static checkbox column header
+                local cbHeader = header:CreateFontString(nil, "OVERLAY")
+                cbHeader:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", (Def.LabelSize or 13), "OUTLINE")
+                SetTextColor(cbHeader, {0.85, 0.87, 0.90})
+                cbHeader:SetPoint("LEFT", header, "LEFT", 8, 0)
+                
+                -- Row # column header
+                local rowHeader = header:CreateFontString(nil, "OVERLAY")
+                rowHeader:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", (Def.LabelSize or 13), "OUTLINE")
+                SetTextColor(rowHeader, {0.85, 0.87, 0.90})
+                rowHeader:SetText("#")
+                rowHeader:SetPoint("LEFT", header, "LEFT", 34, 0)
+                
+                -- Column dividers
+                local divider1 = header:CreateTexture(nil, "OVERLAY")
+                divider1:SetSize(1, 18)
+                divider1:SetPoint("LEFT", header, "LEFT", 28, 0)
+                divider1:SetColorTexture(0.25, 0.27, 0.30, 0.8)
+                
+                local divider2 = header:CreateTexture(nil, "OVERLAY")
+                divider2:SetSize(1, 18)
+                divider2:SetPoint("LEFT", header, "LEFT", 62, 0)
+                divider2:SetColorTexture(0.25, 0.27, 0.30, 0.8)
+                
+                MakeHeaderButton(header, "ID", "id", 63, 80)
+                MakeHeaderButton(header, "Title", "title", 143, 280)
+                MakeHeaderButton(header, "Type", "type", 423, 120)
+                MakeHeaderButton(header, "Zone", "zone", 543, 180)
+                
+                local yOffset = -26
+                for i, data in ipairs(blacklistData) do
+                    local row = CreateFrame("Button", nil, gridContainer)
+                    row:SetSize(900, 26)
+                    row:SetPoint("TOPLEFT", gridContainer, "TOPLEFT", 0, yOffset)
+                    
+                    -- Alternating background
+                    local rowBg = row:CreateTexture(nil, "BACKGROUND")
+                    rowBg:SetAllPoints(row)
+                    rowBg:SetColorTexture(0.08, 0.08, 0.10, i % 2 == 0 and 0.5 or 0.2)
+                    
+                    -- Row bottom border
+                    local rowBorder = row:CreateTexture(nil, "BORDER")
+                    rowBorder:SetSize(900, 1)
+                    rowBorder:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
+                    rowBorder:SetColorTexture(0.12, 0.12, 0.14, 0.6)
+                    
+                    -- Checkbox
+                    local cb = CreateFrame("CheckButton", nil, row)
+                    cb:SetSize(16, 16)
+                    cb:SetPoint("LEFT", row, "LEFT", 6, 0)
+                    cb:SetChecked(true)
+                    cb:SetNormalTexture("Interface\\Buttons\\UI-CheckBox-Up")
+                    cb:SetPushedTexture("Interface\\Buttons\\UI-CheckBox-Down")
+                    cb:SetHighlightTexture("Interface\\Buttons\\UI-CheckBox-Highlight", "ADD")
+                    cb:SetCheckedTexture("Interface\\Buttons\\UI-CheckBox-Check")
+                    cb:SetScript("OnClick", function(self)
+                        if not self:GetChecked() then
+                            -- Remove from blacklist
+                            if HorizonDB and HorizonDB.permanentQuestBlacklist then
+                                HorizonDB.permanentQuestBlacklist[data.questID] = nil
+                            end
+                            BuildBlacklistGrid()
+                            if addon.FullLayout then addon.FullLayout() end
+                        end
+                    end)
+                    
+                    -- Column dividers
+                    local div1 = row:CreateTexture(nil, "OVERLAY")
+                    div1:SetSize(1, 22)
+                    div1:SetPoint("LEFT", row, "LEFT", 28, 0)
+                    div1:SetColorTexture(0.15, 0.15, 0.17, 0.5)
+                    
+                    local div2 = row:CreateTexture(nil, "OVERLAY")
+                    div2:SetSize(1, 22)
+                    div2:SetPoint("LEFT", row, "LEFT", 62, 0)
+                    div2:SetColorTexture(0.15, 0.15, 0.17, 0.5)
+                    
+                    local div3 = row:CreateTexture(nil, "OVERLAY")
+                    div3:SetSize(1, 22)
+                    div3:SetPoint("LEFT", row, "LEFT", 143, 0)
+                    div3:SetColorTexture(0.15, 0.15, 0.17, 0.5)
+                    
+                    local div4 = row:CreateTexture(nil, "OVERLAY")
+                    div4:SetSize(1, 22)
+                    div4:SetPoint("LEFT", row, "LEFT", 423, 0)
+                    div4:SetColorTexture(0.15, 0.15, 0.17, 0.5)
+                    
+                    local div5 = row:CreateTexture(nil, "OVERLAY")
+                    div5:SetSize(1, 22)
+                    div5:SetPoint("LEFT", row, "LEFT", 543, 0)
+                    div5:SetColorTexture(0.15, 0.15, 0.17, 0.5)
+                    
+                    -- Row number
+                    local rowNum = row:CreateFontString(nil, "OVERLAY")
+                    rowNum:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", (Def.LabelSize or 13) - 2, "")
+                    SetTextColor(rowNum, {0.5, 0.52, 0.55})
+                    rowNum:SetText(tostring(i))
+                    rowNum:SetPoint("CENTER", row, "LEFT", 45, 0)
+                    
+                    -- ID
+                    local idText = row:CreateFontString(nil, "OVERLAY")
+                    idText:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", (Def.LabelSize or 13) - 2, "")
+                    SetTextColor(idText, data.color)
+                    idText:SetText(tostring(data.questID))
+                    idText:SetPoint("LEFT", row, "LEFT", 68, 0)
+                    
+                    -- Title
+                    local titleText = row:CreateFontString(nil, "OVERLAY")
+                    titleText:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", (Def.LabelSize or 13) - 2, "")
+                    SetTextColor(titleText, data.color)
+                    titleText:SetText(data.title)
+                    titleText:SetPoint("LEFT", row, "LEFT", 148, 0)
+                    titleText:SetWidth(270)
+                    titleText:SetJustifyH("LEFT")
+                    titleText:SetWordWrap(false)
+                    
+                    -- Type
+                    local typeText = row:CreateFontString(nil, "OVERLAY")
+                    typeText:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", (Def.LabelSize or 13) - 2, "")
+                    SetTextColor(typeText, data.color)
+                    typeText:SetText(data.questType)
+                    typeText:SetPoint("LEFT", row, "LEFT", 428, 0)
+                    
+                    -- Zone
+                    local zoneText = row:CreateFontString(nil, "OVERLAY")
+                    zoneText:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", (Def.LabelSize or 13) - 2, "")
+                    SetTextColor(zoneText, data.color)
+                    zoneText:SetText(data.zone)
+                    zoneText:SetPoint("LEFT", row, "LEFT", 548, 0)
+                    zoneText:SetWidth(170)
+                    zoneText:SetJustifyH("LEFT")
+                    zoneText:SetWordWrap(false)
+                    
+                    -- Hover highlight
+                    local origBgColor = {0.08, 0.08, 0.10, i % 2 == 0 and 0.5 or 0.2}
+                    row:SetScript("OnEnter", function() rowBg:SetColorTexture(0.2, 0.25, 0.3, 0.7) end)
+                    row:SetScript("OnLeave", function() rowBg:SetColorTexture(origBgColor[1], origBgColor[2], origBgColor[3], origBgColor[4]) end)
+                    
+                    yOffset = yOffset - 27
+                end
+                
+                local totalHeight = math.max(100, math.abs(yOffset) + 27)
+                gridContainer:SetSize(900, totalHeight)
+                scrollChild:SetHeight(totalHeight)
+                
+                -- Update scrollbars
+                if currentCard.updateScrollBars then currentCard.updateScrollBars() end
+            end
+            
+            BuildBlacklistGrid()
+            -- Export refresh function to addon namespace
+            addon.RefreshBlacklistGrid = BuildBlacklistGrid
+            local oid = opt.name:gsub("%s+", "_")
+            if optionFrames then optionFrames[oid] = { tabIndex = tabIndex, frame = currentCard } end
+            table.insert(refreshers, { Refresh = BuildBlacklistGrid })
         elseif opt.type == "colorGroup" then
             if currentCard then FinalizeCard(currentCard) end
             currentCard = OptionsWidgets_CreateSectionCard(tab, anchor)
@@ -1136,6 +1611,18 @@ local ANIM_DUR = 0.2
 local easeOut = addon.easeOut or function(t) return 1 - (1-t)*(1-t) end
 panel:SetScript("OnShow", function()
     updateOptionsPanelFonts()
+    -- Restore saved dimensions
+    if HorizonDB then
+        if HorizonDB.optionsPanelWidth then
+            panel:SetWidth(math.max(600, math.min(1400, HorizonDB.optionsPanelWidth)))
+            PAGE_WIDTH = panel:GetWidth()
+        end
+        if HorizonDB.optionsPanelHeight then
+            panel:SetHeight(math.max(500, math.min(1200, HorizonDB.optionsPanelHeight)))
+            PAGE_HEIGHT = panel:GetHeight()
+        end
+    end
+    -- Restore saved position
     if HorizonDB and HorizonDB.optionsLeft ~= nil and HorizonDB.optionsTop ~= nil then
         panel:ClearAllPoints()
         panel:SetPoint("CENTER", UIParent, "CENTER", HorizonDB.optionsLeft, HorizonDB.optionsTop)
