@@ -37,12 +37,10 @@ local function GetQuestFrequency(questID)
     if not logIndex then return nil end
     if GetQuestLogTitle then
         local ok, _, _, _, _, _, frequency = pcall(GetQuestLogTitle, logIndex)
-        if not ok and addon.HSPrint then addon.HSPrint("GetQuestLogTitle failed: " .. tostring(logIndex)) end
         if ok and frequency ~= nil then return frequency end
     end
     if C_QuestLog.GetInfo then
         local ok, info = pcall(C_QuestLog.GetInfo, logIndex)
-        if not ok and addon.HSPrint then addon.HSPrint("C_QuestLog.GetInfo failed: " .. tostring(logIndex)) end
         if ok and info and info.frequency ~= nil then return info.frequency end
     end
     return nil
@@ -374,12 +372,10 @@ local function ReadTrackedQuests()
         if logIndex then
             if C_QuestLog.GetInfo then
                 local ok, info = pcall(C_QuestLog.GetInfo, logIndex)
-                if not ok and addon.HSPrint then addon.HSPrint("C_QuestLog.GetInfo (level) failed: " .. tostring(logIndex)) end
                 if ok and info and info.level then questLevel = info.level end
             end
             if not questLevel and GetQuestLogTitle then
                 local ok, _, level = pcall(GetQuestLogTitle, logIndex)
-                if not ok and addon.HSPrint then addon.HSPrint("GetQuestLogTitle (level) failed: " .. tostring(logIndex)) end
                 if ok and level then questLevel = level end
             end
         end

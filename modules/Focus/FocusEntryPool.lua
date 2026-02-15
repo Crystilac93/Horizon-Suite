@@ -88,8 +88,7 @@ local function CreateQuestEntry(parent, index)
         local entry = self:GetParent()
         if entry.itemLink then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            local ok, err = pcall(GameTooltip.SetHyperlink, GameTooltip, entry.itemLink)
-            if not ok and addon.HSPrint then addon.HSPrint("Tooltip SetHyperlink (item) failed: " .. tostring(err)) end
+            pcall(GameTooltip.SetHyperlink, GameTooltip, entry.itemLink)
             GameTooltip:Show()
         end
     end)

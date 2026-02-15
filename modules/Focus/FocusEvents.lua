@@ -198,12 +198,8 @@ local function OnQuestWatchListChanged(questID, added)
             addon.recentlyUntrackedWorldQuests[questID] = nil
         else
             addon.recentlyUntrackedWorldQuests[questID] = true
-            -- When removed from watch list, also remove from WQT tracking if present
             if addon.wqtTrackedQuests and addon.wqtTrackedQuests[questID] then
                 addon.wqtTrackedQuests[questID] = nil
-                if addon.HSPrint then
-                    addon.HSPrint("[Events] Removed WQ " .. tostring(questID) .. " from WQT tracking (watch list removed)")
-                end
             end
         end
     end
