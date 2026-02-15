@@ -115,6 +115,10 @@ for i = 1, addon.POOL_SIZE do
                 local vignetteGUID = self.entryKey:match("^vignette:(.+)$")
                 if vignetteGUID and C_SuperTrack and C_SuperTrack.SetSuperTrackedVignette then
                     C_SuperTrack.SetSuperTrackedVignette(vignetteGUID)
+                    local wqtPanel = _G.WorldQuestTrackerScreenPanel
+                    if wqtPanel and wqtPanel:IsShown() then
+                        wqtPanel:Hide()
+                    end
                 end
                 if WorldMapFrame and not WorldMapFrame:IsShown() and ToggleWorldMap then
                     ToggleWorldMap()
@@ -158,6 +162,10 @@ for i = 1, addon.POOL_SIZE do
                     -- Quest not yet accepted: set waypoint to quest giver/start location
                     if C_SuperTrack and C_SuperTrack.SetSuperTrackedQuestID then
                         C_SuperTrack.SetSuperTrackedQuestID(self.questID)
+                        local wqtPanel = _G.WorldQuestTrackerScreenPanel
+                        if wqtPanel and wqtPanel:IsShown() then
+                            wqtPanel:Hide()
+                        end
                     end
                 end
                 addon.ScheduleRefresh()
@@ -171,6 +179,10 @@ for i = 1, addon.POOL_SIZE do
             end
             if C_SuperTrack and C_SuperTrack.SetSuperTrackedQuestID then
                 C_SuperTrack.SetSuperTrackedQuestID(self.questID)
+                local wqtPanel = _G.WorldQuestTrackerScreenPanel
+                if wqtPanel and wqtPanel:IsShown() then
+                    wqtPanel:Hide()
+                end
             end
             if addon.FullLayout and not InCombatLockdown() then
                 addon.FullLayout()
@@ -219,6 +231,10 @@ for i = 1, addon.POOL_SIZE do
                 if vignetteGUID and C_SuperTrack and C_SuperTrack.GetSuperTrackedVignette then
                     if C_SuperTrack.GetSuperTrackedVignette() == vignetteGUID then
                         C_SuperTrack.SetSuperTrackedVignette(nil)
+                        local wqtPanel = _G.WorldQuestTrackerScreenPanel
+                        if wqtPanel and wqtPanel:IsShown() then
+                            wqtPanel:Hide()
+                        end
                     end
                 end
                 return
@@ -244,6 +260,10 @@ for i = 1, addon.POOL_SIZE do
                     local focusedQuestID = C_SuperTrack.GetSuperTrackedQuestID()
                     if focusedQuestID and focusedQuestID == self.questID then
                         C_SuperTrack.SetSuperTrackedQuestID(0)
+                        local wqtPanel = _G.WorldQuestTrackerScreenPanel
+                        if wqtPanel and wqtPanel:IsShown() then
+                            wqtPanel:Hide()
+                        end
                         if addon.FullLayout and not InCombatLockdown() then
                             addon.FullLayout()
                         end

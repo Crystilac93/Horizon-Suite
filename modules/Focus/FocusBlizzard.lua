@@ -25,6 +25,7 @@ end
 
 local trackerSuppressed = false
 local wqtSuppressed = false
+local wqtSuppressionTicker = nil
 
 local function TrySuppressTracker()
     if trackerSuppressed then return end
@@ -39,9 +40,28 @@ local function TrySuppressTracker()
             wqtSuppressed = true
         end
     end
+    if not wqtSuppressionTicker and addon.enabled then
+        wqtSuppressionTicker = C_Timer.NewTicker(0.1, function()
+            if not addon.enabled then
+                if wqtSuppressionTicker then
+                    wqtSuppressionTicker:Cancel()
+                    wqtSuppressionTicker = nil
+                end
+                return
+            end
+            local wqtFrame = _G.WorldQuestTrackerScreenPanel
+            if wqtFrame and wqtFrame:IsShown() then
+                wqtFrame:Hide()
+            end
+        end)
+    end
 end
 
 local function RestoreTracker()
+    if wqtSuppressionTicker then
+        wqtSuppressionTicker:Cancel()
+        wqtSuppressionTicker = nil
+    end
     if not trackerSuppressed then return end
     if ObjectiveTrackerFrame then
         pcall(function()
@@ -83,6 +103,16 @@ local function HookWQTTracking()
     local WQT = _G.WorldQuestTrackerAddon
     if not WQT then return end
     
+    if WQT.RefreshTrackerAnchor then
+        hooksecurefunc(WQT, "RefreshTrackerAnchor", function()
+            if not addon.enabled then return end
+            local wqtPanel = _G.WorldQuestTrackerScreenPanel
+            if wqtPanel and wqtPanel:IsShown() then
+                wqtPanel:Hide()
+            end
+        end)
+    end
+    
     if WQT.AddQuestToTracker then
         hooksecurefunc(WQT, "AddQuestToTracker", function(self, questID, mapID)
             if not addon.enabled then return end
@@ -93,8 +123,16 @@ local function HookWQTTracking()
             if isWorldQuest then
                 addon.wqtTrackedQuests = addon.wqtTrackedQuests or {}
                 addon.wqtTrackedQuests[qid] = true
+                if HorizonDB then
+                    HorizonDB.wqtTrackedQuests = HorizonDB.wqtTrackedQuests or {}
+                    HorizonDB.wqtTrackedQuests[qid] = true
+                end
             elseif C_QuestLog and C_QuestLog.AddQuestWatch then
                 C_QuestLog.AddQuestWatch(qid)
+            end
+            local wqtPanel = _G.WorldQuestTrackerScreenPanel
+            if wqtPanel and wqtPanel:IsShown() then
+                wqtPanel:Hide()
             end
             C_Timer.After(0.1, function()
                 if addon.ScheduleRefresh then addon.ScheduleRefresh() end
@@ -109,6 +147,13 @@ local function HookWQTTracking()
             if not addon.enabled or not questID then return end
             if addon.wqtTrackedQuests and addon.wqtTrackedQuests[questID] then
                 addon.wqtTrackedQuests[questID] = nil
+                if HorizonDB and HorizonDB.wqtTrackedQuests then
+                    HorizonDB.wqtTrackedQuests[questID] = nil
+                end
+                local wqtPanel = _G.WorldQuestTrackerScreenPanel
+                if wqtPanel and wqtPanel:IsShown() then
+                    wqtPanel:Hide()
+                end
                 C_Timer.After(0.1, function()
                     if addon.ScheduleRefresh then addon.ScheduleRefresh() end
                 end)

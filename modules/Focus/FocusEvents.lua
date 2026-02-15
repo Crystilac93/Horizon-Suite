@@ -200,6 +200,9 @@ local function OnQuestWatchListChanged(questID, added)
             addon.recentlyUntrackedWorldQuests[questID] = true
             if addon.wqtTrackedQuests and addon.wqtTrackedQuests[questID] then
                 addon.wqtTrackedQuests[questID] = nil
+                if HorizonDB and HorizonDB.wqtTrackedQuests then
+                    HorizonDB.wqtTrackedQuests[questID] = nil
+                end
             end
         end
     end

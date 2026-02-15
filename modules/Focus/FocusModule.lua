@@ -106,6 +106,14 @@ addon:RegisterModule("focus", {
 
     OnEnable = function()
         addon.enabled = true
+        if HorizonDB and HorizonDB.wqtTrackedQuests then
+            addon.wqtTrackedQuests = addon.wqtTrackedQuests or {}
+            for questID, tracked in pairs(HorizonDB.wqtTrackedQuests) do
+                if tracked then
+                    addon.wqtTrackedQuests[questID] = true
+                end
+            end
+        end
         addon.RestoreSavedPosition()
         addon.ApplyTypography()
         addon.ApplyDimensions()
