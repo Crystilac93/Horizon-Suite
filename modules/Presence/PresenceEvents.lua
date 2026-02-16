@@ -6,7 +6,7 @@
 local addon = _G.HorizonSuite
 if not addon or not addon.Presence then return end
 
--- Temporary diagnostics for world quest live-update debugging. Set to true to log to chat.
+-- Temporary diagnostics for debugging.
 local PRESENCE_DEBUG_WQ = false
 local function DbgWQ(...)
     if not PRESENCE_DEBUG_WQ or not addon.HSPrint then return end
@@ -28,7 +28,7 @@ local function StripPresenceMarkup(s)
 end
 
 -- ============================================================================
--- QUEST TEXT DETECTION (used by PresenceErrors and here)
+-- QUEST TEXT DETECTION
 -- ============================================================================
 
 local function IsQuestText(msg)
@@ -71,7 +71,6 @@ local PRESENCE_EVENTS = {
 
 local function OnAddonLoaded(addonName)
     if addonName == "Blizzard_WorldQuestComplete" and addon.Presence.KillWorldQuestBanner then
-        -- Defer so the addon has time to create WorldQuestCompleteBannerFrame
         C_Timer.After(0, function()
             addon.Presence.KillWorldQuestBanner()
         end)
@@ -123,7 +122,6 @@ local function OnQuestTurnedIn(_, questID)
         if C_QuestLog.GetTitleForQuestID then
             questName = StripPresenceMarkup(C_QuestLog.GetTitleForQuestID(questID) or questName)
         end
-        -- Use addon.IsQuestWorldQuest (QuestUtils + C_QuestLog) so world quests are detected even at turn-in when quest may be removed from log
         if addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(questID) then
             addon.Presence.QueueOrPlay("WORLD_QUEST", "WORLD QUEST", questName, opts)
             return
@@ -132,31 +130,109 @@ local function OnQuestTurnedIn(_, questID)
     addon.Presence.QueueOrPlay("QUEST_COMPLETE", "QUEST COMPLETE", questName, opts)
 end
 
-local lastQuestUpdateQuestID, lastQuestUpdateTime = nil, 0
-local lastUIInfoMsg, lastUIInfoTime = nil, 0
-local QUEST_UPDATE_THROTTLE = 1.5  -- seconds between toasts per quest
-local questLogUpdateTimer = nil
-local lastQuestObjectivesCache = {}  -- questID -> serialized objectives; only show toast when this changes
-local QUEST_LOG_RETRY_DELAY = 0.2
-local QUEST_LOG_MAX_RETRIES = 3
+-- ============================================================================
+-- QUEST UPDATE LOGIC (DEBOUNCED)
+-- ============================================================================
 
--- Scenario start: track transition !IsScenarioActive -> IsScenarioActive; suppress on reload.
-local wasInScenario = false
-local scenarioCheckPending = false
-local SCENARIO_DEBOUNCE = 0.4
+local lastQuestObjectivesCache = {}  -- questID -> serialized objectives
+local bufferedUpdates = {}           -- questID -> timerObject
+local UPDATE_BUFFER_TIME = 0.35      -- Time to wait for data to settle (fix for 55/100 vs 71/100)
 
--- Resolve which world quest to show an objective update for.
--- Order: super-tracked > ReadTrackedQuests (only nearby). No quest-log fallback (no proximity data).
+-- Core function to actually show the update after the buffer timer expires
+local function ExecuteQuestUpdate(questID, isBlindUpdate)
+    bufferedUpdates[questID] = nil -- Clear the timer ref
+
+    if not questID or questID <= 0 then return end
+    
+    -- Note: We removed the IsComplete check here so 8/8 progress can show before the quest turn-in event takes over.
+    
+    -- 1. Fetch current objectives
+    local objectives = (C_QuestLog and C_QuestLog.GetQuestObjectives) and (C_QuestLog.GetQuestObjectives(questID) or {}) or {}
+    
+    -- If no objectives (quest vanished/completed fully), abort.
+    if #objectives == 0 then return end
+
+    -- 2. Build state string
+    local parts = {}
+    for i = 1, #objectives do
+        local o = objectives[i]
+        parts[i] = (o and o.text or "") .. "|" .. (o and o.finished and "1" or "0")
+    end
+    local objKey = table.concat(parts, ";")
+
+    -- 3. Compare with cache
+    if lastQuestObjectivesCache[questID] == objKey then
+        DbgWQ("ExecuteQuestUpdate: Unchanged", questID)
+        return 
+    end
+
+    -- 4. Check for Blind Update Suppression (Fix for unrelated quests)
+    -- If this is a blind update (guessed ID) AND we have no history of this quest, assume it's just initialization.
+    local isNew = (lastQuestObjectivesCache[questID] == nil)
+    lastQuestObjectivesCache[questID] = objKey -- Update cache now
+
+    if isBlindUpdate and isNew then
+        DbgWQ("ExecuteQuestUpdate: Suppressed blind new entry", questID)
+        return
+    end
+
+    -- 5. Find the text to display
+    local msg = nil
+    for i = 1, #objectives do
+        local o = objectives[i]
+        -- Prioritize the first unfinished objective with text
+        if o and o.text and o.text ~= "" and not o.finished then
+            msg = o.text
+            break
+        end
+    end
+    -- Fallback: Use any text if everything is finished (e.g. 8/8)
+    if not msg and #objectives > 0 then
+        local o = objectives[1]
+        if o and o.text and o.text ~= "" then msg = o.text end
+    end
+    
+    if not msg or msg == "" then msg = "Objective updated" end
+
+    -- 6. Trigger notification
+    addon.Presence.QueueOrPlay("QUEST_UPDATE", "QUEST UPDATE", StripPresenceMarkup(msg), { questID = questID })
+    DbgWQ("ExecuteQuestUpdate: Shown", questID, msg)
+end
+
+-- Entry point for requesting an update. Resets the timer to ensure we only process the *final* state.
+local function RequestQuestUpdate(questID, isBlindUpdate)
+    if not questID then return end
+    
+    -- Cancel existing timer for this quest (debounce)
+    if bufferedUpdates[questID] then
+        bufferedUpdates[questID]:Cancel()
+    end
+    
+    -- Schedule new timer
+    bufferedUpdates[questID] = C_Timer.After(UPDATE_BUFFER_TIME, function()
+        ExecuteQuestUpdate(questID, isBlindUpdate)
+    end)
+end
+
+
+-- ============================================================================
+-- EVENT HANDLERS
+-- ============================================================================
+
+local function OnQuestWatchUpdate(_, questID)
+    -- Direct update from the game for a specific quest. Not blind.
+    RequestQuestUpdate(questID, false)
+end
+
 local function GetWorldQuestIDForObjectiveUpdate()
-    -- 1. Super-tracked world quest (user focused in tracker)
+    -- 1. Super-tracked
     local super = (C_SuperTrack and C_SuperTrack.GetSuperTrackedQuestID) and C_SuperTrack.GetSuperTrackedQuestID() or 0
     if super and super > 0 and addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(super) then
         if not (C_QuestLog and C_QuestLog.IsComplete and C_QuestLog.IsComplete(super)) then
-            DbgWQ("GetWorldQuestID: super-tracked", super)
             return super
         end
     end
-    -- 2. ReadTrackedQuests: only nearby/in-area quests (avoids distant WQ toasts after completing one)
+    -- 2. Nearby Tracked
     if addon.ReadTrackedQuests then
         local candidates = {}
         for _, q in ipairs(addon.ReadTrackedQuests()) do
@@ -164,113 +240,50 @@ local function GetWorldQuestIDForObjectiveUpdate()
                 candidates[#candidates + 1] = q.questID
             end
         end
-        DbgWQ("GetWorldQuestID: ReadTrackedQuests nearby WQ/CALLING incomplete count=", #candidates)
         if #candidates > 0 then return candidates[1] end
-    else
-        DbgWQ("GetWorldQuestID: ReadTrackedQuests nil")
     end
-    DbgWQ("GetWorldQuestID: no candidate")
     return nil
 end
 
--- Returns exit reason: "shown", "no_quest", "complete", "throttled", "unchanged"
-local function TryShowQuestUpdate(questID)
-    if not questID or questID <= 0 then
-        DbgWQ("TryShowQuestUpdate: no_quest")
-        return "no_quest"
-    end
-    if C_QuestLog and C_QuestLog.IsComplete and C_QuestLog.IsComplete(questID) then
-        DbgWQ("TryShowQuestUpdate: complete questID=", questID)
-        lastQuestObjectivesCache[questID] = nil
-        return "complete"
-    end
-    local now = GetTime()
-    if lastQuestUpdateQuestID == questID and (now - lastQuestUpdateTime) < QUEST_UPDATE_THROTTLE then
-        DbgWQ("TryShowQuestUpdate: throttled questID=", questID)
-        return "throttled"
-    end
-
-    -- Build serialized objective state; only show if it actually changed (avoids periodic QUEST_LOG_UPDATE spam)
-    local objectives = (C_QuestLog and C_QuestLog.GetQuestObjectives) and (C_QuestLog.GetQuestObjectives(questID) or {}) or {}
-    local parts = {}
-    for i = 1, #objectives do
-        local o = objectives[i]
-        parts[i] = (o and o.text or "") .. "|" .. (o and o.finished and "1" or "0")
-    end
-    local objKey = table.concat(parts, ";")
-    if lastQuestObjectivesCache[questID] == objKey then
-        DbgWQ("TryShowQuestUpdate: unchanged questID=", questID)
-        return "unchanged"
-    end
-    lastQuestObjectivesCache[questID] = objKey
-    lastQuestUpdateQuestID, lastQuestUpdateTime = questID, now
-
-    local msg = nil
-    for i = 1, #objectives do
-        local o = objectives[i]
-        if o and o.text and o.text ~= "" and not o.finished then
-            msg = o.text
-            break
-        end
-    end
-    if not msg and #objectives > 0 then
-        local o = objectives[1]
-        if o and o.text and o.text ~= "" then msg = o.text end
-    end
-    if not msg or msg == "" then msg = "Objective updated" end
-
-    addon.Presence.QueueOrPlay("QUEST_UPDATE", "QUEST UPDATE", StripPresenceMarkup(msg), { questID = questID })
-    DbgWQ("TryShowQuestUpdate: shown questID=", questID)
-    return "shown"
-end
-
-local function OnQuestWatchUpdate(_, questID)
-    TryShowQuestUpdate(questID)
-end
-
--- QUEST_WATCH_UPDATE does not fire for world/task quests; QUEST_LOG_UPDATE does.
--- Retry quest-ID resolution a few times (timing: map/quest APIs can lag).
 local function OnQuestLogUpdate()
-    if addon.Presence._suppressQuestUpdateOnReload then return end  -- suppress on reload
-    if questLogUpdateTimer then return end  -- already pending
-    DbgWQ("QUEST_LOG_UPDATE fired, starting retry chain")
-    local retryCount = 0
-    local function attempt()
-        retryCount = retryCount + 1
-        local questID = GetWorldQuestIDForObjectiveUpdate()
-        DbgWQ("OnQuestLogUpdate attempt", retryCount, "questID=", tostring(questID))
-        if questID and questID > 0 then
-            questLogUpdateTimer = nil
-            local reason = TryShowQuestUpdate(questID)
-            DbgWQ("OnQuestLogUpdate: TryShowQuestUpdate questID=", questID, "reason=", reason)
-            return
-        end
-        if retryCount < QUEST_LOG_MAX_RETRIES then
-            questLogUpdateTimer = C_Timer.After(QUEST_LOG_RETRY_DELAY, attempt)
-        else
-            questLogUpdateTimer = nil
-            DbgWQ("OnQuestLogUpdate: exhausted retries")
-        end
+    if addon.Presence._suppressQuestUpdateOnReload then return end
+    
+    -- Blind scan: we don't know exactly which quest changed, so we guess the active WQ.
+    local questID = GetWorldQuestIDForObjectiveUpdate()
+    if questID then
+        -- Pass true for isBlindUpdate to suppress popup if we've never seen this quest before
+        RequestQuestUpdate(questID, true)
     end
-    questLogUpdateTimer = C_Timer.After(QUEST_LOG_RETRY_DELAY, attempt)
 end
+
+local lastUIInfoMsg, lastUIInfoTime = nil, 0
+local UI_MSG_THROTTLE = 1.0
 
 local function OnUIInfoMessage(_, msgType, msg)
     if IsQuestText(msg) and not (msg and (msg:find("Quest Accepted") or msg:find("Accepted"))) then
-        local questID = (C_SuperTrack and C_SuperTrack.GetSuperTrackedQuestID) and C_SuperTrack.GetSuperTrackedQuestID() or nil
-        if questID and questID <= 0 then questID = nil end
-        if not questID then questID = GetWorldQuestIDForObjectiveUpdate() end
-        -- Route through TryShowQuestUpdate when questID available: uses same per-quest throttle as QUEST_WATCH_UPDATE to prevent double toasts
+        -- Try to map this message to the active WQ
+        local questID = GetWorldQuestIDForObjectiveUpdate()
+        
         if questID then
-            TryShowQuestUpdate(questID)
+            -- If we have an ID, use the standard update path (it handles debounce/cache)
+            RequestQuestUpdate(questID, true)
         else
+            -- Fallback for non-mapped messages (standard throttle)
             local now = GetTime()
-            if lastUIInfoMsg == msg and (now - lastUIInfoTime) < QUEST_UPDATE_THROTTLE then return end
+            if lastUIInfoMsg == msg and (now - lastUIInfoTime) < UI_MSG_THROTTLE then return end
             lastUIInfoMsg, lastUIInfoTime = msg, now
             addon.Presence.QueueOrPlay("QUEST_UPDATE", "QUEST UPDATE", StripPresenceMarkup(msg or ""), {})
         end
     end
 end
+
+-- ============================================================================
+-- SCENARIO & ZONE LOGIC
+-- ============================================================================
+
+local wasInScenario = false
+local scenarioCheckPending = false
+local SCENARIO_DEBOUNCE = 0.4
 
 local function TryShowScenarioStart()
     if scenarioCheckPending then return end
@@ -296,24 +309,15 @@ local function TryShowScenarioStart()
 end
 
 local function OnPlayerEnteringWorld()
-    -- On reload while in scenario: suppress "start" toast by initializing wasInScenario
     if not addon.Presence._scenarioInitDone then
         addon.Presence._scenarioInitDone = true
         wasInScenario = addon.IsScenarioActive and addon.IsScenarioActive()
     end
 end
 
-local function OnScenarioUpdate()
-    TryShowScenarioStart()
-end
-
-local function OnScenarioCriteriaUpdate()
-    TryShowScenarioStart()
-end
-
-local function OnScenarioCompleted()
-    wasInScenario = false
-end
+local function OnScenarioUpdate() TryShowScenarioStart() end
+local function OnScenarioCriteriaUpdate() TryShowScenarioStart() end
+local function OnScenarioCompleted() wasInScenario = false end
 
 local function OnZoneChangedNewArea()
     local zone = GetZoneText() or "Unknown Zone"
@@ -390,7 +394,6 @@ function addon.Presence.EnableEvents()
         eventFrame:RegisterEvent(evt)
     end
     eventsRegistered = true
-    -- Suppress QUEST_UPDATE toasts for 2s after enable (covers /reload; QUEST_LOG_UPDATE can fire before PLAYER_ENTERING_WORLD)
     addon.Presence._suppressQuestUpdateOnReload = true
     C_Timer.After(2, function()
         addon.Presence._suppressQuestUpdateOnReload = nil
