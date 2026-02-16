@@ -231,8 +231,15 @@ resizeLineV:SetColorTexture(gripR, gripG, gripB, gripA)
 local versionLabel = sidebar:CreateFontString(nil, "OVERLAY")
 versionLabel:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", Def.SectionSize or 10, "OUTLINE")
 SetTextColor(versionLabel, Def.TextColorSection)
-versionLabel:SetText("v" .. (GetAddOnMetadata and GetAddOnMetadata("HorizonSuite", "Version") or "1.0.0"))
 versionLabel:SetPoint("BOTTOMLEFT", sidebar, "BOTTOMLEFT", 10, 10)
+local getMetadata = C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata
+local versionText = getMetadata and getMetadata("HorizonSuite", "Version")
+if versionText and versionText ~= "" then
+    versionLabel:SetText("v" .. versionText)
+    versionLabel:Show()
+else
+    versionLabel:Hide()
+end
 
 -- ---------------------------------------------------------------------------
 -- Build one category's content
