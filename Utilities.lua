@@ -95,8 +95,8 @@ function addon.ApplyTextCase(text, dbKey, default)
     if v == "upper" then return text:upper() end
     if v == "lower" then return text:lower() end
     if v == "proper" or v == "default" then
-        -- Title case: first letter of each word upper, rest lower.
-        return text:gsub("(%a)([%w]*)", function(a, rest) return a:upper() .. rest:lower() end)
+        -- Title case: first letter of each word upper, rest lower. [%a'] keeps possessives (e.g. Traitor's) as one word.
+        return text:gsub("(%a)([%a']*)", function(a, rest) return a:upper() .. rest:lower() end)
     end
     return text
 end
