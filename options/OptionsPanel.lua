@@ -467,7 +467,8 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
                     h = h + OptionGap + allGroupFrames[i]:GetHeight()
                 end
                 h = h + SectionGap + RowHeights.sectionLabel     -- Other colors header
-                h = h + 1 * (GROUP_ROW_GAP + GROUP_ROW_H)       -- 1 other row (Highlight)
+                h = h + OptionGap + 38                           -- Use distinct color for completed objectives toggle
+                h = h + 2 * (GROUP_ROW_GAP + GROUP_ROW_H)        -- Highlight + Completed objective rows
                 currentCard:SetHeight(h + CardPadding)
                 currentCard.contentHeight = h
             end
@@ -709,8 +710,15 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             currentCard.contentAnchor = otherHdr
             currentCard.contentHeight = currentCard.contentHeight + SectionGap + RowHeights.sectionLabel
 
+            local ovCompletedObj = OptionsWidgets_CreateToggleSwitch(currentCard, "Use distinct color for completed objectives", "When on, completed objectives (e.g. 1/1) use the color below; when off, they use the same color as incomplete objectives.", function() return getDB("useCompletedObjectiveColor", true) end, function(v) setDB("useCompletedObjectiveColor", v) notifyMainAddon() end)
+            ovCompletedObj:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -OptionGap)
+            ovCompletedObj:SetPoint("RIGHT", currentCard, "RIGHT", -CardPadding, 0)
+            currentCard.contentAnchor = ovCompletedObj
+            currentCard.contentHeight = currentCard.contentHeight + OptionGap + 38
+
             local otherDefs = {
                 { dbKey = "highlightColor", label = "Highlight", def = (addon.HIGHLIGHT_COLOR_DEFAULT or { 0.4, 0.7, 1 }) },
+                { dbKey = "completedObjectiveColor", label = "Completed objective", def = (addon.OBJ_DONE_COLOR or { 0.30, 0.80, 0.30 }) },
             }
             local otherRows = {}
             for _, od in ipairs(otherDefs) do
@@ -730,6 +738,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
                     for _, r in ipairs(otherRows) do if r.Refresh then r:Refresh() end end
                     if ovCompleted and ovCompleted.Refresh then ovCompleted:Refresh() end
                     if ovCurrentZone and ovCurrentZone.Refresh then ovCurrentZone:Refresh() end
+                    if ovCompletedObj and ovCompletedObj.Refresh then ovCompletedObj:Refresh() end
                 end,
             })
         elseif opt.type == "blacklistGrid" then

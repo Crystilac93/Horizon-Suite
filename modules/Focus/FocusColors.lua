@@ -121,7 +121,22 @@ local function GetSectionColor(groupKey)
     return addon.SECTION_COLORS[groupKey] or addon.SECTION_COLORS.DEFAULT
 end
 
-addon.GetEffectiveColorCategory = GetEffectiveColorCategory
+--- Returns the color for completed objectives when the override is on; nil when off (caller uses same as incomplete).
+--- @param category string Optional category (unused when override is on)
+--- @return table|nil {r,g,b} or nil
+local function GetCompletedObjectiveColor(category)
+    if not (addon.GetDB and addon.GetDB("useCompletedObjectiveColor", true)) then
+        return nil
+    end
+    local c = addon.GetDB and addon.GetDB("completedObjectiveColor", nil)
+    if c and type(c) == "table" and c[1] and c[2] and c[3] then
+        return c
+    end
+    return addon.OBJ_DONE_COLOR or { 0.30, 0.80, 0.30 }
+end
+
+addon.GetEffectiveColorCategory   = GetEffectiveColorCategory
+addon.GetCompletedObjectiveColor = GetCompletedObjectiveColor
 addon.GetTitleColor        = GetTitleColor
 addon.GetObjectiveColor    = GetObjectiveColor
 addon.GetZoneColor         = GetZoneColor

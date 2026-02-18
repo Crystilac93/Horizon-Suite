@@ -171,6 +171,19 @@ local function ReadTrackedQuests()
         local baseCategory = (category == "COMPLETE") and addon.GetQuestBaseCategory(questID) or nil
         local title = C_QuestLog.GetTitleForQuestID(questID) or UNKNOWN_TITLE_PLACEHOLDER
         local objectives = C_QuestLog.GetQuestObjectives(questID) or {}
+        local objectivesDoneCount, objectivesTotalCount
+        local completedObjDisplay = addon.GetDB("questCompletedObjectiveDisplay", "off")
+        if completedObjDisplay == "hide" and #objectives > 0 then
+            objectivesDoneCount, objectivesTotalCount = 0, #objectives
+            for _, o in ipairs(objectives) do
+                if o.finished then objectivesDoneCount = objectivesDoneCount + 1 end
+            end
+            local filtered = {}
+            for _, o in ipairs(objectives) do
+                if not o.finished then filtered[#filtered + 1] = o end
+            end
+            objectives = filtered
+        end
         local color = addon.GetQuestColor(category)
         local isComplete = C_QuestLog.IsComplete(questID)
         local isSuper = (questID == superTracked)
@@ -204,13 +217,18 @@ local function ReadTrackedQuests()
 
         local questTypeAtlas = addon.GetQuestTypeAtlas(questID, category)
 
-        quests[#quests + 1] = {
+        local entry = {
             entryKey = questID, questID = questID, title = title, objectives = objectives,
             color = color, category = category, baseCategory = baseCategory,
             isComplete = isComplete, isSuperTracked = isSuper, isNearby = isNearby,
             isAccepted = isAccepted, zoneName = zoneName, itemLink = itemLink, itemTexture = itemTexture,
             questTypeAtlas = questTypeAtlas, isDungeonQuest = isDungeonQuest, isTracked = isTracked, level = questLevel,
         }
+        if objectivesDoneCount and objectivesTotalCount then
+            entry.objectivesDoneCount = objectivesDoneCount
+            entry.objectivesTotalCount = objectivesTotalCount
+        end
+        quests[#quests + 1] = entry
     end
 
     local ctx = {
