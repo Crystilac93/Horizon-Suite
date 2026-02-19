@@ -11,6 +11,8 @@ local addon = _G.HorizonSuite
 -- ============================================================================
 
 local MPLUS_MIN_HEIGHT = 80
+-- Gap between tick and text (matches FocusEntryRenderer/FocusCollapse SetPoint offset -4)
+local TICK_TEXT_GAP = " "
 -- Parented to UIParent so it stays visible even when the main tracker
 -- panel (addon.HS) is hidden by "Show in dungeon" being OFF.
 local mplusBlock = CreateFrame("Frame", nil, UIParent)
@@ -264,26 +266,16 @@ local function PositionMplusBlock(pos)
     end
 end
 
-local function UpdateMplusBlockDisplay(data)
-    if not data then return end
-
-    -- Apply typography settings
+local function ApplyMplusTypography()
     local fontPath = addon.GetDB("fontPath", (addon.GetDefaultFontPath and addon.GetDefaultFontPath()) or "Fonts\\FRIZQT__.TTF")
     local fontOutline = addon.GetDB("fontOutline", "OUTLINE")
 
-    -- Get sizes with validation (clamp between 8-32)
     local dungeonSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusDungeonSize", 14)) or 14))
     local dungeonR = addon.GetDB("mplusDungeonColorR", 0.96)
     local dungeonG = addon.GetDB("mplusDungeonColorG", 0.96)
     local dungeonB = addon.GetDB("mplusDungeonColorB", 1.0)
 
     local timerSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusTimerSize", 13)) or 13))
-    local timerR = addon.GetDB("mplusTimerColorR", 0.6)
-    local timerG = addon.GetDB("mplusTimerColorG", 0.88)
-    local timerB = addon.GetDB("mplusTimerColorB", 1.0)
-    local timerOvertimeR = addon.GetDB("mplusTimerOvertimeColorR", 0.9)
-    local timerOvertimeG = addon.GetDB("mplusTimerOvertimeColorG", 0.25)
-    local timerOvertimeB = addon.GetDB("mplusTimerOvertimeColorB", 0.2)
 
     local progressSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusProgressSize", 12)) or 12))
     local progressR = addon.GetDB("mplusProgressColorR", 0.72)
@@ -300,20 +292,10 @@ local function UpdateMplusBlockDisplay(data)
     local bossG = addon.GetDB("mplusBossColorG", 0.82)
     local bossB = addon.GetDB("mplusBossColorB", 0.92)
 
-    -- Read progress bar fill colors
-    local barNormR = addon.GetDB("mplusBarColorR", 0.20)
-    local barNormG = addon.GetDB("mplusBarColorG", 0.45)
-    local barNormB = addon.GetDB("mplusBarColorB", 0.60)
-    local barDoneR = addon.GetDB("mplusBarDoneColorR", 0.15)
-    local barDoneG = addon.GetDB("mplusBarDoneColorG", 0.65)
-    local barDoneB = addon.GetDB("mplusBarDoneColorB", 0.25)
-
-    -- Shadow settings (same as Focus typography)
     local shadowOx = tonumber(addon.GetDB("shadowOffsetX", 2)) or 2
     local shadowOy = tonumber(addon.GetDB("shadowOffsetY", -2)) or -2
     local shadowA = addon.GetDB("showTextShadow", true) and (tonumber(addon.GetDB("shadowAlpha", 0.8)) or 0.8) or 0
 
-    -- Apply fonts
     mplusHeroShadow:SetFont(fontPath, dungeonSize, fontOutline)
     mplusHeroShadow:SetTextColor(0, 0, 0, shadowA)
     mplusHeroShadow:SetJustifyH("LEFT")
@@ -322,6 +304,7 @@ local function UpdateMplusBlockDisplay(data)
     mplusHeroText:SetTextColor(dungeonR, dungeonG, dungeonB, 1)
 
     mplusPillText:SetFont(fontPath, timerSize, fontOutline)
+    -- Timer color is dynamic (in-time vs overtime); only UpdateMplusBlockDisplay sets it.
 
     progressPercentShadow:SetFont(fontPath, progressSize, fontOutline)
     progressPercentShadow:SetTextColor(0, 0, 0, shadowA)
@@ -341,6 +324,31 @@ local function UpdateMplusBlockDisplay(data)
 
     mplusBossesText:SetFont(fontPath, bossSize, fontOutline)
     mplusBossesText:SetTextColor(bossR, bossG, bossB, 1)
+end
+
+local function UpdateMplusBlockDisplay(data)
+    if not data then return end
+
+    -- Sizes for layout (ty applied in ApplyMplusTypography)
+    local dungeonSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusDungeonSize", 14)) or 14))
+    local timerSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusTimerSize", 13)) or 13))
+    local progressSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusProgressSize", 12)) or 12))
+    local affixSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusAffixSize", 12)) or 12))
+    local bossSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusBossSize", 12)) or 12))
+
+    local timerR = addon.GetDB("mplusTimerColorR", 0.6)
+    local timerG = addon.GetDB("mplusTimerColorG", 0.88)
+    local timerB = addon.GetDB("mplusTimerColorB", 1.0)
+    local timerOvertimeR = addon.GetDB("mplusTimerOvertimeColorR", 0.9)
+    local timerOvertimeG = addon.GetDB("mplusTimerOvertimeColorG", 0.25)
+    local timerOvertimeB = addon.GetDB("mplusTimerOvertimeColorB", 0.2)
+
+    local barNormR = addon.GetDB("mplusBarColorR", 0.20)
+    local barNormG = addon.GetDB("mplusBarColorG", 0.45)
+    local barNormB = addon.GetDB("mplusBarColorB", 0.60)
+    local barDoneR = addon.GetDB("mplusBarDoneColorR", 0.15)
+    local barDoneG = addon.GetDB("mplusBarDoneColorG", 0.65)
+    local barDoneB = addon.GetDB("mplusBarDoneColorB", 0.25)
 
     -- Line 1: Dungeon name + keystone level
     local dungeonName = data.dungeonName ~= "" and data.dungeonName or "Mythic+"
@@ -421,17 +429,24 @@ local function UpdateMplusBlockDisplay(data)
     end
     mplusAffixesText:SetText(affixStr)
 
-    -- Lines 5+: Bosses with Defeated / Active status labels
+    -- Lines 5+: Bosses (tick = checkmark/cross; green = colored name)
     local bossStr = ""
+    local bossCompletedDisplay = addon.GetDB("mplusBossCompletedDisplay", "tick")
     if #data.bossList > 0 then
         local bossLines = {}
         for _, boss in ipairs(data.bossList) do
             if boss.completed then
-                -- Green checkmark icon + "Defeated" label
-                bossLines[#bossLines + 1] = "|TInterface\\RaidFrame\\ReadyCheck-Ready:0|t " .. boss.name .. "  |cff44cc44Defeated|r"
+                if bossCompletedDisplay == "tick" then
+                    bossLines[#bossLines + 1] = "|TInterface\\Buttons\\UI-CheckBox-Check:" .. bossSize .. ":" .. bossSize .. ":0:0|t" .. TICK_TEXT_GAP .. boss.name
+                else
+                    bossLines[#bossLines + 1] = "|cff44cc44" .. boss.name .. "|r"
+                end
             else
-                -- Grey dash icon for incomplete bosses
-                bossLines[#bossLines + 1] = "|TInterface\\RaidFrame\\ReadyCheck-NotReady:0|t " .. boss.name
+                if bossCompletedDisplay == "tick" then
+                    bossLines[#bossLines + 1] = "|TInterface\\RaidFrame\\ReadyCheck-NotReady:" .. bossSize .. ":" .. bossSize .. ":0:0|t" .. TICK_TEXT_GAP .. boss.name
+                else
+                    bossLines[#bossLines + 1] = boss.name
+                end
             end
         end
         bossStr = table.concat(bossLines, "\n")
@@ -561,9 +576,10 @@ end)
 local function UpdateMplusBlock()
     local pos = addon.GetDB("mplusBlockPosition", "top") or "top"
     
-    -- mplusDebugPreview: show hardcoded demo data (from /hs mplus command)
+    -- mplusDebugPreview: show hardcoded demo data (from /horizon mplusdebug)
     if addon.mplusDebugPreview then
         PositionMplusBlock(pos)
+        ApplyMplusTypography()
         local demoData = {
             dungeonName = "Darkheart Thicket",
             level = 15,
@@ -604,15 +620,13 @@ local function UpdateMplusBlock()
     end
 
     PositionMplusBlock(pos)
-
-    -- Get real M+ data and update display (OnUpdate will handle refreshes)
     if not mplusBlock:IsShown() then
-        local data = GetMplusData()
-        UpdateMplusBlockDisplay(data)
+        ApplyMplusTypography()
     end
+    local data = GetMplusData()
+    UpdateMplusBlockDisplay(data)
     mplusBlock:Show()
 end
 
 addon.UpdateMplusBlock = UpdateMplusBlock
-
-
+addon.ApplyMplusTypography = ApplyMplusTypography

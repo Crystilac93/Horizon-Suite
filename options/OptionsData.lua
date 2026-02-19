@@ -23,6 +23,28 @@ local TYPOGRAPHY_KEYS = {
     fontOutline = true,
 }
 
+local MPLUS_TYPOGRAPHY_KEYS = {
+    fontPath = true,
+    fontOutline = true,
+    shadowOffsetX = true,
+    shadowOffsetY = true,
+    showTextShadow = true,
+    shadowAlpha = true,
+    mplusDungeonSize = true,
+    mplusDungeonColorR = true, mplusDungeonColorG = true, mplusDungeonColorB = true,
+    mplusTimerSize = true,
+    mplusTimerColorR = true, mplusTimerColorG = true, mplusTimerColorB = true,
+    mplusTimerOvertimeColorR = true, mplusTimerOvertimeColorG = true, mplusTimerOvertimeColorB = true,
+    mplusProgressSize = true,
+    mplusProgressColorR = true, mplusProgressColorG = true, mplusProgressColorB = true,
+    mplusAffixSize = true,
+    mplusAffixColorR = true, mplusAffixColorG = true, mplusAffixColorB = true,
+    mplusBossSize = true,
+    mplusBossColorR = true, mplusBossColorG = true, mplusBossColorB = true,
+    mplusBarColorR = true, mplusBarColorG = true, mplusBarColorB = true,
+    mplusBarDoneColorR = true, mplusBarDoneColorG = true, mplusBarDoneColorB = true,
+}
+
 function OptionsData_GetDB(key, default)
     return addon.GetDB(key, default)
 end
@@ -39,6 +61,9 @@ function OptionsData_SetDB(key, value)
     end
     if TYPOGRAPHY_KEYS[key] and addon.UpdateFontObjectsFromDB then
         addon.UpdateFontObjectsFromDB()
+    end
+    if MPLUS_TYPOGRAPHY_KEYS[key] and addon.ApplyMplusTypography then
+        addon.ApplyMplusTypography()
     end
     if key == "lockPosition" and addon.UpdateResizeHandleVisibility then
         addon.UpdateResizeHandleVisibility()
@@ -236,6 +261,7 @@ local OptionCategories = {
             { type = "toggle", name = L["Show affix icons"], desc = L["Show affix icons next to modifier names in the M+ block."], dbKey = "mplusShowAffixIcons", get = function() return getDB("mplusShowAffixIcons", true) end, set = function(v) setDB("mplusShowAffixIcons", v) end },
             { type = "toggle", name = L["Show affix descriptions in tooltip"], desc = L["Show affix descriptions when hovering over the M+ block."], dbKey = "mplusShowAffixDescriptions", get = function() return getDB("mplusShowAffixDescriptions", true) end, set = function(v) setDB("mplusShowAffixDescriptions", v) end },
             { type = "dropdown", name = L["M+ block position"], desc = L["Position of the Mythic+ block relative to the quest list."], dbKey = "mplusBlockPosition", options = MPLUS_POSITION_OPTIONS, get = function() return getDB("mplusBlockPosition", "top") end, set = function(v) setDB("mplusBlockPosition", v) end },
+            { type = "dropdown", name = L["M+ completed boss display"], desc = L["How to show defeated bosses: checkmark icon or green color."], dbKey = "mplusBossCompletedDisplay", options = { { L["Checkmark"], "tick" }, { L["Green color"], "green" } }, get = function() return getDB("mplusBossCompletedDisplay", "tick") end, set = function(v) setDB("mplusBossCompletedDisplay", v); if addon.UpdateMplusBlock then addon.UpdateMplusBlock() end end },
             { type = "section", name = L["Achievements"] },
             { type = "toggle", name = L["Show achievements"], desc = L["Show tracked achievements in the list."], dbKey = "showAchievements", get = function() return getDB("showAchievements", true) end, set = function(v) setDB("showAchievements", v) end },
             { type = "toggle", name = L["Show completed achievements"], desc = L["Include completed achievements in the tracker. When off, only in-progress tracked achievements are shown."], dbKey = "showCompletedAchievements", get = function() return getDB("showCompletedAchievements", false) end, set = function(v) setDB("showCompletedAchievements", v) end },
