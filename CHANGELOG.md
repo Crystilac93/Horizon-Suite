@@ -171,7 +171,7 @@ All notable changes to Horizon Suite are documented here.
 
 ### Improvements
 
-- **Focus — Quest-area world quests when option is off** — When "Show world quests" is disabled, the tracker still shows WQs when you physically enter their quest area (distance-based proximity using C_TaskQuest.GetQuestLocation, matching default Blizzard behavior). Zone-wide WQs remain hidden.
+- **Focus — Quest-area world quests when option is off** — When "Show in-zone world quests" is disabled, the tracker still shows WQs when you physically enter their quest area (distance-based proximity using C_TaskQuest.GetQuestLocation, matching default Blizzard behavior). Zone-wide WQs remain hidden.
 
 - **Presence — Colours and quest-type icon aligned with Focus** — Presence notifications now use the same colour palette and options as Focus. Quest Complete and Quest Accept colours are driven by quest type (campaign, world, default, etc.); Achievement uses Focus bronze; World Quest uses Focus purple; Quest Update uses Nearby blue; zone/subzone use default title and campaign gold subtitle. Boss emote uses a dedicated red in Config. When "Show quest type icons" is enabled in options, quest-related Presence toasts (accept, complete, world quest) show the same quest-type icon as the Focus tracker.
 

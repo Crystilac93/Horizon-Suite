@@ -404,15 +404,25 @@ end
 
 local function UpdateSectionHeaderFadeOut(dt, useAnim)
     if not addon.focus.collapse.sectionHeadersFadingOut then return end
+    local fadeOutKeys = addon.focus.collapse.sectionHeadersFadingOutKeys
+    local function shouldFade(s)
+        if not s.active then return false end
+        if fadeOutKeys then
+            return s.groupKey and fadeOutKeys[s.groupKey]
+        end
+        return true
+    end
     if not useAnim then
         for i = 1, addon.SECTION_POOL_SIZE do
-            if sectionPool[i].active then
-                sectionPool[i]:SetAlpha(0)
-                sectionPool[i]:Hide()
-                sectionPool[i].active = false
+            local s = sectionPool[i]
+            if shouldFade(s) then
+                s:SetAlpha(0)
+                s:Hide()
+                s.active = false
             end
         end
         addon.focus.collapse.sectionHeadersFadingOut = false
+        addon.focus.collapse.sectionHeadersFadingOutKeys = nil
         addon.focus.collapse.sectionHeaderFadeTime = 0
         return
     end
@@ -421,23 +431,25 @@ local function UpdateSectionHeaderFadeOut(dt, useAnim)
     local ep = addon.easeIn(p)
     for i = 1, addon.SECTION_POOL_SIZE do
         local s = sectionPool[i]
-        if s.active and not InCombatLockdown() and s.finalX ~= nil then
+        if shouldFade(s) and not InCombatLockdown() and s.finalX ~= nil then
             s:SetAlpha(1 - ep)
             local slideX = ep * anim.slideOutX
             s:ClearAllPoints()
             s:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", s.finalX + slideX, s.finalY)
-        elseif s.active then
+        elseif shouldFade(s) then
             s:SetAlpha(1 - ep)
         end
     end
     if p >= 1 then
         for i = 1, addon.SECTION_POOL_SIZE do
-            if sectionPool[i].active then
-                sectionPool[i]:Hide()
-                sectionPool[i].active = false
+            local s = sectionPool[i]
+            if shouldFade(s) then
+                s:Hide()
+                s.active = false
             end
         end
         addon.focus.collapse.sectionHeadersFadingOut = false
+        addon.focus.collapse.sectionHeadersFadingOutKeys = nil
         addon.focus.collapse.sectionHeaderFadeTime = 0
     end
 end
@@ -535,9 +547,9 @@ local function UpdateSectionHeaderFadeIn(dt, useAnim)
 end
 
 local function UpdateCollapseAnimations(dt)
+    -- Section header fade-out runs independently (for WQ toggle, etc.) via main loop.
     if not addon.focus.collapse.animating then return end
     local useAnim = addon.GetDB("animations", true)
-    UpdateSectionHeaderFadeOut(dt or 0, useAnim)
     local stillCollapsing = false
     for i = 1, addon.POOL_SIZE do
         if pool[i].animState == "collapsing" then
@@ -649,6 +661,84 @@ local function UpdateGroupCollapseCompletion()
     end
 end
 
+--- Captures current Y positions before a category expand. Call before SetCategoryCollapsed(key,false) and FullLayout.
+--- @param groupKey string Category being expanded (e.g. "WORLD", "NEARBY")
+function addon.PrepareGroupExpandSlideDown(groupKey)
+    if not addon.GetDB("animations", true) or not groupKey then return end
+    local collapse = addon.focus and addon.focus.collapse
+    if not collapse then return end
+    collapse.expandSlideDownStarts = {}
+    collapse.expandSlideDownStartsSec = {}
+    for i = 1, addon.POOL_SIZE do
+        local e = pool[i]
+        if e and (e.questID or e.entryKey) and (e.animState == "active" or e.animState == "fadein") and e.finalY ~= nil then
+            local key = e.questID or e.entryKey
+            collapse.expandSlideDownStarts[key] = e.finalY
+        end
+    end
+    for i = 1, addon.SECTION_POOL_SIZE do
+        local s = sectionPool[i]
+        if s and s.active and s.groupKey and s.finalY ~= nil then
+            collapse.expandSlideDownStartsSec[s.groupKey] = s.finalY
+        end
+    end
+end
+
+--- Applies slide-down animation to entries and section headers that moved after category expand.
+--- Call after FullLayout when expandSlideDownStarts/expandSlideDownStartsSec were set.
+function addon.ApplyGroupExpandSlideDown()
+    local collapse = addon.focus and addon.focus.collapse
+    if not collapse or not addon.GetDB("animations", true) then return end
+    local starts = collapse.expandSlideDownStarts
+    local startsSec = collapse.expandSlideDownStartsSec
+    collapse.expandSlideDownStarts = nil
+    collapse.expandSlideDownStartsSec = nil
+    if not starts and not startsSec then return end
+    if starts and next(starts) then
+        for i = 1, addon.POOL_SIZE do
+            local e = pool[i]
+            if e and (e.questID or e.entryKey) and e.animState == "active" and e.finalY ~= nil then
+                local key = e.questID or e.entryKey
+                local prevY = starts[key]
+                if prevY and prevY ~= e.finalY then
+                    addon.SetEntrySlideUp(e, prevY)
+                end
+            end
+        end
+    end
+    if startsSec and next(startsSec) then
+        for i = 1, addon.SECTION_POOL_SIZE do
+            local s = sectionPool[i]
+            if s and s.active and s.groupKey and s.finalY ~= nil then
+                local prevY = startsSec[s.groupKey]
+                if prevY and prevY ~= s.finalY then
+                    s.slideUpStartY = prevY
+                    s.slideUpAnimTime = 0
+                end
+            end
+        end
+    end
+    if addon.EnsureFocusUpdateRunning then addon.EnsureFocusUpdateRunning() end
+end
+
+--- Clears optionCollapseKeys when all WQ-toggle collapsing entries have finished.
+local function UpdateOptionCollapseCompletion()
+    local keys = addon.focus and addon.focus.collapse and addon.focus.collapse.optionCollapseKeys
+    if not keys or not next(keys) then return end
+    local stillCollapsing = false
+    for i = 1, addon.POOL_SIZE do
+        local e = pool[i]
+        local key = e and (e.questID or e.entryKey)
+        if key and keys[key] and e.animState == "collapsing" then
+            stillCollapsing = true
+            break
+        end
+    end
+    if not stillCollapsing then
+        addon.focus.collapse.optionCollapseKeys = nil
+    end
+end
+
 -- ============================================================================
 -- EXPORTS (defined last so local Update* functions are in scope)
 -- ============================================================================
@@ -667,15 +757,26 @@ function addon.EnsureFocusUpdateRunning()
         UpdatePanelHeight(dt)
         UpdateCombatFade(dt, useAnim)
         local anyEntryAnimating = UpdateEntryAnimations(dt, useAnim)
+        UpdateSectionHeaderFadeOut(dt, useAnim)
         UpdateCollapseAnimations(dt)
         UpdateGroupCollapseCompletion()
+        UpdateOptionCollapseCompletion()
         UpdateSectionHeaderSlideUp(dt, useAnim)
         UpdateSectionHeaderFadeIn(dt, useAnim)
 
+        local anySectionSliding = false
+        for i = 1, addon.SECTION_POOL_SIZE do
+            if sectionPool[i] and sectionPool[i].active and sectionPool[i].slideUpStartY ~= nil then
+                anySectionSliding = true
+                break
+            end
+        end
         local stillAnimating = anyEntryAnimating
+            or anySectionSliding
             or addon.focus.collapse.animating
             or (addon.focus.combat and addon.focus.combat.fadeState ~= nil)
             or (addon.focus.collapse.groups and next(addon.focus.collapse.groups) ~= nil)
+            or (addon.focus.collapse.optionCollapseKeys and next(addon.focus.collapse.optionCollapseKeys) ~= nil)
             or addon.focus.collapse.sectionHeadersFadingOut
             or addon.focus.collapse.sectionHeadersFadingIn
         if not stillAnimating then

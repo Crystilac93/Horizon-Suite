@@ -37,6 +37,7 @@ local function ToggleCollapse()
         if (GetTime() - addon.focus.collapse.animStart) < COLLAPSE_CANCEL_DEBOUNCE_SEC then return end
         addon.focus.collapse.animating = false
         addon.focus.collapse.sectionHeadersFadingOut = false
+        addon.focus.collapse.sectionHeadersFadingOutKeys = nil
         addon.focus.collapse.sectionHeadersFadingIn = false
         for i = 1, addon.POOL_SIZE do
             if pool[i].animState == "collapsing" then

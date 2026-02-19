@@ -28,10 +28,14 @@ addon.focus = {
         animStart = 0,
         groups    = {},  -- [groupKey] = startTime
         sectionHeadersFadingOut = false,
+        sectionHeadersFadingOutKeys = nil,  -- when set, only fade these groupKeys (e.g. WQ toggle)
         sectionHeadersFadingIn  = false,
         sectionHeaderFadeTime   = 0,
         expandSlideDownStarts   = nil,  -- { [key] = startY } for expand slide-down
         expandSlideDownStartsSec = nil, -- { [groupKey] = startY }
+        pendingWQCollapse      = false,
+        pendingWQExpand        = false, -- when showWorldQuests is toggled on for slide-down animation
+        optionCollapseKeys     = nil,   -- { [questID|entryKey] = true } when animating WQ toggle off
     },
 
     combat = {

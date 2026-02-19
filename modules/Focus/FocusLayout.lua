@@ -329,6 +329,9 @@ local function FullLayout()
     end
 
     if addon.focus.collapsed then
+        if addon.focus.collapse.pendingWQCollapse then
+            addon.focus.collapse.pendingWQCollapse = false
+        end
         local quests = addon.ReadTrackedQuests()
         for _, r in ipairs(rares) do quests[#quests + 1] = r end
         if addon.GetDB("showAchievements", true) and addon.ReadTrackedAchievements then
@@ -421,6 +424,9 @@ local function FullLayout()
 
     -- When a category is collapsing, skip full layout to avoid section header flicker.
     if addon.focus.collapse.groups and next(addon.focus.collapse.groups) then
+        if addon.focus.collapse.pendingWQCollapse then
+            addon.focus.collapse.pendingWQCollapse = false
+        end
         addon.UpdateHeaderQuestCount(#quests, addon.CountTrackedInLog(quests))
         if addon.EnsureFocusUpdateRunning then addon.EnsureFocusUpdateRunning() end
         return
@@ -433,15 +439,59 @@ local function FullLayout()
 
     local onlyDelveShown = (#grouped == 1 and grouped[1] and grouped[1].key == "DELVES")
         and (addon.IsDelveActive and addon.IsDelveActive())
+    local useWQCollapse = addon.focus.collapse.pendingWQCollapse
+        and addon.GetDB("animations", true)
+        and not onlyDelveShown
+    local useWQExpand = addon.focus.collapse.pendingWQExpand
+        and addon.GetDB("animations", true)
+    if useWQExpand then
+        if addon.PrepareGroupExpandSlideDown then addon.PrepareGroupExpandSlideDown("WORLD") end
+        addon.focus.collapse.pendingWQExpand = false
+    end
+    local slideUpStarts = nil
+    local slideUpStartsSec = nil
+    if useWQCollapse then
+        slideUpStarts = {}
+        for k in pairs(currentIDs) do
+            local e = activeMap[k]
+            if e and (e.animState == "active" or e.animState == "fadein") and e.finalY ~= nil then
+                slideUpStarts[k] = e.finalY
+            end
+        end
+        slideUpStartsSec = {}
+        for i = 1, addon.SECTION_POOL_SIZE do
+            local s = sectionPool[i]
+            if s and s.active and s.groupKey and s.finalY ~= nil then
+                slideUpStartsSec[s.groupKey] = s.finalY
+            end
+        end
+    end
+    local toRemove = {}
     for key, entry in pairs(activeMap) do
         if not currentIDs[key] then
             if onlyDelveShown and addon.ClearEntry then
                 addon.ClearEntry(entry)
+            elseif useWQCollapse and entry.animState ~= "completing" and entry.animState ~= "fadeout" then
+                toRemove[#toRemove + 1] = { key = key, entry = entry }
             elseif entry.animState ~= "completing" and entry.animState ~= "fadeout" then
                 addon.SetEntryFadeOut(entry)
             end
             activeMap[key] = nil
         end
+    end
+    if useWQCollapse and #toRemove > 0 then
+        table.sort(toRemove, function(a, b)
+            return (a.entry.finalY or 0) > (b.entry.finalY or 0)
+        end)
+        addon.focus.collapse.optionCollapseKeys = {}
+        for i, t in ipairs(toRemove) do
+            addon.SetEntryCollapsing(t.entry, i - 1)
+            addon.focus.collapse.optionCollapseKeys[t.key] = true
+        end
+        addon.focus.collapse.pendingWQCollapse = false
+    end
+    if addon.focus.collapse.pendingWQCollapse then
+        addon.focus.collapse.pendingWQCollapse = false
     end
     if onlyDelveShown and addon.ClearEntry then
         for i = 1, addon.POOL_SIZE do
@@ -541,7 +591,28 @@ local function FullLayout()
     addon.focus.promotion.prevWeekly = curPriority.WEEKLY or {}
     addon.focus.promotion.prevDaily  = curPriority.DAILY  or {}
 
-    addon.HideAllSectionHeaders()
+    local excludeSectionHeadersForFade = nil
+    if addon.focus.collapse.optionCollapseKeys and next(addon.focus.collapse.optionCollapseKeys) and addon.GetDB("animations", true) then
+        local newGroupKeys = {}
+        for _, grp in ipairs(grouped) do
+            newGroupKeys[grp.key] = true
+        end
+        local disappearing = {}
+        for i = 1, addon.SECTION_POOL_SIZE do
+            local s = sectionPool[i]
+            if s and s.active and s.groupKey and not newGroupKeys[s.groupKey] then
+                disappearing[s.groupKey] = true
+            end
+        end
+        if next(disappearing) then
+            addon.focus.collapse.sectionHeadersFadingOut = true
+            addon.focus.collapse.sectionHeadersFadingOutKeys = disappearing
+            addon.focus.collapse.sectionHeaderFadeTime = 0
+            excludeSectionHeadersForFade = disappearing
+            if addon.EnsureFocusUpdateRunning then addon.EnsureFocusUpdateRunning() end
+        end
+    end
+    addon.HideAllSectionHeaders(excludeSectionHeadersForFade)
     addon.focus.layout.sectionIdx = 0
 
     local yOff = 0
@@ -625,6 +696,34 @@ local function FullLayout()
              end
          end
      end
+
+    if slideUpStarts and next(slideUpStarts) and addon.GetDB("animations", true) then
+        for i = 1, addon.POOL_SIZE do
+            local e = pool[i]
+            if e and (e.questID or e.entryKey) and e.animState == "active" and e.finalY ~= nil then
+                local key = e.questID or e.entryKey
+                local prevY = slideUpStarts[key]
+                if prevY and prevY ~= e.finalY then
+                    addon.SetEntrySlideUp(e, prevY)
+                end
+            end
+        end
+    end
+    if slideUpStartsSec and next(slideUpStartsSec) and addon.GetDB("animations", true) then
+        for i = 1, addon.SECTION_POOL_SIZE do
+            local s = sectionPool[i]
+            if s and s.active and s.groupKey and s.finalY ~= nil then
+                local prevY = slideUpStartsSec[s.groupKey]
+                if prevY and prevY ~= s.finalY then
+                    s.slideUpStartY = prevY
+                    s.slideUpAnimTime = 0
+                end
+            end
+        end
+    end
+    if useWQExpand and addon.ApplyGroupExpandSlideDown then
+        addon.ApplyGroupExpandSlideDown()
+    end
 
     addon.UpdateHeaderQuestCount(#quests, addon.CountTrackedInLog(quests))
 

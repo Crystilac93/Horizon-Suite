@@ -8,11 +8,19 @@ local addon = _G.HorizonSuite
 local sectionPool = addon.sectionPool
 local scrollFrame = addon.scrollFrame
 
-local function HideAllSectionHeaders()
+--- Hides all section headers. When excludeGroupKeys is set, headers with those groupKeys are
+--- left visible to fade out (used for WQ toggle when a category disappears).
+--- @param excludeGroupKeys table|nil Optional { [groupKey]=true } for headers to exclude (fade-out instead)
+local function HideAllSectionHeaders(excludeGroupKeys)
     for i = 1, addon.SECTION_POOL_SIZE do
-        sectionPool[i].active = false
-        sectionPool[i]:Hide()
-        sectionPool[i]:SetAlpha(0)
+        local s = sectionPool[i]
+        if excludeGroupKeys and s.groupKey and excludeGroupKeys[s.groupKey] then
+            -- Leave visible; will be faded out by UpdateSectionHeaderFadeOut
+        else
+            s.active = false
+            s:Hide()
+            s:SetAlpha(0)
+        end
     end
 end
 
@@ -29,9 +37,13 @@ local function GetFocusedGroupKey(grouped)
 end
 
 local function AcquireSectionHeader(groupKey, focusedGroupKey)
-    addon.focus.layout.sectionIdx = addon.focus.layout.sectionIdx + 1
-    if addon.focus.layout.sectionIdx > addon.SECTION_POOL_SIZE then return nil end
-    local s = sectionPool[addon.focus.layout.sectionIdx]
+    local fadeOutKeys = addon.focus.collapse and addon.focus.collapse.sectionHeadersFadingOutKeys
+    local s
+    repeat
+        addon.focus.layout.sectionIdx = addon.focus.layout.sectionIdx + 1
+        if addon.focus.layout.sectionIdx > addon.SECTION_POOL_SIZE then return nil end
+        s = sectionPool[addon.focus.layout.sectionIdx]
+    until not (fadeOutKeys and s.groupKey and fadeOutKeys[s.groupKey])
     s.groupKey = groupKey
 
     local label = addon.L[addon.SECTION_LABELS[groupKey] or groupKey]

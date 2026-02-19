@@ -302,7 +302,7 @@ local function GetWorldAndCallingQuestIDsToShow(nearbySet, taskQuestOnlySet)
     local zoneMapID = mapCtx and mapCtx.zoneMapID or nil
 
     -- When we include map-derived WQs/tasks for the current zone, we want them to show in the list
-    -- even if the user has toggled off "showWorldQuests" (which is intended to hide far-away WQs).
+    -- even if the user has toggled off "Show in-zone world quests" (which hides auto-added zone WQs).
     -- We'll mark them as "in quest area" to bypass that visibility gate.
     local ALWAYS_SHOW_MAP_DERIVED_WQS = false
 
