@@ -118,7 +118,7 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
             if addon.GetDB("showObjectiveNumbers", false) then
                 objText = ("%d. %s"):format(j, objText)
             end
-            local useTick = oData.finished and addon.GetDB("useTickForCompletedObjectives", false)
+            local useTick = oData.finished and addon.GetDB("useTickForCompletedObjectives", false) and not questData.isComplete
             obj.text:SetText(objText)
             obj.shadow:SetText(objText)
 

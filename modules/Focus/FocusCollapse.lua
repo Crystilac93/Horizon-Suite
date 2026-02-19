@@ -366,7 +366,7 @@ local function RefreshContentInCombat()
                             end
                         end
                         if showObjectiveNumbers then objText = ("%d. %s"):format(j, objText) end
-                        local useTick = oData.finished and addon.GetDB("useTickForCompletedObjectives", false)
+                        local useTick = oData.finished and addon.GetDB("useTickForCompletedObjectives", false) and not questData.isComplete
                         obj.text:SetText(objText)
                         obj.shadow:SetText(objText)
                         local tickSize = math.max(10, tonumber(addon.GetDB("objectiveFontSize", 11)) or 11)
