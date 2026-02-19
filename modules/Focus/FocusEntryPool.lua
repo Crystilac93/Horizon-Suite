@@ -161,7 +161,12 @@ local function CreateQuestEntry(parent, index)
 
         objShadow:SetPoint("CENTER", objText, "CENTER", addon.SHADOW_OX, addon.SHADOW_OY)
 
-        e.objectives[j] = { text = objText, shadow = objShadow }
+        local tickTex = e:CreateTexture(nil, "OVERLAY")
+        tickTex:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+        tickTex:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+        tickTex:Hide()
+
+        e.objectives[j] = { text = objText, shadow = objShadow, tick = tickTex }
         objText:Hide()
         objShadow:Hide()
     end

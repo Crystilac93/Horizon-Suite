@@ -171,6 +171,8 @@ L["Show objective numbers"]                             = "목표 번호 표시"
 L["Prefix objectives with 1., 2., 3."]                  = "목표 앞에 1., 2., 3. 번호를 붙입니다."
 L["Show completed count"]                               = "완료 수 표시"
 L["Show X/Y progress in quest title."]                  = "퀘스트 제목에 X/Y 진행도를 표시합니다."
+L["Use tick for completed objectives"]                  = "완료된 목표에 체크 표시 사용"
+L["When on, completed objectives show a checkmark (✓) instead of green color."] = "활성화하면 완료된 목표에 초록색 대신 체크 표시(✓)가 나타납니다."
 
 -- =====================================================================
 -- OptionsData.lua Display — Spacing

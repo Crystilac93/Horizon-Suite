@@ -33,7 +33,7 @@ The systems driving your efficiency.
 An aesthetic that complements the modern game client.
 
 * **Visual Hierarchy** – High-fidelity icons for Campaign, Legendary, and World Quests. Use "Dim non-focused quests" (Display) to dim title, zone, objectives, and section headers that are not focused.
-* **Completed Objectives** – For multi-objective quests, use "Completed objectives" (Display → List) to show all, fade completed objectives (e.g. 1/1), or hide them so you can quickly see what remains.
+* **Completed Objectives** – For multi-objective quests, use "Completed objectives" (Display → List) to show all, fade completed objectives (e.g. 1/1), or hide them so you can quickly see what remains. Use tick for completed objectives (Display → List) to show a checkmark (✓) instead of green color for completed objectives.
 * **Per-Objective Progress** – Objectives with multiple instances display their numeric progress (e.g. 15/18) directly in the list when the API provides it, so you can see partial progress at a glance.
 * **Turn-In Guidance** – Quests "Ready for Turn-in" receive a unique, high-contrast visual highlight and priority positioning, giving you a clear signal to head back to the hub. Auto-complete quests (no NPC turn-in needed) show "(click to complete)"—left-click to finish them directly.
 * **The Color Matrix** – Define your own aesthetic with per-category colour customization (Title, Objective, Zone, Section) via `/horizon options`. Each category group is collapsible with a reset button. Current Zone and Ready to Turn in colours are grouped under Grouping Overrides.

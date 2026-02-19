@@ -366,14 +366,28 @@ local function RefreshContentInCombat()
                             end
                         end
                         if showObjectiveNumbers then objText = ("%d. %s"):format(j, objText) end
+                        local useTick = oData.finished and addon.GetDB("useTickForCompletedObjectives", false)
                         obj.text:SetText(objText)
                         obj.shadow:SetText(objText)
+                        local tickSize = math.max(10, tonumber(addon.GetDB("objectiveFontSize", 11)) or 11)
+                        if useTick and obj.tick then
+                            obj.tick:SetSize(tickSize, tickSize)
+                            obj.tick:ClearAllPoints()
+                            obj.tick:SetPoint("RIGHT", obj.text, "LEFT", -4, 0)
+                            obj.tick:Show()
+                        elseif obj.tick then
+                            obj.tick:Hide()
+                        end
                         local alpha = 1
                         if oData.finished and (not questData.isAchievement and not questData.isEndeavor) and addon.GetDB("questCompletedObjectiveDisplay", "off") == "fade" then
                             alpha = 0.4
                         end
                         if oData.finished then
-                            obj.text:SetTextColor(effectiveDoneColor[1], effectiveDoneColor[2], effectiveDoneColor[3], alpha)
+                            if useTick then
+                                obj.text:SetTextColor(objColor[1], objColor[2], objColor[3], alpha)
+                            else
+                                obj.text:SetTextColor(effectiveDoneColor[1], effectiveDoneColor[2], effectiveDoneColor[3], alpha)
+                            end
                         else
                             obj.text:SetTextColor(objColor[1], objColor[2], objColor[3], alpha)
                         end
