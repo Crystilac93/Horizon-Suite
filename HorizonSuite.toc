@@ -30,9 +30,9 @@ modules/Focus/FocusAggregator.lua
 modules/Focus/FocusEntryPool.lua
 modules/Focus/FocusEntryRenderer.lua
 modules/Focus/FocusSectionHeaders.lua
+modules/Focus/FocusAnimation.lua
 modules/Focus/FocusLayout.lua
 modules/Focus/FocusCollapse.lua
-modules/Focus/FocusAnimation.lua
 modules/Focus/FocusFloatingItem.lua
 modules/Focus/FocusMplusBlock.lua
 modules/Focus/FocusInteractions.lua

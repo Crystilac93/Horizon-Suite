@@ -429,3 +429,159 @@ function addon.OpenAchievementToAchievement(achievementID)
     end
 end
 
+-- ============================================================================
+-- MAP CONTEXT RESOLUTION (World Quests / map-scoped events)
+-- ============================================================================
+
+--- Returns map info safely.
+local function SafeGetMapInfo(mapID)
+    if not mapID or not C_Map or not C_Map.GetMapInfo then return nil end
+    local ok, info = pcall(C_Map.GetMapInfo, mapID)
+    if ok then return info end
+    return nil
+end
+
+--- Walks up the parent chain until predicate returns true or we hit root.
+local function ClimbParents(mapID, predicate, maxDepth)
+    local id = mapID
+    for _ = 1, (maxDepth or 20) do
+        if not id or id == 0 then return nil end
+        local info = SafeGetMapInfo(id)
+        if not info then return nil end
+        if predicate(info, id) then return id, info end
+        local parent = info.parentMapID
+        if not parent or parent == 0 or parent == id then return nil end
+        id = parent
+    end
+    return nil
+end
+
+--- Resolve the player's current map context for filtering WQs and map-scoped events.
+-- Goal: avoid subzone-only mapIDs (too aggressive filtering) while still preventing cross-zone leakage.
+--
+-- Contract:
+--  * rawMapID: direct C_Map.GetBestMapForUnit(unit)
+--  * zoneMapID: "stable" zone-level map, derived by climbing parents
+--  * mapIDsToQuery: list of mapIDs to pass into C_TaskQuest/C_QuestLog map APIs
+--
+-- Heuristics:
+--  * Prefer stopping at mapType == Zone (3).
+--  * If GetBestMapForUnit returns a Micro/Dungeon (>=4), include that raw map + its parent zone (if any).
+--  * If already on a Zone, do NOT try to include parent/continent (prevents pulling other zones).
+--  * In Delves, keep it strict: only query rawMapID.
+function addon.ResolvePlayerMapContext(unit)
+    unit = unit or "player"
+
+    local rawMapID = (C_Map and C_Map.GetBestMapForUnit) and C_Map.GetBestMapForUnit(unit) or nil
+    if not rawMapID then
+        return { rawMapID = nil, zoneMapID = nil, mapIDsToQuery = {} }
+    end
+
+    local rawInfo = SafeGetMapInfo(rawMapID)
+    local rawType = rawInfo and rawInfo.mapType
+
+    -- Party dungeons: keep it strict to the instance map.
+    -- In instances, zoneMapID climbing causes us to pull open-world zone WQs, which should not appear.
+    if addon.IsInPartyDungeon and addon.IsInPartyDungeon() then
+        return { rawMapID = rawMapID, zoneMapID = rawMapID, rawMapType = rawType, mapIDsToQuery = { rawMapID } }
+    end
+
+    -- Delves: don't climb; querying parent will leak zone WQs into delve UI.
+    if addon.IsDelveActive and addon.IsDelveActive() then
+        return { rawMapID = rawMapID, zoneMapID = rawMapID, rawMapType = rawType, mapIDsToQuery = { rawMapID } }
+    end
+
+    -- Find a stable zone parent (mapType == Zone).
+    local zoneMapID = nil
+    if rawType == 3 then
+        zoneMapID = rawMapID
+    else
+        zoneMapID = select(1, ClimbParents(rawMapID, function(info)
+            return info and info.mapType == 3
+        end))
+    end
+
+    -- If we couldn't find a zone (rare), fall back to raw.
+    if not zoneMapID then zoneMapID = rawMapID end
+
+    -- Build query list.
+    local mapIDsToQuery = {}
+    local seen = {}
+    local function add(id)
+        if id and id ~= 0 and not seen[id] then
+            seen[id] = true
+            mapIDsToQuery[#mapIDsToQuery + 1] = id
+        end
+    end
+
+    add(zoneMapID)
+
+    -- Include immediate children of the zone map.
+    -- Many WQs/area POIs are authored on child "area" maps, not on the parent zone map.
+    -- We keep this bounded to avoid pulling in neighboring zones or overloading APIs.
+    if C_Map and C_Map.GetMapChildrenInfo and zoneMapID then
+        local ok, children = pcall(C_Map.GetMapChildrenInfo, zoneMapID, nil, true)
+        if ok and children and type(children) == "table" then
+            local added = 0
+            for _, child in ipairs(children) do
+                local childID = child and (child.mapID or child.uiMapID or child.mapId)
+                local childType = child and child.mapType
+                -- Allow only sub-zone/area/zone-ish children.
+                if childID and childID ~= 0 and (childType == nil or childType == 4 or childType == 5 or childType == 6) then
+                    -- Safety: only include children that truly belong to this zone map.
+                    -- Some map hierarchies include other zones as children (e.g. special hubs).
+                    local belongs = false
+                    local check = childID
+                    for _ = 1, 10 do
+                        if check == zoneMapID then
+                            belongs = true
+                            break
+                        end
+                        local info = SafeGetMapInfo(check)
+                        if not info or not info.parentMapID or info.parentMapID == 0 then break end
+                        check = info.parentMapID
+                    end
+                    if belongs then
+                        add(childID)
+                        added = added + 1
+                        if added >= 25 then break end
+                    end
+                end
+            end
+        end
+    end
+
+    -- If we're on a micro/dungeon map, also query that map so we don't miss "instance-only" or micro POIs.
+    if rawType ~= nil and rawType >= 4 then
+        add(rawMapID)
+    end
+
+    -- Final safety pass: ensure every queried map actually belongs to this zoneMapID.
+    -- Some hierarchies can leak unrelated area maps even after child filtering.
+    if zoneMapID and #mapIDsToQuery > 0 then
+        local filtered = {}
+        for _, mid in ipairs(mapIDsToQuery) do
+            local okBelongs = (mid == zoneMapID)
+            if not okBelongs then
+                local check = mid
+                for _ = 1, 12 do
+                    local info = SafeGetMapInfo(check)
+                    if not info or not info.parentMapID or info.parentMapID == 0 then break end
+                    check = info.parentMapID
+                    if check == zoneMapID then okBelongs = true; break end
+                end
+            end
+            if okBelongs then
+                filtered[#filtered + 1] = mid
+            end
+        end
+        mapIDsToQuery = filtered
+    end
+
+    return {
+        rawMapID = rawMapID,
+        zoneMapID = zoneMapID,
+        rawMapType = rawType,
+        mapIDsToQuery = mapIDsToQuery,
+    }
+end

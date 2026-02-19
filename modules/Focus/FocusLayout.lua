@@ -89,6 +89,21 @@ local function AcquireEntry()
     return nil
 end
 
+-- Safety: if load order is disrupted (or a hot-reload partially loads files),
+-- layout can run before FocusAnimation defines addon.SetEntryFadeIn.
+-- Fall back to a no-animation init so we never hard-crash.
+local function SafeEntryFadeIn(entry, staggerIndex)
+    if addon.SetEntryFadeIn then
+        addon.SetEntryFadeIn(entry, staggerIndex)
+        return
+    end
+    if not entry then return end
+    entry.animState = "active"
+    entry.animTime = 0
+    entry.staggerDelay = 0
+    if entry.SetAlpha then entry:SetAlpha(1) end
+end
+
 local headerBtn = CreateFrame("Button", nil, addon.HS)
 headerBtn:SetPoint("TOPLEFT", addon.HS, "TOPLEFT", 0, 0)
 headerBtn:SetPoint("TOPRIGHT", addon.HS, "TOPRIGHT", 0, 0)
@@ -425,12 +440,12 @@ local function FullLayout()
             if not entry then
                 entry = AcquireEntry()
                 if entry then
-                    addon.SetEntryFadeIn(entry, 0)
+                    SafeEntryFadeIn(entry, 0)
                     activeMap[key] = entry
                 end
             elseif entry.animState == "idle" and not entry.questID and not entry.entryKey then
                 -- Zombie entry left over from a group collapse: reset it for fadein.
-                addon.SetEntryFadeIn(entry, 0)
+                SafeEntryFadeIn(entry, 0)
             end
             if entry then
                 entry.groupKey = grp.key
@@ -553,7 +568,7 @@ local function FullLayout()
                     entryIndex = entryIndex + 1
 
                     if not entry:IsShown() and (entry.animState == "active" or entry.animState == "idle") and addon.GetDB("animations", true) then
-                        addon.SetEntryFadeIn(entry, entryIndex - 1)
+                        SafeEntryFadeIn(entry, entryIndex - 1)
                     end
                     entry:ClearAllPoints()
                     entry:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", addon.GetContentLeftOffset(), yOff)

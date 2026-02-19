@@ -152,22 +152,81 @@ local function ReadTrackedQuests()
     end
 
     local superTracked = (C_SuperTrack and C_SuperTrack.GetSuperTrackedQuestID) and C_SuperTrack.GetSuperTrackedQuestID() or 0
-    local nearbySet, taskQuestOnlySet = addon.GetNearbyQuestIDs()
+    local nearbySet, taskQuestOnlySet = {}, {}
+    if addon.GetNearbyQuestIDs then
+        nearbySet, taskQuestOnlySet = addon.GetNearbyQuestIDs()
+    end
     local playerZone = (addon.GetPlayerCurrentZoneName and addon.GetPlayerCurrentZoneName()) or nil
     local filterByZone = addon.GetDB("filterByZone", false)
 
-    local function zoneMatchesPlayer(questID)
-        local zn = addon.GetQuestZoneName and addon.GetQuestZoneName(questID)
-        return not zn or not playerZone or zn:lower() == playerZone:lower()
+    -- Resolve stable map context once per layout tick.
+    local mapCtx = addon.ResolvePlayerMapContext and addon.ResolvePlayerMapContext("player") or nil
+    local zoneMapID = mapCtx and mapCtx.zoneMapID or nil
+
+    -- Map gate for map-scoped content (world/calling/weekly/daily) even when filterByZone is off.
+    -- We only apply this to non-accepted quests. Accepted quests can legitimately be from other zones.
+    local function IsQuestOnPlayerZoneMap(questID)
+        if not questID or questID <= 0 then return false end
+        if not zoneMapID or not (C_TaskQuest and C_TaskQuest.GetQuestZoneID) or not (C_Map and C_Map.GetMapInfo) then
+            return true
+        end
+        local ok, qMapID = pcall(C_TaskQuest.GetQuestZoneID, questID)
+        if not ok or not qMapID or qMapID == 0 then
+            return true
+        end
+        local checkID = qMapID
+        for _ = 1, 10 do
+            if checkID == zoneMapID then return true end
+            local info = C_Map.GetMapInfo(checkID)
+            if not info or not info.parentMapID or info.parentMapID == 0 then break end
+            checkID = info.parentMapID
+        end
+        return false
+    end
+
+    local function questMapMatchesPlayer(questID)
+        if not filterByZone then return true end
+        if not questID or questID <= 0 then return false end
+        if not zoneMapID or not C_TaskQuest or not C_TaskQuest.GetQuestZoneID or not C_Map or not C_Map.GetMapInfo then
+            -- Fallback to legacy name-based filter when map APIs aren't available.
+            local playerZone = (addon.GetPlayerCurrentZoneName and addon.GetPlayerCurrentZoneName()) or nil
+            local zn = addon.GetQuestZoneName and addon.GetQuestZoneName(questID)
+            return (not zn) or (not playerZone) or zn:lower() == playerZone:lower()
+        end
+
+        local ok, qMapID = pcall(C_TaskQuest.GetQuestZoneID, questID)
+        if not ok or not qMapID or qMapID == 0 then
+            -- If task quest API can't resolve it, don't hard-filter it out.
+            return true
+        end
+
+        local checkID = qMapID
+        for _ = 1, 8 do
+            if checkID == zoneMapID then return true end
+            local info = C_Map.GetMapInfo(checkID)
+            if not info or not info.parentMapID or info.parentMapID == 0 then break end
+            checkID = info.parentMapID
+        end
+        return false
     end
 
     local function addQuest(questID, opts)
         opts = opts or {}
         if not questID or questID <= 0 or seen[questID] then return end
         if scenarioRewardQuestIDs[questID] then return end
+
+        -- Always exclude cross-zone map-scoped content that is not in the player's log.
+        -- This is separate from the user-facing filterByZone option.
+        local logIndex = C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(questID) or nil
+        local isAccepted = (logIndex ~= nil)
+        local category = opts.forceCategory or addon.GetQuestCategory(questID)
+        if not isAccepted and (category == "WORLD" or category == "CALLING" or category == "WEEKLY" or category == "DAILY") then
+            if not IsQuestOnPlayerZoneMap(questID) then return end
+        end
+
+        if not questMapMatchesPlayer(questID) then return end
         seen[questID] = true
 
-        local category = opts.forceCategory or addon.GetQuestCategory(questID)
         local baseCategory = (category == "COMPLETE") and addon.GetQuestBaseCategory(questID) or nil
         local title = C_QuestLog.GetTitleForQuestID(questID) or UNKNOWN_TITLE_PLACEHOLDER
         local objectives = C_QuestLog.GetQuestObjectives(questID) or {}
@@ -188,14 +247,11 @@ local function ReadTrackedQuests()
         local isComplete = C_QuestLog.IsComplete(questID)
         local isSuper = (questID == superTracked)
         local zoneName = addon.GetQuestZoneName(questID)
-        local isNearby = (nearbySet[questID] or false)
-            and (not zoneName or not playerZone or zoneName:lower() == playerZone:lower())
+        local isNearby = (nearbySet[questID] or false) and (not filterByZone or questMapMatchesPlayer(questID))
         local isDungeonQuest = opts.isDungeonQuest or (addon.IsInPartyDungeon and addon.IsInPartyDungeon() and isNearby)
         local isTracked = opts.isTracked ~= false
 
         local itemLink, itemTexture
-        local logIndex = C_QuestLog.GetLogIndexForQuestID(questID)
-        local isAccepted = (logIndex ~= nil)
         if logIndex and GetQuestLogSpecialItemInfo then
             local link, tex = GetQuestLogSpecialItemInfo(logIndex)
             if link and tex then itemLink, itemTexture = link, tex end
@@ -255,15 +311,17 @@ local function ReadTrackedQuests()
     local permanentBlacklist = (HorizonDB and HorizonDB.permanentQuestBlacklist) or {}
     local usePermanent = addon.GetDB("permanentlySuppressUntracked", false)
     local recentlyUntrackedWQ = addon.focus.recentlyUntrackedWorldQuests
-    for _, e in ipairs(addon.CollectWorldQuests(ctx)) do
+    local wqEntries = {}
+    if addon.CollectWorldQuests then
+        wqEntries = addon.CollectWorldQuests(ctx) or {}
+    end
+    for _, e in ipairs(wqEntries) do
         local opts = e.opts or {}
         local isBlacklisted = (usePermanent and permanentBlacklist[e.questID]) or (not usePermanent and recentlyUntrackedWQ and recentlyUntrackedWQ[e.questID])
         -- Final safety: reject completed WQs that leaked through upstream filters.
         local isCompleted = C_QuestLog.IsQuestFlaggedCompleted and C_QuestLog.IsQuestFlaggedCompleted(e.questID)
         if not seen[e.questID] and not isBlacklisted and not isCompleted and (addon.GetDB("showWorldQuests", true) or opts.isTracked or opts.isInQuestArea) then
-            if not filterByZone or zoneMatchesPlayer(e.questID) then
-                addQuest(e.questID, opts)
-            end
+            addQuest(e.questID, opts)
         end
     end
 
@@ -273,9 +331,7 @@ local function ReadTrackedQuests()
         local opts = e.opts or {}
         local isBlacklisted = (usePermanent and permanentBlacklist[e.questID]) or (not usePermanent and recentlyUntrackedDW and recentlyUntrackedDW[e.questID])
         if not seen[e.questID] and not isBlacklisted then
-            if not filterByZone or zoneMatchesPlayer(e.questID) then
-                addQuest(e.questID, opts)
-            end
+            addQuest(e.questID, opts)
         end
     end
 

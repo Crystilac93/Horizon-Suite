@@ -116,52 +116,55 @@ end
 
 local function GetQuestZoneName(questID)
     local isWorldQuest = IsQuestWorldQuest(questID)
-    -- For world quests: prefer task-quest APIs (uiMapID). C_TaskQuest.GetQuestInfoByQuestID can return nil
-    -- when quest data isn't cached (e.g. tracked WQ from another zone).
-    if isWorldQuest and C_TaskQuest and C_TaskQuest.GetQuestInfoByQuestID then
-        local info = C_TaskQuest.GetQuestInfoByQuestID(questID)
-        local mapID = info and (info.mapID or info.uiMapID)
-        if mapID and C_Map and C_Map.GetMapInfo then
-            local mapInfo = C_Map.GetMapInfo(mapID)
-            if mapInfo and mapInfo.name then
-                return mapInfo.name
-            end
+
+    -- Helper: normalize any mapID to its zone-level (mapType==3) parent for stable zone labeling.
+    local function NormalizeToZoneMapName(mapID)
+        if not mapID or not C_Map or not C_Map.GetMapInfo then return nil end
+        local info = C_Map.GetMapInfo(mapID)
+        local depth = 0
+        while info and info.mapType ~= 3 and info.parentMapID and info.parentMapID ~= 0 and depth < 10 do
+            mapID = info.parentMapID
+            info = C_Map.GetMapInfo(mapID)
+            depth = depth + 1
         end
+        return info and info.name or nil
     end
-    -- Waypoint: for world quests when C_TaskQuest fails, waypoint gives quest location. For regular quests,
-    -- waypoint often returns player's current map, so we prefer quest log header first.
-    if isWorldQuest and C_QuestLog.GetNextWaypoint then
-        local mapID = C_QuestLog.GetNextWaypoint(questID)
-        if mapID and C_Map and C_Map.GetMapInfo then
-            local mapInfo = C_Map.GetMapInfo(mapID)
-            if mapInfo and mapInfo.name then
-                return mapInfo.name
-            end
-        end
-    end
-    -- For non-world quests: prefer quest log header (waypoint often = current zone).
-    if C_QuestLog.GetLogIndexForQuestID then
-        local logIndex = C_QuestLog.GetLogIndexForQuestID(questID)
-        if logIndex then
-            for i = logIndex - 1, 1, -1 do
-                local info = C_QuestLog.GetInfo(i)
-                if info and info.isHeader then
-                    return info.title
-                end
-            end
-        end
-    end
-    if C_QuestLog.GetNextWaypoint then
-        local mapID = C_QuestLog.GetNextWaypoint(questID)
-        if mapID and C_Map and C_Map.GetMapInfo then
-            local mapInfo = C_Map.GetMapInfo(mapID)
-            if mapInfo and mapInfo.name then
-                return mapInfo.name
-            end
-        end
-    end
-    return nil
-end
+
+     -- For world quests: prefer task-quest APIs (uiMapID). C_TaskQuest.GetQuestInfoByQuestID can return nil
+     -- when quest data isn't cached (e.g. tracked WQ from another zone).
+     if isWorldQuest and C_TaskQuest and C_TaskQuest.GetQuestInfoByQuestID then
+         local info = C_TaskQuest.GetQuestInfoByQuestID(questID)
+         local mapID = info and (info.mapID or info.uiMapID)
+         local name = NormalizeToZoneMapName(mapID)
+         if name then return name end
+     end
+     -- Waypoint: for world quests when C_TaskQuest fails, waypoint gives quest location. For regular quests,
+     -- waypoint often returns player's current map, so we prefer quest log header first.
+     if isWorldQuest and C_QuestLog.GetNextWaypoint then
+         local mapID = C_QuestLog.GetNextWaypoint(questID)
+         local name = NormalizeToZoneMapName(mapID)
+         if name then return name end
+     end
+
+     -- For non-world quests: prefer quest log header (waypoint often = current zone).
+     if C_QuestLog.GetLogIndexForQuestID then
+         local logIndex = C_QuestLog.GetLogIndexForQuestID(questID)
+         if logIndex then
+             for i = logIndex - 1, 1, -1 do
+                 local info = C_QuestLog.GetInfo(i)
+                 if info and info.isHeader then
+                     return info.title
+                 end
+             end
+         end
+     end
+     if C_QuestLog.GetNextWaypoint then
+         local mapID = C_QuestLog.GetNextWaypoint(questID)
+         local name = NormalizeToZoneMapName(mapID)
+         if name then return name end
+     end
+     return nil
+ end
 
 addon.IsQuestWorldQuest    = IsQuestWorldQuest
 addon.GetQuestFrequency   = GetQuestFrequency

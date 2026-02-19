@@ -467,7 +467,8 @@ local function PopulateEntry(entry, questData, groupKey)
     if showInZoneSuffix then
         local needSuffix = false
         if questData.category == "WORLD" then
-            needSuffix = (questData.isAccepted == false and questData.isTracked == false)
+            -- WORLD quests are commonly unaccepted; don't append '**' for them.
+            needSuffix = false
         elseif questData.category == "WEEKLY" or questData.category == "DAILY" then
             needSuffix = (questData.isAccepted == false)
         end

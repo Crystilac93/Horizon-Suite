@@ -25,6 +25,9 @@ eventFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 eventFrame:RegisterEvent("ZONE_CHANGED")
 eventFrame:RegisterEvent("VIGNETTE_MINIMAP_UPDATED")
 eventFrame:RegisterEvent("VIGNETTES_UPDATED")
+pcall(function() eventFrame:RegisterEvent("AREA_POIS_UPDATED") end)
+pcall(function() eventFrame:RegisterEvent("QUEST_POI_UPDATE") end)
+pcall(function() eventFrame:RegisterEvent("TASK_PROGRESS_UPDATE") end)
 eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
 eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
@@ -315,6 +318,7 @@ end
 local function OnZoneChanged(event)
     addon.focus.zoneJustChanged = true
     addon.focus.lastPlayerMapID = nil
+    addon.focus.lastZoneMapID = nil
     -- Only clear right-click suppression on major area change (return to main zone), not on subzone change—unless option is "suppress until reload".
     if event == "ZONE_CHANGED_NEW_AREA" then
         if not addon.GetDB("suppressUntrackedUntilReload", false) then

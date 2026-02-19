@@ -5,6 +5,31 @@
 
 local addon = _G.HorizonSuite
 
+-- Defensive fallback: ensure addon.GetNearbyQuestIDs exists even if portions of this module fail.
+-- This prevents FocusAggregator from crashing and at least returns task quests on the player's current map.
+if not addon.GetNearbyQuestIDs then
+    addon.GetNearbyQuestIDs = function()
+        local nearbySet, taskQuestOnlySet = {}, {}
+        if not (addon.ResolvePlayerMapContext and addon.GetTaskQuestsForMap) then
+            return nearbySet, taskQuestOnlySet
+        end
+        local ctx = addon.ResolvePlayerMapContext("player") or {}
+        for _, mid in ipairs(ctx.mapIDsToQuery or {}) do
+            local taskPOIs = addon.GetTaskQuestsForMap(mid, mid) or addon.GetTaskQuestsForMap(mid)
+            if taskPOIs then
+                for _, poi in ipairs(taskPOIs) do
+                    local qid = (type(poi) == "table" and (poi.questID or poi.questId)) or (type(poi) == "number" and poi)
+                    if qid and type(qid) == "number" and qid > 0 then
+                        nearbySet[qid] = true
+                        taskQuestOnlySet[qid] = true
+                    end
+                end
+            end
+        end
+        return nearbySet, taskQuestOnlySet
+    end
+end
+
 -- ============================================================================
 -- WORLD QUEST AND QUESTS-ON-MAP LOGIC
 -- ============================================================================
@@ -23,12 +48,10 @@ local function IsTaskQuestCurrentlyActive(questID)
     if C_TaskQuest and C_TaskQuest.IsActive then
         if not C_TaskQuest.IsActive(questID) then return false end
     end
-    -- Time-left guard: if the quest has a timer and it has expired, reject it.
-    if C_TaskQuest and C_TaskQuest.GetQuestTimeLeftSeconds then
-        local timeLeft = C_TaskQuest.GetQuestTimeLeftSeconds(questID)
-        -- timeLeft is nil when no timer exists (some callings, bonus objectives); that is fine.
-        if timeLeft and timeLeft <= 0 then return false end
-    end
+    -- Time-left (soft) guard:
+    -- Some task quests shown on the map (notably race-style tasks) can report 0/negative here even while still valid.
+    -- C_TaskQuest.IsActive is the authoritative flag; only use time-left as an informational hint.
+    -- If it's explicitly expired but IsActive is true, we keep it.
     return true
 end
 
@@ -65,47 +88,11 @@ local function GetNearbyQuestIDs()
 
     -- Build mapIDsToCheck first so we can filter by current map.
     -- This prevents stale WQs from the previous zone (e.g. after hearth) from staying in the tracker.
-    local mapID = (C_Map and C_Map.GetBestMapForUnit) and C_Map.GetBestMapForUnit("player") or nil
-    local mapIDsToCheck = nil
-    local mapIDSet = {}  -- fast lookup set for the same IDs
-    if mapID and C_Map and C_Map.GetMapInfo then
-        mapIDsToCheck = { mapID }
-        mapIDSet[mapID] = true
-        local seen = { [mapID] = true }
-        local myMapInfo = C_Map.GetMapInfo(mapID) or nil
-        local myMapType = myMapInfo and myMapInfo.mapType
-    -- In a Delve, only use the current map; do not add parent or children (avoids pulling in zone quests).
-    if not (addon.IsDelveActive and addon.IsDelveActive()) then
-        if C_Map.GetMapInfo and myMapType ~= nil and myMapType >= 4 then
-            local parentInfo = (C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)) or nil
-            local parentMapID = parentInfo and parentInfo.parentMapID and parentInfo.parentMapID ~= 0 and parentInfo.parentMapID or nil
-            if parentMapID then
-                local parentMapInfo = (C_Map.GetMapInfo and C_Map.GetMapInfo(parentMapID)) or nil
-                local mapType = parentMapInfo and parentMapInfo.mapType
-                if mapType == nil or mapType >= 3 then
-                    if not seen[parentMapID] then
-                        seen[parentMapID] = true
-                        mapIDsToCheck[#mapIDsToCheck + 1] = parentMapID
-                        mapIDSet[parentMapID] = true
-                    end
-                end
-            end
-        end
-        -- Only add children when player's map is Micro (5) or Dungeon (4); never when in a Zone (city).
-        if C_Map.GetMapChildrenInfo and myMapType ~= nil and myMapType >= 4 then
-            local children = C_Map.GetMapChildrenInfo(mapID, nil, true)
-            if children then
-                for _, child in ipairs(children) do
-                    local childID = child and child.mapID
-                    if childID and not seen[childID] then
-                        seen[childID] = true
-                        mapIDsToCheck[#mapIDsToCheck + 1] = childID
-                        mapIDSet[childID] = true
-                    end
-                end
-            end
-        end
-    end
+    local ctx = addon.ResolvePlayerMapContext and addon.ResolvePlayerMapContext("player") or nil
+    local mapIDsToCheck = (ctx and ctx.mapIDsToQuery and #ctx.mapIDsToQuery > 0) and ctx.mapIDsToQuery or nil
+    local mapIDSet = {}
+    if mapIDsToCheck then
+        for _, id in ipairs(mapIDsToCheck) do mapIDSet[id] = true end
     end
 
     -- GetTasksTable: global list of all task quests. Skip world quests entirely
@@ -170,6 +157,39 @@ local function GetNearbyQuestIDs()
                         if IsTaskQuestCurrentlyActive(questID) then
                             nearbySet[questID] = true
                             taskQuestOnlySet[questID] = true
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Quest hub fallback (zone-scoped):
+    -- Some active WQs are associated to quest hubs and are best enumerated via Area POIs.
+    -- This also helps when GetQuestsOnMap returns an incomplete set for the zone map.
+    if ctx and ctx.zoneMapID and C_AreaPoiInfo and C_AreaPoiInfo.GetQuestHubsForMap and C_AreaPoiInfo.GetAreaPOIInfo then
+        local okHubs, hubs = pcall(C_AreaPoiInfo.GetQuestHubsForMap, ctx.zoneMapID)
+        if okHubs and hubs and type(hubs) == "table" then
+            for _, areaPoiID in ipairs(hubs) do
+                local okInfo, poiInfo = pcall(C_AreaPoiInfo.GetAreaPOIInfo, ctx.zoneMapID, areaPoiID)
+                local linkedMapID = okInfo and poiInfo and poiInfo.linkedUiMapID or nil
+                -- If the hub links to a map and that map exposes task quests, query it.
+                if linkedMapID and addon.GetTaskQuestsForMap then
+                    local taskPOIs = addon.GetTaskQuestsForMap(linkedMapID, linkedMapID) or addon.GetTaskQuestsForMap(linkedMapID)
+                    if taskPOIs then
+                        for _, poi in ipairs(taskPOIs) do
+                            local questID = (type(poi) == "table" and (poi.questID or poi.questId)) or (type(poi) == "number" and poi)
+                            if questID and type(questID) == "number" and questID > 0 then
+                                local related = true
+                                if C_QuestHub and C_QuestHub.IsQuestCurrentlyRelatedToHub then
+                                    local okRel, isRel = pcall(C_QuestHub.IsQuestCurrentlyRelatedToHub, questID, areaPoiID)
+                                    if okRel then related = (isRel == true) end
+                                end
+                                if related and IsTaskQuestCurrentlyActive(questID) then
+                                    nearbySet[questID] = true
+                                    taskQuestOnlySet[questID] = true
+                                end
+                            end
                         end
                     end
                 end
@@ -277,7 +297,47 @@ end
 -- Returns watch-list WQs plus in-zone *active* world quests/callings so they appear in the objective list.
 -- Filter out deprecated/expired WQs: only show if on watch list, or calling, or (world/task and currently active or in quest log).
 local function GetWorldAndCallingQuestIDsToShow(nearbySet, taskQuestOnlySet)
-    local playerMapID = (C_Map and C_Map.GetBestMapForUnit) and C_Map.GetBestMapForUnit("player") or nil
+    local mapCtx = addon.ResolvePlayerMapContext and addon.ResolvePlayerMapContext("player") or nil
+    local playerMapID = mapCtx and mapCtx.rawMapID or ((C_Map and C_Map.GetBestMapForUnit) and C_Map.GetBestMapForUnit("player") or nil)
+    local zoneMapID = mapCtx and mapCtx.zoneMapID or nil
+
+    -- When we include map-derived WQs/tasks for the current zone, we want them to show in the list
+    -- even if the user has toggled off "showWorldQuests" (which is intended to hide far-away WQs).
+    -- We'll mark them as "in quest area" to bypass that visibility gate.
+    local ALWAYS_SHOW_MAP_DERIVED_WQS = true
+
+    local function IsQuestAWorldQuest(questID)
+        if not questID or questID <= 0 then return false end
+        if addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(questID) then return true end
+        if C_QuestLog and C_QuestLog.IsWorldQuest and C_QuestLog.IsWorldQuest(questID) then return true end
+        if C_QuestInfoSystem and C_QuestInfoSystem.GetQuestClassification and Enum and Enum.QuestClassification then
+            local qc = C_QuestInfoSystem.GetQuestClassification(questID)
+            if qc == Enum.QuestClassification.WorldQuest then return true end
+        end
+        return false
+    end
+
+    -- Only accept quests whose map (walked up to mapType=3) matches the player's zoneMapID.
+    -- This is stricter than the old name-based filter, but *only* applied for untracked/nearby entries.
+    local function IsQuestOnPlayerZoneMap(questID)
+        if not questID or questID <= 0 then return false end
+        if not zoneMapID or not (C_TaskQuest and C_TaskQuest.GetQuestZoneID) or not (C_Map and C_Map.GetMapInfo) then
+            return true
+        end
+        local ok, qMapID = pcall(C_TaskQuest.GetQuestZoneID, questID)
+        if not ok or not qMapID or qMapID == 0 then
+            return true
+        end
+        local checkID = qMapID
+        for _ = 1, 10 do
+            if checkID == zoneMapID then return true end
+            local info = C_Map.GetMapInfo(checkID)
+            if not info or not info.parentMapID or info.parentMapID == 0 then break end
+            checkID = info.parentMapID
+        end
+        return false
+    end
+
     local out = {}
     local seen = {}
     if C_QuestLog.GetNumWorldQuestWatches and C_QuestLog.GetQuestIDForWorldQuestWatchIndex then
@@ -296,8 +356,24 @@ local function GetWorldAndCallingQuestIDsToShow(nearbySet, taskQuestOnlySet)
     if addon.wqtTrackedQuests then
         for questID, _ in pairs(addon.wqtTrackedQuests) do
             if not seen[questID] and IsTaskQuestCurrentlyActive(questID) then
-                seen[questID] = true
-                out[#out + 1] = { questID = questID, isTracked = true }
+                -- Skip quests that can't be meaningfully displayed/tracked (hidden/internal).
+                local logIdx = (C_QuestLog and C_QuestLog.GetLogIndexForQuestID) and C_QuestLog.GetLogIndexForQuestID(questID) or nil
+                if logIdx and C_QuestLog and C_QuestLog.GetInfo then
+                    local info = C_QuestLog.GetInfo(logIdx)
+                    if info and info.isHidden then
+                        -- ignore
+                    else
+                        seen[questID] = true
+                        out[#out + 1] = { questID = questID, isTracked = true }
+                    end
+                else
+                    -- If it's not in the quest log, only include if it's a world quest AND has a title.
+                    local title = (C_QuestLog and C_QuestLog.GetTitleForQuestID) and C_QuestLog.GetTitleForQuestID(questID) or nil
+                    if title and title ~= "" and IsQuestAWorldQuest(questID) then
+                        seen[questID] = true
+                        out[#out + 1] = { questID = questID, isTracked = true }
+                    end
+                end
             end
         end
     end
@@ -306,39 +382,65 @@ local function GetWorldAndCallingQuestIDsToShow(nearbySet, taskQuestOnlySet)
         local ids = {}
         for questID, _ in pairs(nearbySet) do
             if not seen[questID] and (not recentlyUntracked or not recentlyUntracked[questID]) then
-                local isWorld = addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(questID) or (C_QuestLog.IsWorldQuest and C_QuestLog.IsWorldQuest(questID))
-                local isCalling = C_QuestLog.IsQuestCalling and C_QuestLog.IsQuestCalling(questID)
-                local qc = C_QuestInfoSystem and C_QuestInfoSystem.GetQuestClassification and C_QuestInfoSystem.GetQuestClassification(questID)
-                local isCampaign = (qc == Enum.QuestClassification.Campaign)
-                local isRecurring = (qc == Enum.QuestClassification.Recurring)
-                if isCampaign or isRecurring then
-                    if isCalling then ids[#ids + 1] = questID end
-                elseif isCalling then
-                    ids[#ids + 1] = questID
-                elseif isWorld then
-                    -- Use the unified active check: IsActive + time-left + not completed.
-                    if IsTaskQuestCurrentlyActive(questID) then
-                        ids[#ids + 1] = questID
-                    end
-                end
-            end
-        end
+                -- Gate *untracked* map-derived entries by current zone map.
+                -- Watch-list WQs are handled above and remain visible if active.
+                if not IsQuestOnPlayerZoneMap(questID) then
+                    -- skip (wrong map/zone)
+                else
+                     local isWorld = IsQuestAWorldQuest(questID)
+                      local isCalling = C_QuestLog.IsQuestCalling and C_QuestLog.IsQuestCalling(questID)
+                      local qc = C_QuestInfoSystem and C_QuestInfoSystem.GetQuestClassification and C_QuestInfoSystem.GetQuestClassification(questID)
+                      local isCampaign = (qc == Enum.QuestClassification.Campaign)
+                      local isRecurring = (qc == Enum.QuestClassification.Recurring)
+                      local fromTaskQuestMap = taskQuestOnlySet and taskQuestOnlySet[questID]
+
+                      -- Debug probes for known-missing IDs.
+                      local DEBUG_WQDBG = false
+                      if DEBUG_WQDBG and (questID == 82293 or questID == 80243 or questID == 82523) then
+                          local dbgIsActive = (C_TaskQuest and C_TaskQuest.IsActive) and C_TaskQuest.IsActive(questID) or nil
+                          local dbgIsWQ = isWorld
+                          local dbgRecentlyUntracked = recentlyUntracked and recentlyUntracked[questID]
+                          local dbgZone = (C_TaskQuest and C_TaskQuest.GetQuestZoneID) and C_TaskQuest.GetQuestZoneID(questID) or nil
+                          if addon.HSPrint then
+                              addon.HSPrint(("WQDBG q=%d fromTask=%s isWQ=%s isCalling=%s class=%s isCampaign=%s isRecurring=%s isActive=%s zoneMap=%s recentlyUntracked=%s")
+                                  :format(questID, tostring(fromTaskQuestMap), tostring(dbgIsWQ), tostring(isCalling), tostring(qc), tostring(isCampaign), tostring(isRecurring), tostring(dbgIsActive), tostring(dbgZone), tostring(dbgRecentlyUntracked)))
+                          end
+                      end
+
+                      if isCampaign or isRecurring then
+                          if isCalling then
+                              ids[#ids + 1] = questID
+                          end
+                      elseif isCalling then
+                          ids[#ids + 1] = questID
+                     elseif isWorld then
+                         if IsTaskQuestCurrentlyActive(questID) then
+                             ids[#ids + 1] = questID
+                         end
+                      end
+                 end
+              end
+          end
+
         table.sort(ids)
         for _, questID in ipairs(ids) do
             seen[questID] = true
             if C_TaskQuest and C_TaskQuest.RequestPreloadRewardData then
                 C_TaskQuest.RequestPreloadRewardData(questID)
             end
-            local isWorld = addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(questID) or (C_QuestLog.IsWorldQuest and C_QuestLog.IsWorldQuest(questID))
+            local isWorld = IsQuestAWorldQuest(questID)
             local isCalling = C_QuestLog.IsQuestCalling and C_QuestLog.IsQuestCalling(questID)
             local fromTaskQuestMap = taskQuestOnlySet and taskQuestOnlySet[questID]
             local qc = C_QuestInfoSystem and C_QuestInfoSystem.GetQuestClassification and C_QuestInfoSystem.GetQuestClassification(questID)
             local isCampaign = (qc == Enum.QuestClassification.Campaign)
             local isRecurring = (qc == Enum.QuestClassification.Recurring)
-            -- Only force WORLD for task-map quests that are not already world/calling/campaign/recurring (should not happen now we only add WQ/Calling).
-            local forceCategory = (fromTaskQuestMap and not isWorld and not isCalling and not isCampaign and not isRecurring) and "WORLD" or nil
+            -- Force WORLD for task-map pins that are not already classified as world/calling/campaign/recurring.
+            local forceCategory = nil
             -- isInQuestArea: player within distance of quest (Blizzard-style). Zone-only WQs stay hidden when WQ off.
             local isInQuestArea = playerMapID and IsPlayerNearQuestArea(questID, playerMapID)
+            if ALWAYS_SHOW_MAP_DERIVED_WQS and isWorld and IsQuestOnPlayerZoneMap(questID) then
+                isInQuestArea = true
+            end
             -- Re-check watch list so WQs just added from map get isTracked = true (no **).
             local isTracked = IsOnWorldQuestWatchList(questID)
             out[#out + 1] = { questID = questID, isTracked = isTracked, isInQuestArea = isInQuestArea, forceCategory = forceCategory }
@@ -402,6 +504,114 @@ local function GetNearbyDebugInfo()
         lines[#lines + 1] = ("GetPlayerCurrentZoneName (resolved): %s"):format(tostring(currentZone or "nil"))
     end
     return lines
+end
+
+-- ============================================================================
+-- DEBUG: WORLD QUEST DISCOVERY DUMP
+-- ============================================================================
+
+local function DumpQuestPOIs(pois)
+    local ids = {}
+    if not pois then return ids end
+    for _, poi in ipairs(pois) do
+        local qid = (type(poi) == "table" and (poi.questID or poi.questId)) or (type(poi) == "number" and poi)
+        if qid and type(qid) == "number" and qid > 0 then
+            ids[#ids + 1] = qid
+        end
+    end
+    table.sort(ids)
+    return ids
+end
+
+local function SafeMapName(mapID)
+    if not mapID or not C_Map or not C_Map.GetMapInfo then return "nil" end
+    local ok, info = pcall(C_Map.GetMapInfo, mapID)
+    if not ok or not info then return tostring(mapID) end
+    return ("%s (%d, type=%s, parent=%s)"):format(tostring(info.name or "?"), mapID, tostring(info.mapType), tostring(info.parentMapID))
+end
+
+function addon.DumpWorldQuestDiscovery()
+    if not addon.HSPrint then return end
+    addon.HSPrint("=== HorizonSuite WQ Discovery Dump ===")
+
+    local ctx = addon.ResolvePlayerMapContext and addon.ResolvePlayerMapContext("player") or {}
+    addon.HSPrint("rawMapID: " .. tostring(ctx.rawMapID) .. " | " .. SafeMapName(ctx.rawMapID))
+    addon.HSPrint("zoneMapID: " .. tostring(ctx.zoneMapID) .. " | " .. SafeMapName(ctx.zoneMapID))
+    addon.HSPrint("mapIDsToQuery: " .. tostring(ctx.mapIDsToQuery and #ctx.mapIDsToQuery or 0))
+    if ctx.mapIDsToQuery then
+        for i, mid in ipairs(ctx.mapIDsToQuery) do
+            addon.HSPrint(("  [%d] %s"):format(i, SafeMapName(mid)))
+        end
+    end
+
+    -- 1) Task quests by mapID
+    if addon.GetTaskQuestsForMap then
+        addon.HSPrint("-- C_TaskQuest quests by mapID --")
+        for _, mid in ipairs(ctx.mapIDsToQuery or {}) do
+            local ok, pois = pcall(function()
+                return addon.GetTaskQuestsForMap(mid, mid) or addon.GetTaskQuestsForMap(mid)
+            end)
+            local ids = ok and DumpQuestPOIs(pois) or {}
+            addon.HSPrint(("map %d -> %d task quests"):format(mid, #ids))
+            if #ids > 0 then
+                addon.HSPrint("  " .. table.concat(ids, ", "))
+
+                -- Per-quest details
+                for _, qid in ipairs(ids) do
+                    local isWQ = (addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(qid)) or (C_QuestLog and C_QuestLog.IsWorldQuest and C_QuestLog.IsWorldQuest(qid))
+                    local qc = (C_QuestInfoSystem and C_QuestInfoSystem.GetQuestClassification) and C_QuestInfoSystem.GetQuestClassification(qid) or nil
+                    local timeLeft = (C_TaskQuest and C_TaskQuest.GetQuestTimeLeftSeconds) and C_TaskQuest.GetQuestTimeLeftSeconds(qid) or nil
+                    local zone = (C_TaskQuest and C_TaskQuest.GetQuestZoneID) and C_TaskQuest.GetQuestZoneID(qid) or nil
+                    addon.HSPrint(("    q=%d | isWQ=%s | class=%s | timeLeft=%s | zoneMap=%s"):format(qid, tostring(isWQ), tostring(qc), tostring(timeLeft), tostring(zone)))
+                end
+            end
+        end
+    else
+        addon.HSPrint("addon.GetTaskQuestsForMap is nil")
+    end
+
+    -- 2) Area POIs: Events and Quest Hubs
+    if ctx.zoneMapID and C_AreaPoiInfo and C_AreaPoiInfo.GetEventsForMap then
+        addon.HSPrint("-- C_AreaPoiInfo events for zoneMapID --")
+        local ok, eventIDs = pcall(C_AreaPoiInfo.GetEventsForMap, ctx.zoneMapID)
+        if ok and eventIDs then
+            addon.HSPrint("events: " .. tostring(#eventIDs))
+            for _, areaPoiID in ipairs(eventIDs) do
+                local poiInfo = (C_AreaPoiInfo.GetAreaPOIInfo and select(2, pcall(C_AreaPoiInfo.GetAreaPOIInfo, ctx.zoneMapID, areaPoiID)))
+                local name = poiInfo and poiInfo.name or "?"
+                local linked = poiInfo and poiInfo.linkedUiMapID
+                addon.HSPrint(("  eventPOI %d: %s | linked=%s"):format(areaPoiID, tostring(name), tostring(linked)))
+            end
+        else
+            addon.HSPrint("GetEventsForMap returned nil")
+        end
+    end
+
+    if ctx.zoneMapID and C_AreaPoiInfo and C_AreaPoiInfo.GetQuestHubsForMap then
+        addon.HSPrint("-- C_AreaPoiInfo quest hubs for zoneMapID --")
+        local ok, hubIDs = pcall(C_AreaPoiInfo.GetQuestHubsForMap, ctx.zoneMapID)
+        if ok and hubIDs then
+            addon.HSPrint("hubs: " .. tostring(#hubIDs))
+            for _, areaPoiID in ipairs(hubIDs) do
+                local poiInfo = (C_AreaPoiInfo.GetAreaPOIInfo and select(2, pcall(C_AreaPoiInfo.GetAreaPOIInfo, ctx.zoneMapID, areaPoiID)))
+                local name = poiInfo and poiInfo.name or "?"
+                local linked = poiInfo and poiInfo.linkedUiMapID
+                addon.HSPrint(("  hubPOI %d: %s | linked=%s"):format(areaPoiID, tostring(name), tostring(linked)))
+            end
+        else
+            addon.HSPrint("GetQuestHubsForMap returned nil")
+        end
+    end
+
+    addon.HSPrint("=== End WQ Discovery Dump ===")
+end
+
+-- /hswqdebug
+SLASH_HSWQDEBUG1 = "/hswqdebug"
+SlashCmdList.HSWQDEBUG = function()
+    if addon.DumpWorldQuestDiscovery then
+        addon.DumpWorldQuestDiscovery()
+    end
 end
 
 addon.GetNearbyQuestIDs          = GetNearbyQuestIDs
