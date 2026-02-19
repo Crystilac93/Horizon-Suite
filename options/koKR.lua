@@ -149,6 +149,8 @@ L["Show header divider"]                                = "헤더 구분선 표�
 L["Show the line below the header."]                    = "헤더 아래 구분선을 표시합니다."
 L["Super-minimal mode"]                                 = "초간결 모드"
 L["Hide header for a pure text list."]                  = "헤더를 숨기고 텍스트 목록만 표시합니다."
+L["Show options button"]                               = "옵션 버튼 표시"
+L["Show the Options button in the tracker header."]     = "추적기 헤더에 옵션 버튼을 표시합니다."
 
 -- =====================================================================
 -- OptionsData.lua Display — List

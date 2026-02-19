@@ -100,14 +100,18 @@ end)
 headerBtn:SetScript("OnEnter", function()
     if addon.GetDB("hideObjectivesHeader", false) then
         addon.chevron:SetAlpha(1)
-        addon.optionsBtn:SetAlpha(1)
+        if not addon.GetDB("hideOptionsButton", false) then
+            addon.optionsBtn:SetAlpha(1)
+        end
     end
 end)
 headerBtn:SetScript("OnLeave", function()
     if addon.GetDB("hideObjectivesHeader", false) then
         if addon.optionsBtn:IsMouseOver() then return end
         addon.chevron:SetAlpha(0)
-        addon.optionsBtn:SetAlpha(0)
+        if not addon.GetDB("hideOptionsButton", false) then
+            addon.optionsBtn:SetAlpha(0)
+        end
     end
 end)
 headerBtn:RegisterForDrag("LeftButton")
@@ -194,29 +198,33 @@ local function FullLayout()
     end
 
     local minimal = addon.GetDB("hideObjectivesHeader", false)
+    local hideOptBtn = addon.GetDB("hideOptionsButton", false)
     if minimal then
         addon.headerText:Hide()
         addon.headerShadow:Hide()
         addon.countText:Hide()
         addon.countShadow:Hide()
         addon.divider:Hide()
-        addon.optionsLabel:SetText("Options")
-        addon.optionsBtn:SetWidth(math.max(addon.optionsLabel:GetStringWidth() + 4, 44))
         addon.optionsBtn:SetFrameLevel(headerBtn:GetFrameLevel() + 1)
         addon.optionsBtn:SetParent(addon.HS)
         headerBtn:SetHeight(addon.MINIMAL_HEADER_HEIGHT)
         addon.chevron:Show()
-        addon.optionsBtn:Show()
-        -- Visible on hover only: use alpha so frames stay in layout and remain clickable
-        if not lastMinimal then
-            addon.chevron:SetAlpha(headerBtn:IsMouseOver() and 1 or 0)
-            addon.optionsBtn:SetAlpha(headerBtn:IsMouseOver() and 1 or 0)
+        if hideOptBtn then
+            addon.optionsBtn:Hide()
+        else
+            addon.optionsLabel:SetText("Options")
+            addon.optionsBtn:SetWidth(math.max(addon.optionsLabel:GetStringWidth() + 4, 44))
+            addon.optionsBtn:Show()
+            -- Visible on hover only: use alpha so frames stay in layout and remain clickable
+            if not lastMinimal then
+                addon.chevron:SetAlpha(headerBtn:IsMouseOver() and 1 or 0)
+                addon.optionsBtn:SetAlpha(headerBtn:IsMouseOver() and 1 or 0)
+            end
         end
     else
         addon.optionsBtn:SetFrameLevel(headerBtn:GetFrameLevel() + 1)
         addon.optionsBtn:SetParent(addon.HS)
         addon.chevron:SetAlpha(1)
-        addon.optionsBtn:SetAlpha(1)
         addon.headerText:Show()
         addon.headerShadow:Show()
         local headerStr = addon.ApplyTextCase("OBJECTIVES", "headerTextCase", "upper")
@@ -224,9 +232,14 @@ local function FullLayout()
         addon.headerShadow:SetText(headerStr)
         if addon.GetDB("showQuestCount", true) then addon.countText:Show(); addon.countShadow:Show() else addon.countText:Hide(); addon.countShadow:Hide() end
         addon.chevron:Show()
-        addon.optionsBtn:Show()
-        addon.optionsLabel:SetText("Options")
-        addon.optionsBtn:SetWidth(math.max(addon.optionsLabel:GetStringWidth() + 4, 44))
+        if hideOptBtn then
+            addon.optionsBtn:Hide()
+        else
+            addon.optionsBtn:SetAlpha(1)
+            addon.optionsBtn:Show()
+            addon.optionsLabel:SetText("Options")
+            addon.optionsBtn:SetWidth(math.max(addon.optionsLabel:GetStringWidth() + 4, 44))
+        end
         addon.divider:SetShown(addon.GetDB("showHeaderDivider", true))
         headerBtn:SetHeight(addon.PADDING + addon.GetHeaderHeight())
     end

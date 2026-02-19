@@ -274,7 +274,7 @@ optionsBtn:SetScript("OnEnter", function(self)
     optionsTooltipHideRequested = false
     optionsLabel:SetTextColor(0.85, 0.85, 0.90, 1)
     -- Super-minimal: keep chevron and options visible when hovering options (header OnLeave fires when we move here)
-    if addon.GetDB("hideObjectivesHeader", false) then
+    if addon.GetDB("hideObjectivesHeader", false) and not addon.GetDB("hideOptionsButton", false) then
         addon.chevron:SetAlpha(1)
         addon.optionsBtn:SetAlpha(1)
     end
