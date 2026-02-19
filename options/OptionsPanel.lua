@@ -309,6 +309,16 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             local oid = opt.dbKey or (addon.OptionCategories[tabIndex].key .. "_" .. (opt.name or ""):gsub("%s+", "_"))
             if optionFrames then optionFrames[oid] = { tabIndex = tabIndex, frame = w } end
             table.insert(refreshers, w)
+        elseif opt.type == "color" and currentCard then
+            local def = (opt.default and type(opt.default) == "table" and #opt.default >= 3) and opt.default or addon.HEADER_COLOR
+            local getTbl = function() return getDB(opt.dbKey, nil) end
+            local setKeyVal = function(v) setDB(opt.dbKey, v) end
+            local row = OptionsWidgets_CreateColorSwatchRow(currentCard, currentCard.contentAnchor, opt.name or "Color", def, getTbl, setKeyVal, notifyMainAddon)
+            currentCard.contentAnchor = row
+            currentCard.contentHeight = currentCard.contentHeight + OptionGap + RowHeights.colorRow
+            local oid = opt.dbKey or (addon.OptionCategories[tabIndex].key .. "_" .. (opt.name or ""):gsub("%s+", "_"))
+            if optionFrames then optionFrames[oid] = { tabIndex = tabIndex, frame = row } end
+            table.insert(refreshers, row)
         elseif opt.type == "button" and currentCard then
             local btn = CreateFrame("Button", nil, currentCard)
             btn:SetSize(120, 22)

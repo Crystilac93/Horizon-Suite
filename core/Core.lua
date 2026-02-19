@@ -44,6 +44,23 @@ function addon.GetMaxContentHeight()
     return tonumber(addon.GetDB("maxContentHeight", addon.MAX_CONTENT_HEIGHT)) or addon.MAX_CONTENT_HEIGHT
 end
 
+--- Returns the header text color from DB or default.
+--- @return table {r,g,b}
+function addon.GetHeaderColor()
+    local c = addon.GetDB("headerColor", nil)
+    if c and type(c) == "table" and c[1] and c[2] and c[3] then
+        return c
+    end
+    return addon.HEADER_COLOR
+end
+
+--- Returns the header bar height from DB or default, clamped to 18–48 px.
+--- @return number
+function addon.GetHeaderHeight()
+    local v = tonumber(addon.GetDB("headerHeight", addon.HEADER_HEIGHT)) or addon.HEADER_HEIGHT
+    return math.max(18, math.min(48, v))
+end
+
 function addon.GetContentLeftOffset()
     local base = addon.PADDING + addon.ICON_COLUMN_WIDTH
     if addon.GetDB("showQuestItemButtons", false) then
@@ -211,7 +228,10 @@ headerShadow:SetText("OBJECTIVES")
 
 local headerText = HS:CreateFontString(nil, "OVERLAY")
 headerText:SetFontObject(addon.HeaderFont)
-headerText:SetTextColor(addon.HEADER_COLOR[1], addon.HEADER_COLOR[2], addon.HEADER_COLOR[3], 1)
+do
+    local c = addon.GetHeaderColor()
+    headerText:SetTextColor(c[1], c[2], c[3], 1)
+end
 headerText:SetJustifyH("LEFT")
 headerText:SetPoint("TOPLEFT", HS, "TOPLEFT", addon.PADDING, -addon.PADDING)
 headerText:SetText("OBJECTIVES")
@@ -277,7 +297,7 @@ end)
 
 local divider = HS:CreateTexture(nil, "ARTWORK")
 divider:SetSize(addon.GetPanelWidth() - addon.PADDING * 2, addon.DIVIDER_HEIGHT)
-divider:SetPoint("TOP", HS, "TOPLEFT", addon.GetPanelWidth() / 2, -(addon.PADDING + addon.HEADER_HEIGHT))
+divider:SetPoint("TOP", HS, "TOPLEFT", addon.GetPanelWidth() / 2, -(addon.PADDING + addon.GetHeaderHeight()))
 divider:SetColorTexture(addon.DIVIDER_COLOR[1], addon.DIVIDER_COLOR[2], addon.DIVIDER_COLOR[3], addon.DIVIDER_COLOR[4])
 
 function addon.GetHeaderToContentGap()
@@ -286,13 +306,13 @@ end
 
 function addon.GetContentTop()
     -- Super-minimal uses same offset as full header so categories/quests do not move up (no overlap with chevron/options)
-    return -(addon.PADDING + addon.HEADER_HEIGHT + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap())
+    return -(addon.PADDING + addon.GetHeaderHeight() + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap())
 end
 function addon.GetCollapsedHeight()
     if addon.GetDB("hideObjectivesHeader", false) then
         return addon.MINIMAL_HEADER_HEIGHT + 6
     end
-    return addon.PADDING + addon.HEADER_HEIGHT + 6
+    return addon.PADDING + addon.GetHeaderHeight() + 6
 end
 
 local scrollFrame = CreateFrame("ScrollFrame", nil, HS)
@@ -379,7 +399,9 @@ end)
 -- Resize handle: drag bottom-right corner to change panel width and height
 local RESIZE_MIN, RESIZE_MAX = 180, 800
 local RESIZE_HEIGHT_MIN = addon.MIN_HEIGHT
-local RESIZE_HEIGHT_MAX = addon.PADDING + addon.HEADER_HEIGHT + addon.DIVIDER_HEIGHT + 24 + 1000 + addon.PADDING
+local function GetResizeHeightMax()
+    return addon.PADDING + addon.GetHeaderHeight() + addon.DIVIDER_HEIGHT + 24 + 1000 + addon.PADDING
+end
 local RESIZE_CONTENT_HEIGHT_MIN, RESIZE_CONTENT_HEIGHT_MAX = 200, 1000
 
 local resizeHandle = CreateFrame("Frame", nil, HS)
@@ -412,7 +434,7 @@ local function ResizeOnUpdate(self, elapsed)
     local deltaX = curX - startMouseX
     local deltaY = curY - startMouseY
     local newWidth = math.max(RESIZE_MIN, math.min(RESIZE_MAX, startWidth + deltaX))
-    local newHeight = math.max(RESIZE_HEIGHT_MIN, math.min(RESIZE_HEIGHT_MAX, startHeight - deltaY))
+    local newHeight = math.max(RESIZE_HEIGHT_MIN, math.min(GetResizeHeightMax(), startHeight - deltaY))
     HS:SetWidth(newWidth)
     HS:SetHeight(newHeight)
     addon.focus.layout.targetHeight = newHeight
@@ -437,7 +459,7 @@ resizeHandle:SetScript("OnDragStop", function(self)
     addon.EnsureDB()
     HorizonDB.panelWidth = HS:GetWidth()
     local h = HS:GetHeight()
-    local headerArea = addon.PADDING + addon.HEADER_HEIGHT + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap()
+    local headerArea = addon.PADDING + addon.GetHeaderHeight() + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap()
     local contentH = math.max(RESIZE_CONTENT_HEIGHT_MIN, math.min(RESIZE_CONTENT_HEIGHT_MAX, h - headerArea - addon.PADDING))
     HorizonDB.maxContentHeight = contentH
     if addon.ApplyDimensions then addon.ApplyDimensions() end

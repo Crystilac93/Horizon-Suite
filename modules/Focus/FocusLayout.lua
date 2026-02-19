@@ -92,7 +92,7 @@ end
 local headerBtn = CreateFrame("Button", nil, addon.HS)
 headerBtn:SetPoint("TOPLEFT", addon.HS, "TOPLEFT", 0, 0)
 headerBtn:SetPoint("TOPRIGHT", addon.HS, "TOPRIGHT", 0, 0)
-headerBtn:SetHeight(addon.PADDING + addon.HEADER_HEIGHT)
+headerBtn:SetHeight(addon.PADDING + addon.GetHeaderHeight())
 headerBtn:RegisterForClicks("LeftButtonUp")
 headerBtn:SetScript("OnClick", function()
     addon.ToggleCollapse()
@@ -228,7 +228,7 @@ local function FullLayout()
         addon.optionsLabel:SetText("Options")
         addon.optionsBtn:SetWidth(math.max(addon.optionsLabel:GetStringWidth() + 4, 44))
         addon.divider:SetShown(addon.GetDB("showHeaderDivider", true))
-        headerBtn:SetHeight(addon.PADDING + addon.HEADER_HEIGHT)
+        headerBtn:SetHeight(addon.PADDING + addon.GetHeaderHeight())
     end
     lastMinimal = minimal
 
@@ -330,7 +330,7 @@ local function FullLayout()
                 scrollChild:SetHeight(totalContentH)
                 scrollFrame:SetVerticalScroll(0)
                 addon.focus.layout.scrollOffset = 0
-                local headerArea = addon.PADDING + addon.HEADER_HEIGHT + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap()
+                local headerArea = addon.PADDING + addon.GetHeaderHeight() + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap()
                 local visibleH = math.min(totalContentH, addon.GetMaxContentHeight())
                 addon.focus.layout.targetHeight = math.max(addon.MIN_HEIGHT, headerArea + visibleH + addon.PADDING)
             else
@@ -559,7 +559,7 @@ local function FullLayout()
     addon.focus.layout.scrollOffset = math.min(prevScroll, maxScr)
     scrollFrame:SetVerticalScroll(addon.focus.layout.scrollOffset)
 
-    local headerArea    = addon.PADDING + addon.HEADER_HEIGHT + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap()
+    local headerArea    = addon.PADDING + addon.GetHeaderHeight() + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap()
     local visibleH      = math.min(totalContentH, addon.GetMaxContentHeight())
     addon.focus.layout.targetHeight  = math.max(addon.MIN_HEIGHT, headerArea + visibleH + addon.PADDING)
 

@@ -354,6 +354,9 @@ local function ApplyTypography()
     addon.headerShadow:SetTextColor(0, 0, 0, shadowA)
     addon.headerShadow:SetPoint("CENTER", addon.headerText, "CENTER", shadowOx, shadowOy)
 
+    local headerC = addon.GetHeaderColor()
+    addon.headerText:SetTextColor(headerC[1], headerC[2], headerC[3], 1)
+
     addon.countShadow:SetTextColor(0, 0, 0, shadowA)
     addon.countShadow:SetPoint("CENTER", addon.countText, "CENTER", shadowOx, shadowOy)
 
@@ -386,7 +389,7 @@ local function ApplyDimensions(widthOverride)
     local w = (widthOverride and type(widthOverride) == "number") and widthOverride or addon.GetPanelWidth()
     addon.HS:SetSize(w, addon.HS:GetHeight() or addon.MIN_HEIGHT)
     addon.divider:SetSize(w - addon.PADDING * 2, addon.DIVIDER_HEIGHT)
-    addon.divider:SetPoint("TOP", addon.HS, "TOPLEFT", w / 2, -(addon.PADDING + addon.HEADER_HEIGHT))
+    addon.divider:SetPoint("TOP", addon.HS, "TOPLEFT", w / 2, -(addon.PADDING + addon.GetHeaderHeight()))
     addon.scrollChild:SetWidth(w)
     local leftOffset = addon.GetContentLeftOffset and addon.GetContentLeftOffset() or (addon.PADDING + addon.ICON_COLUMN_WIDTH)
     for i = 1, addon.POOL_SIZE do
