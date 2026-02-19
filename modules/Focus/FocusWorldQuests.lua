@@ -353,8 +353,8 @@ local function GetWorldAndCallingQuestIDsToShow(nearbySet, taskQuestOnlySet)
             end
         end
     end
-    if addon.wqtTrackedQuests then
-        for questID, _ in pairs(addon.wqtTrackedQuests) do
+    if addon.focus.wqtTrackedQuests then
+        for questID, _ in pairs(addon.focus.wqtTrackedQuests) do
             if not seen[questID] and IsTaskQuestCurrentlyActive(questID) then
                 -- Skip quests that can't be meaningfully displayed/tracked (hidden/internal).
                 local logIdx = (C_QuestLog and C_QuestLog.GetLogIndexForQuestID) and C_QuestLog.GetLogIndexForQuestID(questID) or nil

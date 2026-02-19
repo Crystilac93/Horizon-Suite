@@ -67,6 +67,7 @@ addon.focus = {
     recentlyUntrackedWorldQuests      = nil,
     recentlyUntrackedWeekliesAndDailies = nil,
     lastWorldQuestWatchSet            = nil,
+    wqtTrackedQuests                 = nil,  -- [questID] = true; synced from WorldQuestTracker
 
     -- Objective signature cache for reliable quest-update flash (FocusEvents)
     lastQuestObjectiveSignature       = {},

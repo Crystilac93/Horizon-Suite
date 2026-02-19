@@ -6,17 +6,37 @@ All notable changes to Horizon Suite are documented here.
 
 ## [Unreleased]
 
+<!-- Changelog entries are generated from closed GitHub Issues at release time. -->
+
+---
+
+## [1.2.0] – 2026-02-19
+
 ### New Features
 
-- **(Focus) Per-objective progress (e.g. 15/18) on individual objectives** — Objectives with multiple instances (e.g. "Pressure Valve fixed", "Cache and Release" valves) now display numeric progress when the API provides it, so you can see partial completion at a glance.
+- **(Focus) Per-objective progress (e.g. 15/18) on individual objectives** — Objectives with multiple instances (e.g. "Pressure Valve fixed", "Cache and Release" valves) now display numeric progress when the game provides it, so you can see partial completion at a glance.
+
+- **(Focus) Configurable fading animations and smoother transitions** — Adjust flash intensity (subtle, medium, strong) and optionally customize the flash color when objectives update; collapse/expand transitions are smoother.
+
+- **(Focus) Option to show tick instead of green color for completed objectives** — Toggle to display a checkmark instead of color for completed objectives, for easier scanning or different color schemes.
+
+- **(Focus) Setting to hide or show the options button.**
+
+- **(Core) Add Korean language support.**
+
+### Improvements
+
+- **(Focus) Hovering quest objectives now shows party member progress** — Parity with default UI tooltip.
+
+- **(Focus) Option for a current-zone quest item button that can be keybound** — ExtraQuestButton-style: use without clicking.
 
 ### Fixes
 
-- **Focus Tracker — ADDON_ACTION_BLOCKED** — Fixed error when `HSFrame:SetSize()` (and other protected dimension calls) were invoked during combat when changing options. `ApplyDimensions` is now guarded by `InCombatLockdown()` and deferred until `PLAYER_REGEN_ENABLED`.
+- **(Focus) Focus Tracker — ADDON_ACTION_BLOCKED** — Fixed error when changing options during combat; dimension changes are now deferred until after combat.
 
-- **(Focus) Scenario and Delve objectives now show per-objective progress (e.g. 0/5 Workers rescued)** — Objectives from C_ScenarioInfo (Delves, scenarios, dungeons) now pass quantity/totalQuantity as numFulfilled/numRequired so the count displays correctly.
+- **(Focus) Scenario and Delve objectives now show per-objective progress (e.g. 0/5 Workers rescued)** — Objectives from Delves, scenarios, and dungeons now display the correct count.
 
-<!-- Changelog entries are generated from closed GitHub Issues at release time. -->
+- **(Focus) Options to set header color and header height.**
 
 ---
 

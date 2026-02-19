@@ -107,10 +107,10 @@ addon:RegisterModule("focus", {
     OnEnable = function()
         addon.focus.enabled = true
         if HorizonDB and HorizonDB.wqtTrackedQuests then
-            addon.wqtTrackedQuests = addon.wqtTrackedQuests or {}
+            addon.focus.wqtTrackedQuests = addon.focus.wqtTrackedQuests or {}
             for questID, tracked in pairs(HorizonDB.wqtTrackedQuests) do
                 if tracked then
-                    addon.wqtTrackedQuests[questID] = true
+                    addon.focus.wqtTrackedQuests[questID] = true
                 end
             end
         end

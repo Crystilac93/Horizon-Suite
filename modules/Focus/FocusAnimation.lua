@@ -394,9 +394,9 @@ local function UpdateEntryAnimations(dt, useAnim)
     for i = 1, addon.POOL_SIZE do
         if pool[i].animState == "slideout" then stillSlideOut = stillSlideOut + 1 end
     end
-    if stillSlideOut == 0 and addon.onSlideOutCompleteCallback then
-        local fn = addon.onSlideOutCompleteCallback
-        addon.onSlideOutCompleteCallback = nil
+    if stillSlideOut == 0 and addon.focus.callbacks.onSlideOutComplete then
+        local fn = addon.focus.callbacks.onSlideOutComplete
+        addon.focus.callbacks.onSlideOutComplete = nil
         fn()
     end
     return anyAnimating

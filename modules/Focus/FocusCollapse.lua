@@ -11,6 +11,12 @@ local sectionPool = addon.sectionPool
 local scrollFrame = addon.scrollFrame
 local scrollChild = addon.scrollChild
 
+local COLLAPSE_CANCEL_DEBOUNCE_SEC  = 2
+local DIM_FACTOR                     = 0.60
+local DUNGEON_UNTRACKED_DIM_FACTOR  = 0.65
+local COMPLETED_OBJECTIVE_FADE_ALPHA = 0.4
+local MIN_TICK_SIZE                  = 10
+
 local function FormatTimeLeftSeconds(seconds)
     if not seconds or seconds < 0 then return nil end
     local m = math.floor(seconds / 60)
@@ -25,9 +31,10 @@ local function FormatTimeLeftMinutes(minutes)
     return ("%02d:%02d"):format(m, s)
 end
 
+--- Toggles full-panel collapsed/expanded state. Starts collapse animation or cancels in-progress collapse.
 local function ToggleCollapse()
     if addon.focus.collapse.animating then
-        if (GetTime() - addon.focus.collapse.animStart) < 2 then return end
+        if (GetTime() - addon.focus.collapse.animStart) < COLLAPSE_CANCEL_DEBOUNCE_SEC then return end
         addon.focus.collapse.animating = false
         addon.focus.collapse.sectionHeadersFadingOut = false
         addon.focus.collapse.sectionHeadersFadingIn = false
@@ -107,7 +114,9 @@ local function ToggleCollapse()
     HorizonDB.collapsed = addon.focus.collapsed
 end
 
-function addon.StartGroupCollapse(groupKey)
+--- Initiates category collapse for a group. Animates entries collapsing, then runs FullLayout.
+--- @param groupKey string Category key (e.g. "NEARBY", "WEEKLY")
+local function StartGroupCollapse(groupKey)
     if not groupKey then return end
 
     local entries = {}
@@ -144,7 +153,9 @@ function addon.StartGroupCollapse(groupKey)
     end
 end
 
-function addon.StartGroupCollapseVisual(groupKey)
+--- Same as StartGroupCollapse but visual-only: no FullLayout or SetCategoryCollapsed.
+--- @param groupKey string Category key
+local function StartGroupCollapseVisual(groupKey)
     if not groupKey then return end
 
     local entries = {}
@@ -173,7 +184,8 @@ function addon.StartGroupCollapseVisual(groupKey)
     addon.focus.collapse.groups[groupKey] = GetTime()
 end
 
-function addon.TriggerNearbyEntriesFadeIn()
+--- Triggers fade-in for NEARBY entries. Sorts by finalY descending and staggers fade-in.
+local function TriggerNearbyEntriesFadeIn()
     local entries = {}
     for i = 1, addon.POOL_SIZE do
         local e = pool[i]
@@ -189,7 +201,8 @@ function addon.TriggerNearbyEntriesFadeIn()
     end
 end
 
-function addon.StartNearbyTurnOnTransition()
+--- Slides out non-NEARBY entries, then runs FullLayout and TriggerNearbyEntriesFadeIn when slide-out completes.
+local function StartNearbyTurnOnTransition()
     local quests = addon.ReadTrackedQuests()
     local grouped = addon.SortAndGroupQuests(quests)
     local nearbyKeys = {}
@@ -214,8 +227,8 @@ function addon.StartNearbyTurnOnTransition()
     end
 
     if slideOutCount > 0 then
-        addon.onSlideOutCompleteCallback = function()
-            addon.onSlideOutCompleteCallback = nil
+        addon.focus.callbacks.onSlideOutComplete = function()
+            addon.focus.callbacks.onSlideOutComplete = nil
             if addon.FullLayout then addon.FullLayout() end
             if addon.TriggerNearbyEntriesFadeIn then addon.TriggerNearbyEntriesFadeIn() end
         end
@@ -225,6 +238,8 @@ function addon.StartNearbyTurnOnTransition()
     end
 end
 
+--- Whether to show the tracker in the current instance type (dungeon, raid, bg, arena).
+--- @return boolean
 local function ShouldShowInInstance()
     local inType = select(2, GetInstanceInfo())
     if inType == "none" then return true end
@@ -235,6 +250,9 @@ local function ShouldShowInInstance()
     return true
 end
 
+--- Counts non-rare/achievement/endeavor/decor entries that are in the quest log.
+--- @param quests table Array of normalized entry tables
+--- @return number
 local function CountTrackedInLog(quests)
     if not quests then return 0 end
     local n = 0
@@ -251,6 +269,8 @@ local function CountTrackedInLog(quests)
     return n
 end
 
+--- Refreshes entry text and colors in combat (objectives, titles, timers, zone labels).
+--- Called when combat events fire and ShouldHideInCombat is false.
 local function RefreshContentInCombat()
     if not addon.focus.enabled then return end
     if addon.ShouldHideInCombat and addon.ShouldHideInCombat() then return end
@@ -288,8 +308,8 @@ local function RefreshContentInCombat()
                 local doneColor = (addon.GetCompletedObjectiveColor and addon.GetCompletedObjectiveColor(effectiveCat))
                     or (addon.GetObjectiveColor and addon.GetObjectiveColor(effectiveCat)) or addon.OBJ_DONE_COLOR or { 0.5, 0.8, 0.5 }
                 if shouldDim then
-                    objColor = { objColor[1] * 0.60, objColor[2] * 0.60, objColor[3] * 0.60 }
-                    doneColor = { doneColor[1] * 0.60, doneColor[2] * 0.60, doneColor[3] * 0.60 }
+                    objColor = { objColor[1] * DIM_FACTOR, objColor[2] * DIM_FACTOR, objColor[3] * DIM_FACTOR }
+                    doneColor = { doneColor[1] * DIM_FACTOR, doneColor[2] * DIM_FACTOR, doneColor[3] * DIM_FACTOR }
                 end
                 local effectiveDoneColor = doneColor
 
@@ -330,9 +350,9 @@ local function RefreshContentInCombat()
                 entry.titleShadow:SetText(displayTitle)
                 local titleColor = (addon.GetTitleColor and addon.GetTitleColor(effectiveCat)) or questData.color
                 if questData.isDungeonQuest and not questData.isTracked then
-                    titleColor = { titleColor[1] * 0.65, titleColor[2] * 0.65, titleColor[3] * 0.65 }
+                    titleColor = { titleColor[1] * DUNGEON_UNTRACKED_DIM_FACTOR, titleColor[2] * DUNGEON_UNTRACKED_DIM_FACTOR, titleColor[3] * DUNGEON_UNTRACKED_DIM_FACTOR }
                 elseif shouldDim then
-                    titleColor = { titleColor[1] * 0.60, titleColor[2] * 0.60, titleColor[3] * 0.60 }
+                    titleColor = { titleColor[1] * DIM_FACTOR, titleColor[2] * DIM_FACTOR, titleColor[3] * DIM_FACTOR }
                 end
                 entry.titleText:SetTextColor(titleColor[1], titleColor[2], titleColor[3], 1)
 
@@ -347,7 +367,7 @@ local function RefreshContentInCombat()
                     entry.zoneShadow:SetText(zoneLabel)
                     local zoneColor = (addon.GetZoneColor and addon.GetZoneColor(effectiveCat)) or addon.ZONE_COLOR or { 0.8, 0.8, 0.8 }
                     if shouldDim then
-                        zoneColor = { zoneColor[1] * 0.60, zoneColor[2] * 0.60, zoneColor[3] * 0.60 }
+                        zoneColor = { zoneColor[1] * DIM_FACTOR, zoneColor[2] * DIM_FACTOR, zoneColor[3] * DIM_FACTOR }
                     end
                     entry.zoneText:SetTextColor(zoneColor[1], zoneColor[2], zoneColor[3], 1)
                 end
@@ -378,7 +398,7 @@ local function RefreshContentInCombat()
                         local useTick = oData.finished and addon.GetDB("useTickForCompletedObjectives", false) and not questData.isComplete
                         obj.text:SetText(objText)
                         obj.shadow:SetText(objText)
-                        local tickSize = math.max(10, tonumber(addon.GetDB("objectiveFontSize", 11)) or 11)
+                        local tickSize = math.max(MIN_TICK_SIZE, tonumber(addon.GetDB("objectiveFontSize", 11)) or 11)
                         if useTick and obj.tick then
                             obj.tick:SetSize(tickSize, tickSize)
                             obj.tick:ClearAllPoints()
@@ -389,7 +409,7 @@ local function RefreshContentInCombat()
                         end
                         local alpha = 1
                         if oData.finished and (not questData.isAchievement and not questData.isEndeavor) and addon.GetDB("questCompletedObjectiveDisplay", "off") == "fade" then
-                            alpha = 0.4
+                            alpha = COMPLETED_OBJECTIVE_FADE_ALPHA
                         end
                         if oData.finished then
                             if useTick then
@@ -443,7 +463,11 @@ local function RefreshContentInCombat()
     end
 end
 
-addon.ToggleCollapse        = ToggleCollapse
-addon.ShouldShowInInstance  = ShouldShowInInstance
-addon.CountTrackedInLog     = CountTrackedInLog
-addon.RefreshContentInCombat = RefreshContentInCombat
+addon.ToggleCollapse             = ToggleCollapse
+addon.StartGroupCollapse         = StartGroupCollapse
+addon.StartGroupCollapseVisual   = StartGroupCollapseVisual
+addon.TriggerNearbyEntriesFadeIn = TriggerNearbyEntriesFadeIn
+addon.StartNearbyTurnOnTransition = StartNearbyTurnOnTransition
+addon.ShouldShowInInstance       = ShouldShowInInstance
+addon.CountTrackedInLog          = CountTrackedInLog
+addon.RefreshContentInCombat     = RefreshContentInCombat
