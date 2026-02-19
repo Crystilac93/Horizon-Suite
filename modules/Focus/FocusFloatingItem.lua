@@ -1,6 +1,6 @@
 --[[
     Horizon Suite - Focus - Floating Quest Item
-    Extra Action style button for super-tracked or first quest item.
+    Extra Action style button for quest item; keybindable. Source: super-tracked/first or current-zone first.
 ]]
 
 local addon = _G.HorizonSuite
@@ -37,13 +37,20 @@ floatingQuestItemBtn:SetScript("OnDragStop", function(self)
     end
 end)
 floatingQuestItemBtn:Hide()
-addon.StyleQuestItemButton(floatingQuestItemBtn)
+C_Timer.After(0, function()
+    if floatingQuestItemBtn and not floatingQuestItemBtn:IsForbidden() then
+        addon.ApplyBlizzardFloatingQuestItemStyle(floatingQuestItemBtn)
+    end
+end)
+local INSET = 0
 local floatingQuestItemIcon = floatingQuestItemBtn:CreateTexture(nil, "ARTWORK")
-floatingQuestItemIcon:SetAllPoints()
+floatingQuestItemIcon:SetPoint("TOPLEFT", floatingQuestItemBtn, "TOPLEFT", INSET, -INSET)
+floatingQuestItemIcon:SetPoint("BOTTOMRIGHT", floatingQuestItemBtn, "BOTTOMRIGHT", -INSET, INSET)
 floatingQuestItemIcon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 floatingQuestItemBtn.icon = floatingQuestItemIcon
 floatingQuestItemBtn.cooldown = CreateFrame("Cooldown", nil, floatingQuestItemBtn, "CooldownFrameTemplate")
-floatingQuestItemBtn.cooldown:SetAllPoints()
+floatingQuestItemBtn.cooldown:SetPoint("TOPLEFT", floatingQuestItemBtn, "TOPLEFT", INSET, -INSET)
+floatingQuestItemBtn.cooldown:SetPoint("BOTTOMRIGHT", floatingQuestItemBtn, "BOTTOMRIGHT", -INSET, INSET)
 floatingQuestItemBtn:SetScript("OnEnter", function(self)
     self:SetAlpha(1)
     if self._itemLink and GameTooltip then
@@ -64,14 +71,45 @@ local function UpdateFloatingQuestItem(questsFlat)
         return
     end
     local superTracked = (C_SuperTrack and C_SuperTrack.GetSuperTrackedQuestID) and C_SuperTrack.GetSuperTrackedQuestID() or 0
+    local mode = addon.GetDB("floatingQuestItemMode", "superTracked") or "superTracked"
+    local playerZone = (addon.GetPlayerCurrentZoneName and addon.GetPlayerCurrentZoneName()) or nil
+
+    local function inCurrentZone(q)
+        return q.isNearby or (q.zoneName and playerZone and q.zoneName:lower() == playerZone:lower())
+    end
+
     local chosenLink, chosenTex
-    for _, q in ipairs(questsFlat or {}) do
-        if q.questID and q.itemLink and q.itemTexture then
-            if q.questID == superTracked then
-                chosenLink, chosenTex = q.itemLink, q.itemTexture
-                break
+    if mode == "currentZone" then
+        -- Current zone mode: super-tracked in zone first, else first in-zone with item, else first with item
+        local superTrackedInZoneLink, superTrackedInZoneTex
+        local firstInZoneLink, firstInZoneTex
+        local firstAnyLink, firstAnyTex
+        for _, q in ipairs(questsFlat or {}) do
+            if q.questID and q.itemLink and q.itemTexture then
+                local inZone = inCurrentZone(q)
+                if q.questID == superTracked and inZone then
+                    superTrackedInZoneLink, superTrackedInZoneTex = q.itemLink, q.itemTexture
+                end
+                if not firstInZoneLink and inZone then
+                    firstInZoneLink, firstInZoneTex = q.itemLink, q.itemTexture
+                end
+                if not firstAnyLink then
+                    firstAnyLink, firstAnyTex = q.itemLink, q.itemTexture
+                end
             end
-            if not chosenLink then chosenLink, chosenTex = q.itemLink, q.itemTexture end
+        end
+        chosenLink = superTrackedInZoneLink or firstInZoneLink or firstAnyLink
+        chosenTex = superTrackedInZoneTex or firstInZoneTex or firstAnyTex
+    else
+        -- Super-tracked mode: super-tracked first, else first with item
+        for _, q in ipairs(questsFlat or {}) do
+            if q.questID and q.itemLink and q.itemTexture then
+                if q.questID == superTracked then
+                    chosenLink, chosenTex = q.itemLink, q.itemTexture
+                    break
+                end
+                if not chosenLink then chosenLink, chosenTex = q.itemLink, q.itemTexture end
+            end
         end
     end
     if chosenLink and chosenTex then

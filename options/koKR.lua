@@ -220,6 +220,10 @@ L["Show floating quest item"]                           = "퀘스트 아이템 �
 L["Show quick-use button for the focused quest's usable item."] = "포커스된 퀘스트의 사용 가능한 아이템을 빠른 사용 버튼으로 표시합니다."
 L["Lock floating quest item position"]                  = "퀘스트 아이템 버튼 위치 잠금"
 L["Prevent dragging the floating quest item button."]   = "퀘스트 아이템 버튼을 드래그할 수 없게 합니다."
+L["Floating quest item source"]                         = "퀘스트 아이템 버튼 소스"
+L["Which quest's item to show: super-tracked first, or current zone first."] = "표시할 퀘스트 아이템: 초점 퀘스트 우선 또는 현재 지역 우선."
+L["Super-tracked, then first"]                          = "초점 퀘스트 우선"
+L["Current zone first"]                                 = "현재 지역 우선"
 
 -- =====================================================================
 -- OptionsData.lua Features — Mythic+
