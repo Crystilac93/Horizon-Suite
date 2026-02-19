@@ -190,7 +190,11 @@ local function OnPlayerRegenEnabled()
             addon.focus.combat.fadeTime  = 0
             if addon.EnsureFocusUpdateRunning then addon.EnsureFocusUpdateRunning() end
         end
-        addon.FullLayout()
+        if addon.FullLayout then
+            addon.FullLayout()
+        else
+            ScheduleRefresh()
+        end
     elseif addon.GetDB("hideInCombat", false) and addon.focus.enabled then
         addon.focus.combat.fadeState = "in"
         addon.focus.combat.fadeTime  = 0
@@ -227,7 +231,14 @@ local function OnPlayerLoginOrEnteringWorld()
         addon.focus.zoneJustChanged = true
         addon.TrySuppressTracker()
         ScheduleRefresh()
-        C_Timer.After(0.4, function() if addon.focus.enabled then addon.FullLayout() end end)
+        C_Timer.After(0.4, function()
+            if not addon.focus.enabled then return end
+            if addon.FullLayout then
+                addon.FullLayout()
+            else
+                ScheduleRefresh()
+            end
+        end)
         C_Timer.After(1.5, function() if addon.focus.enabled then ScheduleRefresh() end end)
         StartInstanceStatePoll()
         -- Prime endeavor cache so GetInitiativeTaskInfo returns objectives without user opening the panel (Blizz bug workaround)
@@ -328,7 +339,14 @@ local function OnZoneChanged(event)
     end
     if addon.zoneTaskQuestCache then wipe(addon.zoneTaskQuestCache) end
     ScheduleRefresh()
-    C_Timer.After(0.4, function() if addon.focus.enabled then addon.FullLayout() end end)
+    C_Timer.After(0.4, function()
+        if not addon.focus.enabled then return end
+        if addon.FullLayout then
+            addon.FullLayout()
+        else
+            ScheduleRefresh()
+        end
+    end)
     C_Timer.After(1.5, function() if addon.focus.enabled then ScheduleRefresh() end end)
     StartInstanceStatePoll()
 end
@@ -345,6 +363,7 @@ local eventHandlers = {
     UNIT_QUEST_LOG_CHANGED   = function(_, unitToken) OnUnitQuestLogChanged(_, unitToken) end,
     QUEST_WATCH_UPDATE       = function(_, questID) OnQuestWatchUpdate(questID) end,
     QUEST_WATCH_LIST_CHANGED = function(_, questID, added) OnQuestWatchListChanged(questID, added) end,
+    SUPER_TRACKING_CHANGED   = function() ScheduleRefresh() end,
     VIGNETTE_MINIMAP_UPDATED = function() ScheduleRefresh() end,
     VIGNETTES_UPDATED        = function() ScheduleRefresh() end,
     ZONE_CHANGED             = function(evt) OnZoneChanged(evt) end,

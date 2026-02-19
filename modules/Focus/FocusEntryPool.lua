@@ -15,7 +15,7 @@ local activeMap = {}
 local function CreateQuestEntry(parent, index)
     local e = CreateFrame("Frame", nil, parent)
     local w = addon.GetPanelWidth() - addon.PADDING * 2
-    local textW = w - (addon.CONTENT_RIGHT_PADDING or 0)
+    local textW = w
     e:SetSize(w, 20)
 
     -- Active-quest bar (left or right; position set in Layout)
@@ -127,7 +127,11 @@ local function CreateQuestEntry(parent, index)
     e.titleText:SetJustifyH("LEFT")
     e.titleText:SetWordWrap(true)
     e.titleText:SetWidth(textW)
-    e.titleText:SetPoint("TOPLEFT", e, "TOPLEFT", 0, 0)
+    -- Title indent: 1 "space" worth of padding from the left edge.
+    -- Use a conservative pixel value; renderer will keep objectives aligned with this.
+    local ONE_SPACE_PX = 0
+    e.titleText:SetPoint("TOPLEFT", e, "TOPLEFT", ONE_SPACE_PX, 0)
+    e.__baseTitlePadPx = ONE_SPACE_PX
     e.titleShadow:SetPoint("CENTER", e.titleText, "CENTER", addon.SHADOW_OX, addon.SHADOW_OY)
 
     e.zoneShadow = e:CreateFontString(nil, "BORDER")
@@ -313,15 +317,36 @@ local function CreateSectionHeader(parent)
     s.text = s:CreateFontString(nil, "OVERLAY")
     s.text:SetFontObject(addon.SectionFont)
     s.text:SetJustifyH("LEFT")
-    s.text:SetPoint("BOTTOMLEFT", s, "BOTTOMLEFT", 10, 0)
-    s.shadow:SetPoint("CENTER", s.text, "CENTER", addon.SHADOW_OX, addon.SHADOW_OY)
-
     -- Small chevron indicating expanded/collapsed state for this category.
+    -- Keep it inside the header frame so it never renders outside the visible panel.
     s.chevron = s:CreateFontString(nil, "OVERLAY")
     s.chevron:SetFont(addon.FONT_PATH, addon.SECTION_SIZE, "OUTLINE")
     s.chevron:SetJustifyH("LEFT")
     s.chevron:SetPoint("BOTTOMLEFT", s, "BOTTOMLEFT", 0, 0)
     s.chevron:SetText("")
+
+    -- Category label starts two spaces to the right of the chevron.
+    -- Use the TITLE font for measurement (per request), so it scales with user typography.
+    local twoSpacesW = 8
+    do
+        local meas = s.__indentMeasure
+        if not meas then
+            meas = s:CreateFontString(nil, "ARTWORK")
+            meas:Hide()
+            s.__indentMeasure = meas
+        end
+        meas:SetFontObject(addon.TitleFont)
+        meas:SetText(" ")
+        local w = meas:GetStringWidth()
+        if w and w > 0 then twoSpacesW = w end
+    end
+    local labelX = math.floor(twoSpacesW + 0.5)
+    s.text:ClearAllPoints()
+    s.text:SetPoint("BOTTOMLEFT", s, "BOTTOMLEFT", labelX, 0)
+    s.shadow:SetPoint("CENTER", s.text, "CENTER", addon.SHADOW_OX, addon.SHADOW_OY)
+
+    -- Full header clickable area (chevron is inside frame now).
+    s:SetHitRectInsets(0, 0, 0, 0)
 
     s.active = false
     s:SetAlpha(0)
@@ -400,7 +425,7 @@ local function ApplyDimensions(widthOverride)
     for i = 1, addon.POOL_SIZE do
         local e = pool[i]
         local contentW = w - addon.PADDING - leftOffset
-        local textW = contentW - (addon.CONTENT_RIGHT_PADDING or 0)
+        local textW = contentW
         e:SetSize(contentW, 20)
         e.titleShadow:SetWidth(textW)
         e.titleText:SetWidth(textW)

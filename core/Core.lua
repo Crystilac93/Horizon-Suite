@@ -62,13 +62,19 @@ function addon.GetHeaderHeight()
 end
 
 function addon.GetContentLeftOffset()
-    local base = addon.PADDING + addon.ICON_COLUMN_WIDTH
+    -- Left gutter contains (optional) quest-type icon and (optional) quest item button.
+    -- When quest-type icons are off, don't reserve ICON_COLUMN_WIDTH, so the list sits tighter.
+    local showQuestIcons = addon.GetDB("showQuestTypeIcons", false)
+    local base = addon.PADDING + (showQuestIcons and addon.ICON_COLUMN_WIDTH or 0)
+
     if addon.GetDB("showQuestItemButtons", false) then
+        -- Ensure enough space for the supertrack bar + (optional) quest-type icon + item button.
         local iconRight = (addon.BAR_LEFT_OFFSET or 12) + 2
-        local minLeft = iconRight + addon.QUEST_TYPE_ICON_SIZE + 4 + addon.ITEM_BTN_SIZE
-        return math.max(base, minLeft)
+        local iconWidth = (showQuestIcons and addon.QUEST_TYPE_ICON_SIZE + 4) or 0
+        local minLeft = iconRight + iconWidth + addon.ITEM_BTN_SIZE
+        return math.max(addon.PADDING, base, minLeft)
     end
-    return base
+    return math.max(addon.PADDING, base)
 end
 
 function addon.GetDB(key, default)

@@ -212,6 +212,28 @@ local function FullLayout()
         addon.ApplyGrowUpAnchor()
     end
 
+    -- Layout indentation model:
+    --  - Category chevron '−/+' is the left pivot.
+    --  - Quest titles start two spaces to the right of the chevron.
+    --  - Zone/objectives start two spaces to the right of the title.
+    -- Measure "two spaces" using the current TitleFont so it scales with typography.
+    do
+        addon.focus.layout = addon.focus.layout or {}
+        local twoSpaces = 8
+        local ok = pcall(function()
+            addon.focus.layout.__indentMeasure = addon.focus.layout.__indentMeasure or addon.scrollChild:CreateFontString(nil, "ARTWORK")
+            local fs = addon.focus.layout.__indentMeasure
+            fs:Hide()
+            fs:SetFontObject(addon.TitleFont)
+            fs:SetText("  ")
+            local w = fs:GetStringWidth()
+            if w and w > 0 then twoSpaces = w end
+        end)
+        if not ok then twoSpaces = 8 end
+        addon.focus.layout.twoSpacesPx = twoSpaces
+        addon.focus.layout.titleIndentPx = twoSpaces
+    end
+
     local minimal = addon.GetDB("hideObjectivesHeader", false)
     local hideOptBtn = addon.GetDB("hideOptionsButton", false)
     if minimal then
@@ -350,7 +372,7 @@ local function FullLayout()
                     local sec = addon.AcquireSectionHeader(grp.key, focusedGroupKey)
                     if sec then
                         sec:ClearAllPoints()
-                        local x = addon.GetContentLeftOffset()
+                        local x = addon.PADDING
                         sec:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", x, yOff)
                         sec.finalX, sec.finalY = x, yOff
                         yOff = yOff - (addon.SECTION_SIZE + 4) - addon.GetSectionToEntryGap()
@@ -528,6 +550,28 @@ local function FullLayout()
     local showSections = #grouped > 1 and addon.GetDB("showSectionHeaders", true)
     local focusedGroupKey = addon.GetFocusedGroupKey(grouped)
 
+    -- Offset quest entries so their text starts under the section header label
+    -- (i.e. same start as category text, excluding the chevron).
+    local sectionLabelX = 0
+    if showSections then
+        local w = addon.focus.layout and addon.focus.layout.twoSpacesPx
+        if type(w) == "number" and w > 0 then
+            sectionLabelX = math.floor(w + 0.5)
+        else
+            -- Fallback if the layout cache isn't populated yet.
+            local meas = addon.focus.layout.__sectionIndentMeasure
+            if not meas then
+                meas = scrollChild:CreateFontString(nil, "ARTWORK")
+                meas:Hide()
+                addon.focus.layout.__sectionIndentMeasure = meas
+            end
+            meas:SetFontObject(addon.TitleFont)
+            meas:SetText("  ")
+            local mw = meas:GetStringWidth()
+            if mw and mw > 0 then sectionLabelX = math.floor(mw + 0.5) end
+        end
+    end
+
     for gi, grp in ipairs(grouped) do
         local isCollapsed = showSections and addon.IsCategoryCollapsed(grp.key)
 
@@ -538,7 +582,7 @@ local function FullLayout()
             local sec = addon.AcquireSectionHeader(grp.key, focusedGroupKey)
             if sec then
                 sec:ClearAllPoints()
-                local x = addon.GetContentLeftOffset()
+                local x = addon.PADDING
                 sec:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", x, yOff)
                 sec.finalX, sec.finalY = x, yOff
                 yOff = yOff - (addon.SECTION_SIZE + 4) - addon.GetSectionToEntryGap()
@@ -556,11 +600,14 @@ local function FullLayout()
                 end
             end
         else
-            local entrySpacing = ((grp.key == "DELVES" or grp.key == "DUNGEON") and addon.DELVE_ENTRY_SPACING) or addon.GetTitleSpacing()
-            for _, qData in ipairs(grp.quests) do
-                local key = qData.entryKey or qData.questID
-                local entry = activeMap[key]
-                if entry then
+             local entrySpacing = ((grp.key == "DELVES" or grp.key == "DUNGEON") and addon.DELVE_ENTRY_SPACING) or addon.GetTitleSpacing()
+             local categoryCounter = 0
+             for _, qData in ipairs(grp.quests) do
+                categoryCounter = categoryCounter + 1
+                qData.categoryIndex = categoryCounter
+                 local key = qData.entryKey or qData.questID
+                 local entry = activeMap[key]
+                 if entry then
                     entry.groupKey = grp.key
                     entry.finalX = addon.GetContentLeftOffset()
                     entry.finalY = yOff
@@ -574,10 +621,10 @@ local function FullLayout()
                     entry:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", addon.GetContentLeftOffset(), yOff)
                     entry:Show()
                     yOff = yOff - entry.entryHeight - entrySpacing
-                end
-            end
-        end
-    end
+                 end
+             end
+         end
+     end
 
     addon.UpdateHeaderQuestCount(#quests, addon.CountTrackedInLog(quests))
 

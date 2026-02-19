@@ -104,6 +104,10 @@ local function SortAndGroupQuests(quests)
     for _, key in ipairs(addon.GetGroupOrder()) do
         if #groups[key] > 0 then
             table.sort(groups[key], CompareEntriesBySortMode)
+            -- Always assign numbering at the source of truth so renderers can rely on it.
+            for i = 1, #groups[key] do
+                groups[key][i].categoryIndex = i
+            end
         end
     end
 
@@ -250,6 +254,7 @@ local function ReadTrackedQuests()
         local isNearby = (nearbySet[questID] or false) and (not filterByZone or questMapMatchesPlayer(questID))
         local isDungeonQuest = opts.isDungeonQuest or (addon.IsInPartyDungeon and addon.IsInPartyDungeon() and isNearby)
         local isTracked = opts.isTracked ~= false
+        local isAutoAdded = opts.isAutoAdded and true or false
 
         local itemLink, itemTexture
         if logIndex and GetQuestLogSpecialItemInfo then
@@ -284,6 +289,7 @@ local function ReadTrackedQuests()
             isAccepted = isAccepted, zoneName = zoneName, itemLink = itemLink, itemTexture = itemTexture,
             questTypeAtlas = questTypeAtlas, isDungeonQuest = isDungeonQuest, isTracked = isTracked, level = questLevel,
             isAutoComplete = isAutoComplete,
+            isAutoAdded = isAutoAdded,
         }
         if objectivesDoneCount and objectivesTotalCount then
             entry.objectivesDoneCount = objectivesDoneCount
@@ -315,13 +321,22 @@ local function ReadTrackedQuests()
     if addon.CollectWorldQuests then
         wqEntries = addon.CollectWorldQuests(ctx) or {}
     end
+    local showWorldQuests = addon.GetDB("showWorldQuests", true)
     for _, e in ipairs(wqEntries) do
         local opts = e.opts or {}
         local isBlacklisted = (usePermanent and permanentBlacklist[e.questID]) or (not usePermanent and recentlyUntrackedWQ and recentlyUntrackedWQ[e.questID])
         -- Final safety: reject completed WQs that leaked through upstream filters.
         local isCompleted = C_QuestLog.IsQuestFlaggedCompleted and C_QuestLog.IsQuestFlaggedCompleted(e.questID)
-        if not seen[e.questID] and not isBlacklisted and not isCompleted and (addon.GetDB("showWorldQuests", true) or opts.isTracked or opts.isInQuestArea) then
-            addQuest(e.questID, opts)
+
+        -- If the toggle is OFF: only keep WORLD/CALLING items that are explicitly tracked
+        -- (manual watch list, WQT's tracked set), or the current supertracked quest.
+        local explicitlyKept = (opts.isTracked == true) or (opts.isAutoAdded == false) or (superTracked and e.questID == superTracked)
+
+        if not seen[e.questID]
+            and not isBlacklisted
+            and not isCompleted
+            and (showWorldQuests == true or explicitlyKept) then
+             addQuest(e.questID, opts)
         end
     end
 

@@ -24,9 +24,8 @@ local function CollectTrackedQuests(ctx)
             -- Nearby APIs can miss some tracked quests; allow either zone match or nearby presence.
             local passesZoneFilter = (not filterByZone) or isWorld or zoneMatchesFilter or nearbySet[questID]
             if passesZoneFilter then
-                if addon.GetDB("showWorldQuests", true) or not addon.IsQuestWorldQuest(questID) then
-                    out[#out + 1] = { questID = questID, opts = {} }  -- isTracked = true by default
-                end
+                -- Watch list is explicit user intent; keep it even if "Show world quests" is off.
+                out[#out + 1] = { questID = questID, opts = {} }  -- isTracked = true by default
             end
         end
     end

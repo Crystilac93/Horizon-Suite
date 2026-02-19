@@ -304,7 +304,7 @@ local function GetWorldAndCallingQuestIDsToShow(nearbySet, taskQuestOnlySet)
     -- When we include map-derived WQs/tasks for the current zone, we want them to show in the list
     -- even if the user has toggled off "showWorldQuests" (which is intended to hide far-away WQs).
     -- We'll mark them as "in quest area" to bypass that visibility gate.
-    local ALWAYS_SHOW_MAP_DERIVED_WQS = true
+    local ALWAYS_SHOW_MAP_DERIVED_WQS = false
 
     local function IsQuestAWorldQuest(questID)
         if not questID or questID <= 0 then return false end
@@ -436,14 +436,14 @@ local function GetWorldAndCallingQuestIDsToShow(nearbySet, taskQuestOnlySet)
             local isRecurring = (qc == Enum.QuestClassification.Recurring)
             -- Force WORLD for task-map pins that are not already classified as world/calling/campaign/recurring.
             local forceCategory = nil
-            -- isInQuestArea: player within distance of quest (Blizzard-style). Zone-only WQs stay hidden when WQ off.
+            -- isInQuestArea: player within distance of quest (Blizzard-style).
+            -- This is informational only; visibility is handled by the aggregator.
             local isInQuestArea = playerMapID and IsPlayerNearQuestArea(questID, playerMapID)
-            if ALWAYS_SHOW_MAP_DERIVED_WQS and isWorld and IsQuestOnPlayerZoneMap(questID) then
-                isInQuestArea = true
-            end
             -- Re-check watch list so WQs just added from map get isTracked = true (no **).
             local isTracked = IsOnWorldQuestWatchList(questID)
-            out[#out + 1] = { questID = questID, isTracked = isTracked, isInQuestArea = isInQuestArea, forceCategory = forceCategory }
+            local isFromWQT = addon.focus and addon.focus.wqtTrackedQuests and addon.focus.wqtTrackedQuests[questID]
+            local isAutoAdded = (not isTracked) and (not isFromWQT)
+            out[#out + 1] = { questID = questID, isTracked = isTracked, isInQuestArea = isInQuestArea, forceCategory = forceCategory, isAutoAdded = isAutoAdded }
         end
     end
     return out
@@ -459,7 +459,7 @@ local function CollectWorldQuests(ctx)
     for _, entry in ipairs(raw) do
         out[#out + 1] = {
             questID = entry.questID,
-            opts = { isTracked = entry.isTracked, isInQuestArea = entry.isInQuestArea, forceCategory = entry.forceCategory }
+            opts = { isTracked = entry.isTracked, isInQuestArea = entry.isInQuestArea, forceCategory = entry.forceCategory, isAutoAdded = entry.isAutoAdded }
         }
     end
     return out

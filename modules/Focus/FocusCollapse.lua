@@ -338,8 +338,8 @@ local function RefreshContentInCombat()
                 if showInZoneSuffix then
                     local needSuffix = false
                     if questData.category == "WORLD" then
-                        -- WORLD quests are commonly unaccepted; don't append '**' for them.
-                        needSuffix = false
+                        -- WORLD quests: show '**' only when HorizonSuite auto-added it.
+                        needSuffix = (questData.isAutoAdded == true) and (questData.isSuperTracked ~= true)
                     elseif questData.category == "WEEKLY" or questData.category == "DAILY" then
                         needSuffix = (questData.isAccepted == false)
                     end

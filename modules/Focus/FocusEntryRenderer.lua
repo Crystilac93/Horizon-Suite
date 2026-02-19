@@ -25,7 +25,10 @@ local function ApplyHighlightStyle(entry, questData)
     local bottomPadding = (questData.isSuperTracked and highlightStyle == "bar-bottom") and barW or 0
 
     entry.titleText:ClearAllPoints()
-    entry.titleText:SetPoint("TOPLEFT", entry, "TOPLEFT", 0, -topPadding)
+    -- Keep the pool's default left padding (1-space) and just apply topPadding.
+    local x, y = entry.titleText:GetPoint(1)
+    local xOff = (type(x) == "number") and x or 4
+    entry.titleText:SetPoint("TOPLEFT", entry, "TOPLEFT", xOff, -topPadding)
     entry.titleShadow:ClearAllPoints()
     entry.titleShadow:SetPoint("CENTER", entry.titleText, "CENTER", addon.SHADOW_OX, addon.SHADOW_OY)
 
@@ -75,6 +78,8 @@ end
 
 local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, c, effectiveCat)
     local objIndent = addon.GetObjIndent()
+    -- Indentation now comes from the entry's padded title anchor; keep objective indent consistent.
+
     local objTextWidth = textWidth - objIndent
     if objTextWidth < 1 then objTextWidth = addon.GetPanelWidth() - addon.PADDING * 2 - objIndent - (addon.CONTENT_RIGHT_PADDING or 0) end
 
@@ -147,8 +152,8 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
             end
 
             obj.text:ClearAllPoints()
-            local indent = (shownObjs == 0 and prevAnchor == entry.titleText) and objIndent or 0
-            obj.text:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", indent, -objSpacing)
+            -- Keep objectives aligned with the quest title's left edge.
+            obj.text:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", 0, -objSpacing)
             obj.text:Show()
             obj.shadow:Show()
 
@@ -175,8 +180,7 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
         obj.shadow:SetText(firstLineText)
         obj.text:SetTextColor(doneColor[1], doneColor[2], doneColor[3], 1)
         obj.text:ClearAllPoints()
-        local turnInIndent = (prevAnchor == entry.titleText) and objIndent or 0
-        obj.text:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", turnInIndent, -objSpacing)
+        obj.text:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", 0, -objSpacing)
         obj.text:Show()
         obj.shadow:Show()
         local objH = obj.text:GetStringHeight()
@@ -417,7 +421,7 @@ local function PopulateEntry(entry, questData, groupKey)
     local isOffMapWorld = (questData.category == "WORLD") and questData.isTracked and not questData.isNearby
 
     local leftOffset = addon.GetContentLeftOffset and addon.GetContentLeftOffset() or (addon.PADDING + addon.ICON_COLUMN_WIDTH)
-    local textWidth = addon.GetPanelWidth() - addon.PADDING - leftOffset - (addon.CONTENT_RIGHT_PADDING or 0)
+    local textWidth = addon.GetPanelWidth() - addon.PADDING - leftOffset
     local titleLeftOffset = 0
 
     if questData.category == "DELVES" then
@@ -454,9 +458,15 @@ local function PopulateEntry(entry, questData, groupKey)
             for _, o in ipairs(questData.objectives) do if o.finished then done = done + 1 end end
         end
         if done and total then
-            displayTitle = ("%s (%d/%d)"):format(questData.title, done, total)
+            displayTitle = ("%s (%d/%d)"):format(displayTitle, done, total)
         end
     end
+
+    -- Numbering (always on): apply to the final title after any title transforms above.
+    if questData.categoryIndex and type(questData.categoryIndex) == "number" then
+        displayTitle = ("%d. %s"):format(questData.categoryIndex, displayTitle)
+    end
+
     if addon.GetDB("showQuestLevel", false) and questData.level then
         displayTitle = ("%s [L%d]"):format(displayTitle, questData.level)
     end
@@ -467,11 +477,11 @@ local function PopulateEntry(entry, questData, groupKey)
     if showInZoneSuffix then
         local needSuffix = false
         if questData.category == "WORLD" then
-            -- WORLD quests are commonly unaccepted; don't append '**' for them.
-            needSuffix = false
-        elseif questData.category == "WEEKLY" or questData.category == "DAILY" then
-            needSuffix = (questData.isAccepted == false)
-        end
+            -- WORLD quests: show '**' only when HorizonSuite auto-added it, and remove it when supertracked.
+            needSuffix = (questData.isAutoAdded == true) and (questData.isSuperTracked ~= true)
+         elseif questData.category == "WEEKLY" or questData.category == "DAILY" then
+             needSuffix = (questData.isAccepted == false)
+         end
         if needSuffix then displayTitle = displayTitle .. " **" end
     end
     displayTitle = addon.ApplyTextCase(displayTitle, "questTitleCase", "proper")
@@ -514,6 +524,9 @@ local function PopulateEntry(entry, questData, groupKey)
     local totalH = titleH
 
     local prevAnchor = entry.titleText
+    -- Cache the font-scaled "two spaces" width (measured from the title font) once per entry render.
+    local twoSpacesPx = addon.focus and addon.focus.layout and addon.focus.layout.twoSpacesPx
+    local titleIndentPx = addon.focus and addon.focus.layout and addon.focus.layout.titleIndentPx
     local titleToContentSpacing = ((questData.category == "DELVES" or questData.category == "DUNGEON") and addon.DELVE_OBJ_SPACING) or addon.GetObjSpacing()
     local showZoneLabels = addon.GetDB("showZoneLabels", true)
     local playerZone = addon.GetPlayerCurrentZoneName and addon.GetPlayerCurrentZoneName() or nil
@@ -532,7 +545,7 @@ local function PopulateEntry(entry, questData, groupKey)
         end
         entry.zoneText:SetTextColor(zoneColor[1], zoneColor[2], zoneColor[3], 1)
         entry.zoneText:ClearAllPoints()
-        entry.zoneText:SetPoint("TOPLEFT", entry.titleText, "BOTTOMLEFT", addon.GetObjIndent(), -titleToContentSpacing)
+        entry.zoneText:SetPoint("TOPLEFT", entry.titleText, "BOTTOMLEFT", 0, -titleToContentSpacing)
         entry.zoneText:Show()
         entry.zoneShadow:Show()
         local zoneH = entry.zoneText:GetStringHeight()
