@@ -309,6 +309,17 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             local oid = opt.dbKey or (addon.OptionCategories[tabIndex].key .. "_" .. (opt.name or ""):gsub("%s+", "_"))
             if optionFrames then optionFrames[oid] = { tabIndex = tabIndex, frame = w } end
             table.insert(refreshers, w)
+        elseif opt.type == "color" and currentCard then
+            -- Single color picker for M+ typography colors
+            local getTbl = opt.get
+            local setKeyVal = opt.set
+            local def = opt.default or {1, 1, 1}
+            local row = OptionsWidgets_CreateColorSwatchRow(currentCard, currentCard.contentAnchor, opt.name, def, getTbl, setKeyVal, notifyMainAddon)
+            currentCard.contentAnchor = row
+            currentCard.contentHeight = currentCard.contentHeight + 4 + 24
+            local oid = opt.dbKey or (addon.OptionCategories[tabIndex].key .. "_" .. (opt.name or ""):gsub("%s+", "_"))
+            if optionFrames then optionFrames[oid] = { tabIndex = tabIndex, frame = row } end
+            table.insert(refreshers, row)
         elseif opt.type == "button" and currentCard then
             local btn = CreateFrame("Button", nil, currentCard)
             btn:SetSize(120, 22)

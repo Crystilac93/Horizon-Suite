@@ -133,6 +133,12 @@ local function ReadScenarioEntries()
 
     local isDelve = addon.IsDelveActive and addon.IsDelveActive()
     local inPartyDungeon = addon.IsInPartyDungeon and addon.IsInPartyDungeon()
+
+    -- When the M+ block is active in a dungeon, suppress the built-in
+    -- scenario objectives (bosses/forces are shown in the M+ block).
+    if inPartyDungeon and addon.mplusBlock and addon.mplusBlock:IsShown() then
+        return out
+    end
     local category = isDelve and "DELVES" or (inPartyDungeon and "DUNGEON") or "SCENARIO"
     local scenarioColor = addon.GetQuestColor and addon.GetQuestColor(category) or (addon.QUEST_COLORS and addon.QUEST_COLORS[category]) or { 0.38, 0.52, 0.88 }
     local delveTier = isDelve and (addon.GetActiveDelveTier and addon.GetActiveDelveTier()) or nil

@@ -96,6 +96,12 @@ local MPLUS_POSITION_OPTIONS = {
     { "Top", "top" },
     { "Bottom", "bottom" },
 }
+local MPLUS_FONT_OPTIONS = {
+    { "Title Font", "TitleFont" },
+    { "Objective Font", "ObjFont" },
+    { "Section Font", "SectionFont" },
+    { "Detail Font", "DetailFont" },
+}
 local TEXT_CASE_OPTIONS = {
     { "Lower Case", "lower" },
     { "Upper Case", "upper" },
@@ -153,7 +159,8 @@ local OptionCategories = {
         moduleKey = "focus",
         options = {
             { type = "section", name = "Instance" },
-            { type = "toggle", name = "Show in dungeon", desc = "Show tracker in party dungeons.", dbKey = "showInDungeon", get = function() return getDB("showInDungeon", false) end, set = function(v) setDB("showInDungeon", v) end },
+            { type = "toggle", name = "Show in dungeon", desc = "Show the quest tracker and M+ block in party dungeons.", dbKey = "showInDungeon", get = function() return getDB("showInDungeon", false) end, set = function(v) setDB("showInDungeon", v) end },
+            { type = "toggle", name = "Always show M+ block", desc = "Show the M+ block whenever an active keystone is running, even when 'Show in dungeon' is OFF.", dbKey = "mplusAlwaysShow", get = function() return getDB("mplusAlwaysShow", false) end, set = function(v) setDB("mplusAlwaysShow", v); if _G.HorizonSuite_FullLayout then _G.HorizonSuite_FullLayout() end end },
             { type = "toggle", name = "Show in raid", desc = "Show tracker in raids.", dbKey = "showInRaid", get = function() return getDB("showInRaid", false) end, set = function(v) setDB("showInRaid", v) end },
             { type = "toggle", name = "Show in battleground", desc = "Show tracker in battlegrounds.", dbKey = "showInBattleground", get = function() return getDB("showInBattleground", false) end, set = function(v) setDB("showInBattleground", v) end },
             { type = "toggle", name = "Show in arena", desc = "Show tracker in arenas.", dbKey = "showInArena", get = function() return getDB("showInArena", false) end, set = function(v) setDB("showInArena", v) end },
@@ -216,7 +223,7 @@ local OptionCategories = {
             { type = "toggle", name = "Show floating quest item", desc = "Show quick-use button for the focused quest's usable item.", dbKey = "showFloatingQuestItem", get = function() return getDB("showFloatingQuestItem", false) end, set = function(v) setDB("showFloatingQuestItem", v) end },
             { type = "toggle", name = "Lock floating quest item position", desc = "Prevent dragging the floating quest item button.", dbKey = "lockFloatingQuestItemPosition", get = function() return getDB("lockFloatingQuestItemPosition", false) end, set = function(v) setDB("lockFloatingQuestItemPosition", v) end },
             { type = "section", name = "Mythic+" },
-            { type = "toggle", name = "Show Mythic+ block", desc = "Show timer, completion %, and affixes in Mythic+ dungeons.", dbKey = "showMythicPlusBlock", get = function() return getDB("showMythicPlusBlock", false) end, set = function(v) setDB("showMythicPlusBlock", v) end },
+            { type = "toggle", name = "Show Mythic+ block", desc = "Show timer, boss kills, enemy forces, and affixes in Mythic+ dungeons.", dbKey = "showMythicPlusBlock", get = function() return getDB("showMythicPlusBlock", false) end, set = function(v) setDB("showMythicPlusBlock", v); if _G.HorizonSuite_FullLayout then _G.HorizonSuite_FullLayout() end end },
             { type = "dropdown", name = "M+ block position", desc = "Position of the Mythic+ block relative to the quest list.", dbKey = "mplusBlockPosition", options = MPLUS_POSITION_OPTIONS, get = function() return getDB("mplusBlockPosition", "top") end, set = function(v) setDB("mplusBlockPosition", v) end },
             { type = "section", name = "Achievements" },
             { type = "toggle", name = "Show achievements", desc = "Show tracked achievements in the list.", dbKey = "showAchievements", get = function() return getDB("showAchievements", true) end, set = function(v) setDB("showAchievements", v) end },
@@ -259,6 +266,20 @@ local OptionCategories = {
             { type = "slider", name = "Shadow X", desc = "Horizontal shadow offset.", dbKey = "shadowOffsetX", min = -10, max = 10, get = function() return getDB("shadowOffsetX", 2) end, set = function(v) setDB("shadowOffsetX", v) end },
             { type = "slider", name = "Shadow Y", desc = "Vertical shadow offset.", dbKey = "shadowOffsetY", min = -10, max = 10, get = function() return getDB("shadowOffsetY", -2) end, set = function(v) setDB("shadowOffsetY", v) end },
             { type = "slider", name = "Shadow alpha", desc = "Shadow opacity (0–1).", dbKey = "shadowAlpha", min = 0, max = 1, get = function() return getDB("shadowAlpha", 0.8) end, set = function(v) setDB("shadowAlpha", v) end },
+            { type = "section", name = "Mythic+ Typography" },
+            { type = "slider", name = "Dungeon name size", desc = "Font size for dungeon name (8–32 px).", dbKey = "mplusDungeonSize", min = 8, max = 32, step = 1, get = function() return math.max(8, math.min(32, tonumber(getDB("mplusDungeonSize", 14)) or 14)) end, set = function(v) setDB("mplusDungeonSize", math.max(8, math.min(32, v))) end },
+            { type = "color", name = "Dungeon name color", desc = "Text color for dungeon name.", dbKey = "mplusDungeonColor", get = function() return getDB("mplusDungeonColorR", 0.96), getDB("mplusDungeonColorG", 0.96), getDB("mplusDungeonColorB", 1.0) end, set = function(r, g, b) setDB("mplusDungeonColorR", r); setDB("mplusDungeonColorG", g); setDB("mplusDungeonColorB", b) end },
+            { type = "slider", name = "Timer size", desc = "Font size for timer (8–32 px).", dbKey = "mplusTimerSize", min = 8, max = 32, step = 1, get = function() return math.max(8, math.min(32, tonumber(getDB("mplusTimerSize", 12)) or 12)) end, set = function(v) setDB("mplusTimerSize", math.max(8, math.min(32, v))) end },
+            { type = "color", name = "Timer color", desc = "Text color for timer (in time).", dbKey = "mplusTimerColor", get = function() return getDB("mplusTimerColorR", 0.6), getDB("mplusTimerColorG", 0.88), getDB("mplusTimerColorB", 1.0) end, set = function(r, g, b) setDB("mplusTimerColorR", r); setDB("mplusTimerColorG", g); setDB("mplusTimerColorB", b) end },
+            { type = "color", name = "Timer overtime color", desc = "Text color for timer when over the time limit.", dbKey = "mplusTimerOvertimeColor", get = function() return getDB("mplusTimerOvertimeColorR", 0.9), getDB("mplusTimerOvertimeColorG", 0.25), getDB("mplusTimerOvertimeColorB", 0.2) end, set = function(r, g, b) setDB("mplusTimerOvertimeColorR", r); setDB("mplusTimerOvertimeColorG", g); setDB("mplusTimerOvertimeColorB", b) end },
+            { type = "slider", name = "Progress size", desc = "Font size for enemy forces (8–32 px).", dbKey = "mplusProgressSize", min = 8, max = 32, step = 1, get = function() return math.max(8, math.min(32, tonumber(getDB("mplusProgressSize", 11)) or 11)) end, set = function(v) setDB("mplusProgressSize", math.max(8, math.min(32, v))) end },
+            { type = "color", name = "Progress color", desc = "Text color for enemy forces.", dbKey = "mplusProgressColor", get = function() return getDB("mplusProgressColorR", 0.72), getDB("mplusProgressColorG", 0.76), getDB("mplusProgressColorB", 0.88) end, set = function(r, g, b) setDB("mplusProgressColorR", r); setDB("mplusProgressColorG", g); setDB("mplusProgressColorB", b) end },
+            { type = "color", name = "Bar fill color", desc = "Progress bar fill color (in progress).", dbKey = "mplusBarColor", get = function() return getDB("mplusBarColorR", 0.20), getDB("mplusBarColorG", 0.45), getDB("mplusBarColorB", 0.60) end, set = function(r, g, b) setDB("mplusBarColorR", r); setDB("mplusBarColorG", g); setDB("mplusBarColorB", b) end },
+            { type = "color", name = "Bar complete color", desc = "Progress bar fill color when enemy forces are at 100%.", dbKey = "mplusBarDoneColor", get = function() return getDB("mplusBarDoneColorR", 0.15), getDB("mplusBarDoneColorG", 0.65), getDB("mplusBarDoneColorB", 0.25) end, set = function(r, g, b) setDB("mplusBarDoneColorR", r); setDB("mplusBarDoneColorG", g); setDB("mplusBarDoneColorB", b) end },
+            { type = "slider", name = "Affix size", desc = "Font size for affixes (8–32 px).", dbKey = "mplusAffixSize", min = 8, max = 32, step = 1, get = function() return math.max(8, math.min(32, tonumber(getDB("mplusAffixSize", 10)) or 10)) end, set = function(v) setDB("mplusAffixSize", math.max(8, math.min(32, v))) end },
+            { type = "color", name = "Affix color", desc = "Text color for affixes.", dbKey = "mplusAffixColor", get = function() return getDB("mplusAffixColorR", 0.85), getDB("mplusAffixColorG", 0.85), getDB("mplusAffixColorB", 0.95) end, set = function(r, g, b) setDB("mplusAffixColorR", r); setDB("mplusAffixColorG", g); setDB("mplusAffixColorB", b) end },
+            { type = "slider", name = "Boss size", desc = "Font size for boss names (8–32 px).", dbKey = "mplusBossSize", min = 8, max = 32, step = 1, get = function() return math.max(8, math.min(32, tonumber(getDB("mplusBossSize", 11)) or 11)) end, set = function(v) setDB("mplusBossSize", math.max(8, math.min(32, v))) end },
+            { type = "color", name = "Boss color", desc = "Text color for boss names.", dbKey = "mplusBossColor", get = function() return getDB("mplusBossColorR", 0.78), getDB("mplusBossColorG", 0.82), getDB("mplusBossColorB", 0.92) end, set = function(r, g, b) setDB("mplusBossColorR", r); setDB("mplusBossColorG", g); setDB("mplusBossColorB", b) end },
         },
     },
     {

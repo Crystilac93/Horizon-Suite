@@ -551,20 +551,40 @@ function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultT
     local def = defaultTbl and #defaultTbl >= 3 and defaultTbl or { 0.5, 0.5, 0.5 }
     function swatch:Refresh()
         local r, g, b = def[1], def[2], def[3]
-        local tbl = getTbl and getTbl()
-        if tbl and tbl[1] then r, g, b = tbl[1], tbl[2], tbl[3] end
+        if getTbl then
+            local result = getTbl()
+            -- Handle both table return {r,g,b} and multiple returns (r,g,b)
+            if type(result) == "table" and result[1] then
+                r, g, b = result[1], result[2], result[3]
+            elseif type(result) == "number" then
+                -- Multiple return values - result is r, need to get g,b
+                local rVal, gVal, bVal = getTbl()
+                if type(rVal) == "number" and type(gVal) == "number" and type(bVal) == "number" then
+                    r, g, b = rVal, gVal, bVal
+                end
+            end
+        end
         tex:SetColorTexture(r, g, b, 1)
     end
     swatch:SetScript("OnClick", function()
         local r, g, b = def[1], def[2], def[3]
-        local tbl = getTbl and getTbl()
-        if tbl and tbl[1] then r, g, b = tbl[1], tbl[2], tbl[3] end
+        if getTbl then
+            local result = getTbl()
+            if type(result) == "table" and result[1] then
+                r, g, b = result[1], result[2], result[3]
+            elseif type(result) == "number" then
+                local rVal, gVal, bVal = getTbl()
+                if type(rVal) == "number" and type(gVal) == "number" and type(bVal) == "number" then
+                    r, g, b = rVal, gVal, bVal
+                end
+            end
+        end
         _activeColorPickerCallbacks = { setKeyVal = setKeyVal, notify = notify, tex = tex }
         ColorPickerFrame:SetupColorPickerAndShow({
             r = r, g = g, b = b, hasOpacity = false,
             swatchFunc = function()
                 local nr, ng, nb = GetColorPickerEffectiveRGB()
-                setKeyVal({ nr, ng, nb })
+                setKeyVal(nr, ng, nb)
                 tex:SetColorTexture(nr, ng, nb, 1)
                 if notify then notify() end
             end,
@@ -572,14 +592,14 @@ function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultT
                 _activeColorPickerCallbacks = nil
                 local p = ColorPickerFrame.previousValues
                 if p then
-                    setKeyVal({ p.r, p.g, p.b })
+                    setKeyVal(p.r, p.g, p.b)
                     swatch:Refresh()
                 end
             end,
             finishedFunc = function()
                 _activeColorPickerCallbacks = nil
                 local nr, ng, nb = GetColorPickerEffectiveRGB()
-                setKeyVal({ nr, ng, nb })
+                setKeyVal(nr, ng, nb)
                 tex:SetColorTexture(nr, ng, nb, 1)
                 if notify then notify() end
             end,
