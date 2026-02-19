@@ -401,6 +401,7 @@ local function RefreshContentInCombat()
                         obj.text:SetText(turnInText)
                         obj.shadow:SetText(turnInText)
                         obj.text:SetTextColor(doneColor[1], doneColor[2], doneColor[3], 1)
+                        if obj.tick then obj.tick:Hide() end
                     end
                 end
 
