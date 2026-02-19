@@ -41,14 +41,13 @@ local function CollectDelveQuests(ctx)
     for questID, _ in pairs(nearbySet) do
         if not seen[questID] and not addon.IsQuestWorldQuest(questID) then
             if not (C_QuestLog.IsQuestCalling and C_QuestLog.IsQuestCalling(questID)) then
-                local questOnCurrentMap = true
-                if C_TaskQuest and C_TaskQuest.GetQuestInfoByQuestID then
-                    local info = C_TaskQuest.GetQuestInfoByQuestID(questID)
-                    local questMapID = info and (info.mapID or info.uiMapID)
-                    questOnCurrentMap = (questMapID == playerMapID)
-                end
-                if questOnCurrentMap then
-                    out[#out + 1] = { questID = questID, opts = { isTracked = false, forceCategory = "DELVES" } }
+                -- Only show quests the player actually has in their log
+                local logIdx = C_QuestLog.GetLogIndexForQuestID(questID)
+                if logIdx then
+                    local info = C_QuestLog.GetInfo and C_QuestLog.GetInfo(logIdx)
+                    if info and not info.isHidden then
+                        out[#out + 1] = { questID = questID, opts = { isTracked = false, forceCategory = "DELVES" } }
+                    end
                 end
             end
         end

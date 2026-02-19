@@ -22,9 +22,9 @@ local function GetMythicDungeonName()
 end
 
 --- Returns nearby non-WQ, non-Calling quests when in a party dungeon.
---- In M+ (active keystone), only show quests the player has actually accepted
---- in their quest log, filtering out hidden / deprecated / auto-tracked noise.
---- In regular dungeons, show all nearby dungeon quests.
+--- Only shows quests the player has actually accepted in their quest log,
+--- filtering out hidden / deprecated / auto-tracked noise regardless of
+--- dungeon difficulty.
 local function CollectDungeonQuests(ctx)
     if not IsInPartyDungeon() then return {} end
     -- When the M+ block is active, hide the DUNGEON category entirely
@@ -33,23 +33,17 @@ local function CollectDungeonQuests(ctx)
     local out = {}
     local nearbySet = ctx.nearbySet or {}
     local seen = ctx.seen or {}
-    local inMplus = C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID
-        and C_ChallengeMode.GetActiveChallengeMapID() ~= nil
     for questID, _ in pairs(nearbySet) do
         if not seen[questID] and not addon.IsQuestWorldQuest(questID) then
             if not (C_QuestLog.IsQuestCalling and C_QuestLog.IsQuestCalling(questID)) then
-                -- In M+, only show quests the player actually has in their log
-                if inMplus then
-                    local logIdx = C_QuestLog.GetLogIndexForQuestID(questID)
-                    if logIdx then
-                        -- Also skip hidden quests (internal tracking quests)
-                        local info = C_QuestLog.GetInfo and C_QuestLog.GetInfo(logIdx)
-                        if info and not info.isHidden then
-                            out[#out + 1] = { questID = questID, opts = { isDungeonQuest = true, isTracked = false, forceCategory = "DUNGEON" } }
-                        end
+                -- Only show quests the player actually has in their log
+                local logIdx = C_QuestLog.GetLogIndexForQuestID(questID)
+                if logIdx then
+                    -- Skip hidden quests (internal tracking quests)
+                    local info = C_QuestLog.GetInfo and C_QuestLog.GetInfo(logIdx)
+                    if info and not info.isHidden then
+                        out[#out + 1] = { questID = questID, opts = { isDungeonQuest = true, isTracked = false, forceCategory = "DUNGEON" } }
                     end
-                else
-                    out[#out + 1] = { questID = questID, opts = { isDungeonQuest = true, isTracked = false, forceCategory = "DUNGEON" } }
                 end
             end
         end

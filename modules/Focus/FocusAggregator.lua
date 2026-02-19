@@ -258,7 +258,9 @@ local function ReadTrackedQuests()
     for _, e in ipairs(addon.CollectWorldQuests(ctx)) do
         local opts = e.opts or {}
         local isBlacklisted = (usePermanent and permanentBlacklist[e.questID]) or (not usePermanent and recentlyUntrackedWQ and recentlyUntrackedWQ[e.questID])
-        if not seen[e.questID] and not isBlacklisted and (addon.GetDB("showWorldQuests", true) or opts.isTracked or opts.isInQuestArea) then
+        -- Final safety: reject completed WQs that leaked through upstream filters.
+        local isCompleted = C_QuestLog.IsQuestFlaggedCompleted and C_QuestLog.IsQuestFlaggedCompleted(e.questID)
+        if not seen[e.questID] and not isBlacklisted and not isCompleted and (addon.GetDB("showWorldQuests", true) or opts.isTracked or opts.isInQuestArea) then
             if not filterByZone or zoneMatchesPlayer(e.questID) then
                 addQuest(e.questID, opts)
             end
