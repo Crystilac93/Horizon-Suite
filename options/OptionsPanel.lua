@@ -6,6 +6,7 @@
 local addon = _G.HorizonSuite
 if not addon or not addon.OptionCategories then return end
 
+local L = addon.L
 local Def = addon.OptionsWidgetsDef or {}
 local PAGE_WIDTH = 720
 local PAGE_HEIGHT = 600
@@ -72,7 +73,7 @@ local titleText = titleBar:CreateFontString(nil, "OVERLAY")
 titleText:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", Def.HeaderSize or 16, "OUTLINE")
 SetTextColor(titleText, Def.TextColorTitleBar or Def.TextColorNormal)
 titleText:SetPoint("TOPLEFT", titleBar, "TOPLEFT", PADDING, -PADDING)
-titleText:SetText("HORIZON SUITE")
+titleText:SetText(L["HORIZON SUITE"])
 local closeBtn = CreateFrame("Button", nil, panel)
 closeBtn:SetSize(28, 28)
 closeBtn:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -10, -10)
@@ -326,7 +327,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             local lbl = btn:CreateFontString(nil, "OVERLAY")
             lbl:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", Def.LabelSize or 13, "OUTLINE")
             SetTextColor(lbl, Def.TextColorLabel)
-            lbl:SetText(opt.name or "Reset")
+            lbl:SetText(opt.name or L["Reset"])
             lbl:SetPoint("CENTER", btn, "CENTER", 0, 0)
             btn:SetScript("OnClick", function()
                 if opt.onClick then opt.onClick() end
@@ -345,14 +346,14 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
         elseif opt.type == "colorMatrix" then
             if currentCard then FinalizeCard(currentCard) end
             currentCard = OptionsWidgets_CreateSectionCard(tab, anchor)
-            local lbl = OptionsWidgets_CreateSectionHeader(currentCard, opt.name or "Colors")
+            local lbl = OptionsWidgets_CreateSectionHeader(currentCard, opt.name or L["Colors"])
             lbl:SetPoint("TOPLEFT", currentCard, "TOPLEFT", CardPadding, -CardPadding)
             currentCard.contentAnchor = lbl
             currentCard.contentHeight = CardPadding + RowHeights.sectionLabel
             anchor = currentCard
             local keys = opt.keys or addon.COLOR_KEYS_ORDER
             local defaultMap = opt.defaultMap or addon.QUEST_COLORS
-            local sub = OptionsWidgets_CreateSectionHeader(currentCard, "Quest types")
+            local sub = OptionsWidgets_CreateSectionHeader(currentCard, L["Quest types"])
             sub:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -SectionGap)
             currentCard.contentAnchor = sub
             currentCard.contentHeight = currentCard.contentHeight + SectionGap + RowHeights.sectionLabel
@@ -360,7 +361,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             for _, key in ipairs(keys) do
                 local getTbl = function() local db = getDB(opt.dbKey, nil) return db and db[key] end
                 local setKeyVal = function(v) addon.EnsureDB() if not HorizonDB[opt.dbKey] then HorizonDB[opt.dbKey] = {} end HorizonDB[opt.dbKey][key] = v notifyMainAddon() end
-                local row = OptionsWidgets_CreateColorSwatchRow(currentCard, currentCard.contentAnchor, (opt.labelMap and opt.labelMap[key]) or key:gsub("^%l", string.upper), defaultMap[key], getTbl, setKeyVal, notifyMainAddon)
+                local row = OptionsWidgets_CreateColorSwatchRow(currentCard, currentCard.contentAnchor, addon.L[(opt.labelMap and opt.labelMap[key]) or key:gsub("^%l", string.upper)], defaultMap[key], getTbl, setKeyVal, notifyMainAddon)
                 currentCard.contentAnchor = row
                 currentCard.contentHeight = currentCard.contentHeight + 4 + 24
                 swatches[#swatches+1] = row
@@ -371,7 +372,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             local rl = resetBtn:CreateFontString(nil, "OVERLAY")
             rl:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", Def.LabelSize or 13, "OUTLINE")
             SetTextColor(rl, Def.TextColorLabel)
-            rl:SetText("Reset quest types")
+            rl:SetText(L["Reset quest types"])
             rl:SetPoint("CENTER", resetBtn, "CENTER", 0, 0)
             resetBtn:SetScript("OnClick", function()
                 setDB(opt.dbKey, nil)
@@ -402,7 +403,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             local rol = resetOv:CreateFontString(nil, "OVERLAY")
             rol:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", Def.LabelSize or 13, "OUTLINE")
             SetTextColor(rol, Def.TextColorLabel)
-            rol:SetText("Reset overrides")
+            rol:SetText(L["Reset overrides"])
             rol:SetPoint("CENTER", resetOv, "CENTER", 0, 0)
             resetOv:SetScript("OnClick", function()
                 for _, ov in ipairs(opt.overrides or {}) do setDB(ov.dbKey, nil) end
@@ -490,7 +491,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             -- Rows are created lazily on first expand.
             -- ---------------------------------------------------------------
             local function BuildCollapsibleGroup(parentCard, anchorFrame, key)
-                local labelBase = (addon.SECTION_LABELS and addon.SECTION_LABELS[key]) or key
+                local labelBase = addon.L[(addon.SECTION_LABELS and addon.SECTION_LABELS[key]) or key]
                 local container = CreateFrame("Frame", nil, parentCard)
                 container:SetPoint("TOPLEFT", anchorFrame, "BOTTOMLEFT", 0, -OptionGap)
                 container:SetPoint("RIGHT", parentCard, "RIGHT", -CardPadding, 0)
@@ -531,7 +532,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
                 local resetLabel = resetBtn:CreateFontString(nil, "OVERLAY")
                 resetLabel:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", Def.LabelSize or 13, "OUTLINE")
                 SetTextColor(resetLabel, Def.TextColorLabel)
-                resetLabel:SetText("Reset")
+                resetLabel:SetText(L["Reset"])
                 resetLabel:SetPoint("CENTER", resetBtn, "CENTER", 0, 0)
                 resetBtn:SetScript("OnClick", function()
                     local m = getMatrix()
@@ -643,7 +644,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             -- Assemble the Colors card
             -- ---------------------------------------------------------------
             currentCard = OptionsWidgets_CreateSectionCard(tab, anchor)
-            local lbl = OptionsWidgets_CreateSectionHeader(currentCard, opt.name or "Colors")
+            local lbl = OptionsWidgets_CreateSectionHeader(currentCard, opt.name or L["Colors"])
             lbl:SetPoint("TOPLEFT", currentCard, "TOPLEFT", CardPadding, -CardPadding)
             currentCard.contentAnchor = lbl
             currentCard.contentHeight = CardPadding + RowHeights.sectionLabel
@@ -1160,7 +1161,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
                 local getTbl = function() local db = getDB(opt.dbKey, nil) return db and db[key] end
                 local setKeyVal = function(v) addon.EnsureDB() if not HorizonDB[opt.dbKey] then HorizonDB[opt.dbKey] = {} end HorizonDB[opt.dbKey][key] = v notifyMainAddon() end
                 local def = defaultMap[key] or {0.5,0.5,0.5}
-                local row = OptionsWidgets_CreateColorSwatchRow(currentCard, currentCard.contentAnchor, (opt.labelMap and opt.labelMap[key]) or key:gsub("^%l", string.upper), def, getTbl, setKeyVal, notifyMainAddon)
+                local row = OptionsWidgets_CreateColorSwatchRow(currentCard, currentCard.contentAnchor, addon.L[(opt.labelMap and opt.labelMap[key]) or key:gsub("^%l", string.upper)], def, getTbl, setKeyVal, notifyMainAddon)
                 currentCard.contentAnchor = row
                 currentCard.contentHeight = currentCard.contentHeight + 4 + 24
                 swatches[#swatches+1] = row
@@ -1171,7 +1172,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             local rl = resetBtn:CreateFontString(nil, "OVERLAY")
             rl:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", Def.LabelSize or 13, "OUTLINE")
             SetTextColor(rl, Def.TextColorLabel)
-            rl:SetText("Reset to defaults")
+            rl:SetText(L["Reset to defaults"])
             rl:SetPoint("CENTER", resetBtn, "CENTER", 0, 0)
             resetBtn:SetScript("OnClick", function()
                 setDB(opt.dbKey, nil)
@@ -1202,11 +1203,11 @@ end
 
 -- Build sidebar grouped by moduleKey (Modules, Focus, Presence)
 -- Use "modules" as sentinel for nil (WoW Lua disallows nil as table index)
-local MODULE_LABELS = { ["modules"] = "Modules", ["focus"] = "Focus", ["presence"] = "Presence" }
+local MODULE_LABELS = { ["modules"] = L["Modules"], ["focus"] = L["Focus"], ["presence"] = L["Presence"] }
 local groups = {}
 for i, cat in ipairs(addon.OptionCategories) do
     local mk = cat.moduleKey or "modules"
-    if not groups[mk] then groups[mk] = { label = MODULE_LABELS[mk] or "Other", categories = {} } end
+    if not groups[mk] then groups[mk] = { label = MODULE_LABELS[mk] or L["Other"], categories = {} } end
     table.insert(groups[mk].categories, i)
 end
 local groupOrder = { "modules", "focus", "presence" }
@@ -1606,7 +1607,7 @@ local function OnSearchTextChanged(text)
     end
 end
 
-local searchInput = OptionsWidgets_CreateSearchInput(searchRow, OnSearchTextChanged, "Search settings...")
+local searchInput = OptionsWidgets_CreateSearchInput(searchRow, OnSearchTextChanged, L["Search settings..."])
 searchInput.clearBtn:SetFrameLevel(searchInput.edit:GetFrameLevel() + 1)
 searchInput.edit:SetScript("OnEscapePressed", function()
     searchInput.edit:SetText("")

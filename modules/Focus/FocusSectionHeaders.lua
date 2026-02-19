@@ -34,7 +34,7 @@ local function AcquireSectionHeader(groupKey, focusedGroupKey)
     local s = sectionPool[addon.focus.layout.sectionIdx]
     s.groupKey = groupKey
 
-    local label = addon.SECTION_LABELS[groupKey] or groupKey
+    local label = addon.L[addon.SECTION_LABELS[groupKey] or groupKey]
     label = addon.ApplyTextCase(label, "sectionHeaderTextCase", "upper")
     local color = addon.GetSectionColor(groupKey)
     if addon.GetDB("dimNonSuperTracked", false) and focusedGroupKey and groupKey ~= focusedGroupKey then

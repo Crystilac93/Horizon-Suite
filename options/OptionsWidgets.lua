@@ -7,6 +7,8 @@
 local addon = _G.HorizonSuite
 if not addon then return end
 
+local L = addon.L
+
 -- Design tokens (Cinematic, Modern, Minimalistic). Panel can override FontPath/HeaderSize via SetDef.
 local Def = {
     Padding = 18,
@@ -35,6 +37,9 @@ local Def = {
     ThumbColor = { 1, 1, 1, 0.98 },
 }
 Def.BorderColor = Def.SectionCardBorder
+if addon.StandardFont then
+    Def.FontPath = addon.StandardFont
+end
 
 local _activeColorPickerCallbacks = nil  -- { setKeyVal, notify, tex } when our picker is open
 local _hexBoxHooked = false
@@ -998,7 +1003,7 @@ function OptionsWidgets_CreateReorderList(parent, anchor, opt, scrollFrameRef, p
         lab:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
         lab:SetJustifyH("LEFT")
         SetTextColor(lab, Def.TextColorLabel)
-        lab:SetText((labelMap[key]) or key:gsub("^%l", string.upper))
+        lab:SetText(addon.L[(labelMap[key]) or key:gsub("^%l", string.upper)])
         lab:SetPoint("LEFT", row, "LEFT", 24, 0)
         row.label = lab
         local grip = row:CreateFontString(nil, "OVERLAY")
@@ -1028,7 +1033,7 @@ function OptionsWidgets_CreateReorderList(parent, anchor, opt, scrollFrameRef, p
     local resetLabel = resetBtn:CreateFontString(nil, "OVERLAY")
     resetLabel:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
     SetTextColor(resetLabel, Def.TextColorLabel)
-    resetLabel:SetText("Reset to default")
+    resetLabel:SetText(L["Reset to default"])
     resetLabel:SetPoint("CENTER", resetBtn, "CENTER", 0, 0)
     resetBtn:SetScript("OnClick", function()
         if opt.set then opt.set(nil) end

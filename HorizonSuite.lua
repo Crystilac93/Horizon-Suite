@@ -20,6 +20,9 @@ local addon = _G.HorizonSuite
 
 addon.modules = {}
 
+-- Localization: L[key] returns translated string or key as fallback. Locale files (e.g. options/koKR.lua) overwrite addon.L when loaded.
+addon.L = setmetatable({}, { __index = function(t, k) return k end })
+
 --- Register a module. Called by module files at load time.
 -- @param key string Module identifier (e.g. "focus")
 -- @param def table { title, description, order, OnInit, OnEnable, OnDisable }
