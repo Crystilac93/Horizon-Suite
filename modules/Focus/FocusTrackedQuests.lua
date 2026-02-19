@@ -21,7 +21,9 @@ local function CollectTrackedQuests(ctx)
             local isWorld = addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(questID)
             local zoneNameForFilter = addon.GetQuestZoneName and addon.GetQuestZoneName(questID)
             local zoneMatchesFilter = (not zoneNameForFilter or not playerZone or zoneNameForFilter:lower() == playerZone:lower())
-            if (not filterByZone or isWorld or (nearbySet[questID] and zoneMatchesFilter)) then
+            -- Nearby APIs can miss some tracked quests; allow either zone match or nearby presence.
+            local passesZoneFilter = (not filterByZone) or isWorld or zoneMatchesFilter or nearbySet[questID]
+            if passesZoneFilter then
                 if addon.GetDB("showWorldQuests", true) or not addon.IsQuestWorldQuest(questID) then
                     out[#out + 1] = { questID = questID, opts = {} }  -- isTracked = true by default
                 end

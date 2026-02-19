@@ -10,6 +10,20 @@ All notable changes to Horizon Suite are documented here.
 
 ---
 
+## [1.1.5] – 2026-02-19
+
+### New Features
+
+- **(Focus) Option to fade or hide completed quest objectives** — Completed objectives (e.g. 1/1) can be faded or hidden so remaining tasks are visible at a glance.
+
+### Fixes
+
+- **(Core)** Beta Release Action now runs correctly; release zipping and workflow updated.
+
+- **(Focus)** Click to complete quest in old content (no turn-in NPC) now works; users no longer need to disable the addon to complete those quests.
+
+---
+
 ## [1.1.4] – 2026-02-16
 
 ### New Features

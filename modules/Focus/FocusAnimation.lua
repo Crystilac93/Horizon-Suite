@@ -1,9 +1,15 @@
 --[[
     Horizon Suite - Focus - Animation Engine
     HS OnUpdate: height lerp, entry fade/slide/collapse, objective flash, auto-hide.
+    Uses C_Map.GetBestMapForUnit in RunMapCheck for zone change detection.
 ]]
 
 local addon = _G.HorizonSuite
+
+local HEIGHT_SNAP_THRESHOLD   = 0.5
+local DRIFT_THRESHOLD        = 0.1
+local FLASH_ALPHA_MAX        = 0.12
+local GROUP_COLLAPSE_TIMEOUT = 2
 
 -- ============================================================================
 -- ANIMATION ENGINE
@@ -26,7 +32,7 @@ local function SetPanelHeight(h)
     local topAfter = HS:GetTop()
     if not topAfter then return end
     local drift = topAfter - topBefore
-    if math.abs(drift) < 0.1 then return end
+    if math.abs(drift) < DRIFT_THRESHOLD then return end
     local uiTop   = UIParent:GetTop()   or 0
     local uiRight = UIParent:GetRight() or 0
     local right   = HS:GetRight()      or 0
@@ -34,7 +40,9 @@ local function SetPanelHeight(h)
     HS:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", right - uiRight, topBefore - uiTop)
 end
 
-function addon.RunMapCheck()
+--- Detects player map changes and invalidates zone task quest cache.
+--- Called on a timer; no params or return.
+local function RunMapCheck()
     if not addon.focus.enabled or not C_Map or not C_Map.GetBestMapForUnit then return end
     local mapID = C_Map.GetBestMapForUnit("player")
     if mapID and mapID ~= addon.focus.lastPlayerMapID then
@@ -49,7 +57,7 @@ end
 local function UpdatePanelHeight(dt)
     local targetHeight  = addon.focus.layout.targetHeight
     local currentHeight = addon.focus.layout.currentHeight
-    if math.abs(currentHeight - targetHeight) > 0.5 then
+    if math.abs(currentHeight - targetHeight) > HEIGHT_SNAP_THRESHOLD then
         addon.focus.layout.currentHeight = currentHeight + (targetHeight - currentHeight) * math.min(addon.HEIGHT_SPEED * dt, 1)
         SetPanelHeight(addon.focus.layout.currentHeight)
     elseif currentHeight ~= targetHeight then
@@ -216,12 +224,11 @@ local function UpdateEntryAnimations(dt, useAnim)
 
         elseif e.animState == "collapsing" then
             e.animTime = e.animTime + dt
-            if not useAnim and e.animTime >= (e.collapseDelay or 0) then
+            local delay = e.collapseDelay or 0
+            if not useAnim and e.animTime >= delay then
                 addon.ClearEntry(e)
-            elseif e.animTime < e.collapseDelay then
-                -- waiting
-            else
-                local t = e.animTime - e.collapseDelay
+            elseif e.animTime >= delay then
+                local t = e.animTime - delay
                 local p = math.min(t / addon.COLLAPSE_DUR, 1)
                 local ep = addon.easeIn(p)
                 e:SetAlpha(1 - ep)
@@ -240,7 +247,7 @@ local function UpdateEntryAnimations(dt, useAnim)
         if e.flashTime > 0 then
             e.flashTime = e.flashTime - dt
             local fp = math.max(e.flashTime / addon.FLASH_DUR, 0)
-            e.flash:SetColorTexture(1, 1, 1, fp * 0.12)
+            e.flash:SetColorTexture(1, 1, 1, fp * FLASH_ALPHA_MAX)
             anyAnimating = true
         end
     end
@@ -302,7 +309,7 @@ local function UpdateGroupCollapseCompletion()
             end
 
             -- Safety timeout in case something goes wrong with anim state.
-            local timedOut = (GetTime() - startTime) > 2
+            local timedOut = (GetTime() - startTime) > GROUP_COLLAPSE_TIMEOUT
 
             if not stillCollapsing or timedOut then
                 addon.focus.collapse.groups[groupKey] = nil
@@ -367,9 +374,14 @@ local function FocusOnUpdate(_, dt)
     end
 end
 
-function addon.EnsureFocusUpdateRunning()
+--- Ensures the Focus OnUpdate script is running when animations are needed.
+--- Called by layout/events; no params or return.
+local function EnsureFocusUpdateRunning()
     if not addon.focus.enabled then return end
     if HS:GetScript("OnUpdate") ~= FocusOnUpdate then
         HS:SetScript("OnUpdate", FocusOnUpdate)
     end
 end
+
+addon.RunMapCheck              = RunMapCheck
+addon.EnsureFocusUpdateRunning = EnsureFocusUpdateRunning

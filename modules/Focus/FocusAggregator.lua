@@ -1,16 +1,25 @@
 --[[
     Horizon Suite - Focus - Aggregator
     Builds context, calls each content provider, normalizes entries, and returns merged quest list.
+    APIs: C_QuestLog, C_SuperTrack, GetQuestLogSpecialItemInfo, GetQuestLogTitle.
 ]]
 
 local addon = _G.HorizonSuite
 
+local DEFAULT_SORT_MODE = "questType"
+local CATEGORY_SORT_FALLBACK = 99
+local DEFAULT_GROUP = "DEFAULT"
+local UNKNOWN_TITLE_PLACEHOLDER = "..."
+
 -- Entry sort mode: alpha, questType, zone, level (DB key entrySortMode, default questType)
 local VALID_ENTRY_SORT = { alpha = true, questType = true, zone = true, level = true }
+
+--- Current entry sort mode from DB (alpha, questType, zone, or level).
+--- @return string Sort mode key
 local function GetSortMode()
-    local mode = addon.GetDB("entrySortMode", "questType")
+    local mode = addon.GetDB("entrySortMode", DEFAULT_SORT_MODE)
     if type(mode) == "string" and VALID_ENTRY_SORT[mode] then return mode end
-    return "questType"
+    return DEFAULT_SORT_MODE
 end
 
 -- Category order for questType sort (lower = earlier)
@@ -35,7 +44,7 @@ local function CompareEntriesBySortMode(a, b)
 
     if mode == "alpha" then return ta < tb end
     if mode == "questType" then
-        local ra, rb = CATEGORY_SORT_ORDER[a.category] or 99, CATEGORY_SORT_ORDER[b.category] or 99
+        local ra, rb = CATEGORY_SORT_ORDER[a.category] or CATEGORY_SORT_FALLBACK, CATEGORY_SORT_ORDER[b.category] or CATEGORY_SORT_FALLBACK
         if ra ~= rb then return ra < rb end
         return ta < tb
     end
@@ -52,6 +61,9 @@ local function CompareEntriesBySortMode(a, b)
     return ta < tb
 end
 
+--- Buckets entries by group key, sorts each group, and returns ordered { key, quests } array.
+--- @param quests table Array of normalized entry tables
+--- @return table Array of { key = string, quests = table }
 local function SortAndGroupQuests(quests)
     local groups = {}
     for _, key in ipairs(addon.GetGroupOrder()) do
@@ -80,11 +92,11 @@ local function SortAndGroupQuests(quests)
             if addon.GetDB("showNearbyGroup", true) or q.category == "COMPLETE" then
                 groups["NEARBY"][#groups["NEARBY"] + 1] = q
             else
-                local grp = addon.CATEGORY_TO_GROUP[q.category] or "DEFAULT"
+                local grp = addon.CATEGORY_TO_GROUP[q.category] or DEFAULT_GROUP
                 groups[grp][#groups[grp] + 1] = q
             end
         else
-            local grp = addon.CATEGORY_TO_GROUP[q.category] or "DEFAULT"
+            local grp = addon.CATEGORY_TO_GROUP[q.category] or DEFAULT_GROUP
             groups[grp][#groups[grp] + 1] = q
         end
     end
@@ -119,7 +131,9 @@ local function SortAndGroupQuests(quests)
     return result
 end
 
---- Build the full list of quests by calling each provider and normalizing. Respects filterByZone and test data.
+--- Build the full list of quests by calling each provider and normalizing.
+--- Respects filterByZone and test data. Merges Collect* providers and ReadScenarioEntries.
+--- @return table Array of normalized entry tables (see entry shape in FocusState.lua)
 local function ReadTrackedQuests()
     if addon.testQuests then
         return addon.testQuests
@@ -155,8 +169,21 @@ local function ReadTrackedQuests()
 
         local category = opts.forceCategory or addon.GetQuestCategory(questID)
         local baseCategory = (category == "COMPLETE") and addon.GetQuestBaseCategory(questID) or nil
-        local title = C_QuestLog.GetTitleForQuestID(questID) or "..."
+        local title = C_QuestLog.GetTitleForQuestID(questID) or UNKNOWN_TITLE_PLACEHOLDER
         local objectives = C_QuestLog.GetQuestObjectives(questID) or {}
+        local objectivesDoneCount, objectivesTotalCount
+        local completedObjDisplay = addon.GetDB("questCompletedObjectiveDisplay", "off")
+        if completedObjDisplay == "hide" and #objectives > 0 then
+            objectivesDoneCount, objectivesTotalCount = 0, #objectives
+            for _, o in ipairs(objectives) do
+                if o.finished then objectivesDoneCount = objectivesDoneCount + 1 end
+            end
+            local filtered = {}
+            for _, o in ipairs(objectives) do
+                if not o.finished then filtered[#filtered + 1] = o end
+            end
+            objectives = filtered
+        end
         local color = addon.GetQuestColor(category)
         local isComplete = C_QuestLog.IsComplete(questID)
         local isSuper = (questID == superTracked)
@@ -175,12 +202,18 @@ local function ReadTrackedQuests()
         end
 
         local questLevel
+        local isAutoComplete = false
         if logIndex then
+            -- pcall: C_QuestLog.GetInfo can throw on invalid logIndex.
             if C_QuestLog.GetInfo then
                 local ok, info = pcall(C_QuestLog.GetInfo, logIndex)
-                if ok and info and info.level then questLevel = info.level end
+                if ok and info then
+                    if info.level then questLevel = info.level end
+                    if info.isAutoComplete then isAutoComplete = true end
+                end
             end
             if not questLevel and GetQuestLogTitle then
+                -- pcall: GetQuestLogTitle can throw on invalid logIndex.
                 local ok, _, level = pcall(GetQuestLogTitle, logIndex)
                 if ok and level then questLevel = level end
             end
@@ -188,13 +221,19 @@ local function ReadTrackedQuests()
 
         local questTypeAtlas = addon.GetQuestTypeAtlas(questID, category)
 
-        quests[#quests + 1] = {
+        local entry = {
             entryKey = questID, questID = questID, title = title, objectives = objectives,
             color = color, category = category, baseCategory = baseCategory,
             isComplete = isComplete, isSuperTracked = isSuper, isNearby = isNearby,
             isAccepted = isAccepted, zoneName = zoneName, itemLink = itemLink, itemTexture = itemTexture,
             questTypeAtlas = questTypeAtlas, isDungeonQuest = isDungeonQuest, isTracked = isTracked, level = questLevel,
+            isAutoComplete = isAutoComplete,
         }
+        if objectivesDoneCount and objectivesTotalCount then
+            entry.objectivesDoneCount = objectivesDoneCount
+            entry.objectivesTotalCount = objectivesTotalCount
+        end
+        quests[#quests + 1] = entry
     end
 
     local ctx = {
@@ -267,6 +306,6 @@ local function ReadTrackedQuests()
     return quests
 end
 
-addon.ReadTrackedQuests  = ReadTrackedQuests
-addon.SortAndGroupQuests = SortAndGroupQuests
-addon.GetSortMode        = GetSortMode
+addon.ReadTrackedQuests   = ReadTrackedQuests
+addon.SortAndGroupQuests  = SortAndGroupQuests
+addon.GetSortMode         = GetSortMode

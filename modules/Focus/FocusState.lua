@@ -52,6 +52,11 @@ addon.focus = {
         onSlideOutComplete = nil,
     },
 
+    unacceptedPopup = {
+        dataRequestedThisSession = false,
+        loadResultDebounceGen   = 0,
+    },
+
     -- Data tables for blacklist/tracking (used by providers)
     recentlyUntrackedWorldQuests      = nil,
     recentlyUntrackedWeekliesAndDailies = nil,

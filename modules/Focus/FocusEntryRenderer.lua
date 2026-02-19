@@ -82,15 +82,13 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
 
     local cat = (effectiveCat ~= nil and effectiveCat ~= "") and effectiveCat or questData.category
     local objColor = (addon.GetObjectiveColor and addon.GetObjectiveColor(cat)) or addon.OBJ_COLOR or c
-    local doneColor = (addon.GetObjectiveColor and addon.GetObjectiveColor(cat)) or addon.OBJ_DONE_COLOR
+    local doneColor = (addon.GetCompletedObjectiveColor and addon.GetCompletedObjectiveColor(cat))
+        or (addon.GetObjectiveColor and addon.GetObjectiveColor(cat)) or addon.OBJ_DONE_COLOR
     if addon.GetDB("dimNonSuperTracked", false) and not questData.isSuperTracked then
         objColor = { objColor[1] * 0.60, objColor[2] * 0.60, objColor[3] * 0.60 }
         doneColor = { doneColor[1] * 0.60, doneColor[2] * 0.60, doneColor[3] * 0.60 }
     end
-    local effectiveDoneColor = (questData.isAchievement and addon.OBJ_DONE_COLOR) or doneColor
-    if questData.isAchievement and addon.GetDB("dimNonSuperTracked", false) and not questData.isSuperTracked then
-        effectiveDoneColor = { effectiveDoneColor[1] * 0.60, effectiveDoneColor[2] * 0.60, effectiveDoneColor[3] * 0.60 }
-    end
+    local effectiveDoneColor = doneColor
 
     local showEllipsis = (questData.isAchievement or questData.isEndeavor) and questData.objectives and #questData.objectives > 4
     local shownObjs = 0
@@ -116,10 +114,14 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
             obj.text:SetText(objText)
             obj.shadow:SetText(objText)
 
+            local alpha = 1
+            if oData.finished and (not questData.isAchievement and not questData.isEndeavor) and addon.GetDB("questCompletedObjectiveDisplay", "off") == "fade" then
+                alpha = 0.4
+            end
             if oData.finished then
-                obj.text:SetTextColor(effectiveDoneColor[1], effectiveDoneColor[2], effectiveDoneColor[3], 1)
+                obj.text:SetTextColor(effectiveDoneColor[1], effectiveDoneColor[2], effectiveDoneColor[3], alpha)
             else
-                obj.text:SetTextColor(objColor[1], objColor[2], objColor[3], 1)
+                obj.text:SetTextColor(objColor[1], objColor[2], objColor[3], alpha)
             end
 
             obj.text:ClearAllPoints()
@@ -142,9 +144,12 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
 
     if questData.isComplete and shownObjs == 0 then
         local obj = entry.objectives[1]
-        local turnInText = addon.GetDB("showObjectiveNumbers", false) and "1. Ready to turn in" or "Ready to turn in"
-        obj.text:SetText(turnInText)
-        obj.shadow:SetText(turnInText)
+        local isAutoComplete = questData.isAutoComplete and true or false
+        local firstLineText = isAutoComplete
+            and (_G.QUEST_WATCH_QUEST_COMPLETE or "Quest Complete")
+            or (addon.GetDB("showObjectiveNumbers", false) and "1. Ready to turn in" or "Ready to turn in")
+        obj.text:SetText(firstLineText)
+        obj.shadow:SetText(firstLineText)
         obj.text:SetTextColor(doneColor[1], doneColor[2], doneColor[3], 1)
         obj.text:ClearAllPoints()
         local turnInIndent = (prevAnchor == entry.titleText) and objIndent or 0
@@ -155,6 +160,22 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
         if not objH or objH < 1 then objH = addon.OBJ_SIZE + 2 end
         totalH = totalH + objSpacing + objH
         prevAnchor = obj.text
+
+        if isAutoComplete then
+            local obj2 = entry.objectives[2]
+            local clickText = _G.QUEST_WATCH_CLICK_TO_COMPLETE or "(click to complete)"
+            obj2.text:SetText(clickText)
+            obj2.shadow:SetText(clickText)
+            obj2.text:SetTextColor(doneColor[1], doneColor[2], doneColor[3], 1)
+            obj2.text:ClearAllPoints()
+            obj2.text:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", 0, -objSpacing)
+            obj2.text:Show()
+            obj2.shadow:Show()
+            local obj2H = obj2.text:GetStringHeight()
+            if not obj2H or obj2H < 1 then obj2H = addon.OBJ_SIZE + 2 end
+            totalH = totalH + objSpacing + obj2H
+            prevAnchor = obj2.text
+        end
     end
 
     return totalH, prevAnchor
@@ -403,6 +424,8 @@ local function PopulateEntry(entry, questData, groupKey)
         local done, total
         if questData.criteriaDone and questData.criteriaTotal and type(questData.criteriaDone) == "number" and type(questData.criteriaTotal) == "number" and questData.criteriaTotal > 0 then
             done, total = questData.criteriaDone, questData.criteriaTotal
+        elseif questData.objectivesDoneCount and questData.objectivesTotalCount then
+            done, total = questData.objectivesDoneCount, questData.objectivesTotalCount
         elseif questData.objectives and #questData.objectives > 0 then
             done, total = 0, #questData.objectives
             for _, o in ipairs(questData.objectives) do if o.finished then done = done + 1 end end
