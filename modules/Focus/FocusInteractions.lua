@@ -472,6 +472,7 @@ for i = 1, addon.POOL_SIZE do
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             pcall(GameTooltip.SetHyperlink, GameTooltip, "quest:" .. self.questID)
             addon.AddQuestRewardsToTooltip(GameTooltip, self.questID)
+            addon.AddQuestPartyProgressToTooltip(GameTooltip, self.questID)
             GameTooltip:Show()
         elseif self.entryKey then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")

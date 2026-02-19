@@ -350,6 +350,20 @@ function addon.AddQuestRewardsToTooltip(tooltip, questID)
     restoreQuest()
 end
 
+--- Append party member quest progress to a tooltip when in a group.
+--- Uses C_TooltipInfo.GetQuestPartyProgress; no-op when solo or API unavailable.
+--- @param tooltip GameTooltip
+--- @param questID number
+function addon.AddQuestPartyProgressToTooltip(tooltip, questID)
+    if not tooltip or not questID then return end
+    if not (C_TooltipInfo and C_TooltipInfo.GetQuestPartyProgress) then return end
+    if not (IsInGroup and IsInGroup()) then return end
+    local tooltipData = C_TooltipInfo.GetQuestPartyProgress(questID, true)
+    if not tooltipData or not tooltip.ProcessInfo then return end
+    tooltip:AddLine(" ")
+    tooltip:ProcessInfo({ tooltipData = tooltipData, append = true })
+end
+
 --- Parse a Task POI table into a simple set of quest IDs.
 -- Handles both array-style lists and keyed tables used by various C_TaskQuest APIs.
 -- @param taskPOIs Table returned from C_TaskQuest.* APIs (may be nil).
