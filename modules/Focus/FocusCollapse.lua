@@ -29,9 +29,18 @@ local function ToggleCollapse()
     if addon.focus.collapse.animating then
         if (GetTime() - addon.focus.collapse.animStart) < 2 then return end
         addon.focus.collapse.animating = false
+        addon.focus.collapse.sectionHeadersFadingOut = false
+        addon.focus.collapse.sectionHeadersFadingIn = false
         for i = 1, addon.POOL_SIZE do
             if pool[i].animState == "collapsing" then
                 addon.ClearEntry(pool[i])
+            end
+        end
+        for i = 1, addon.SECTION_POOL_SIZE do
+            if sectionPool[i].active then
+                sectionPool[i]:SetAlpha(0)
+                sectionPool[i]:Hide()
+                sectionPool[i].active = false
             end
         end
         wipe(activeMap)
@@ -54,13 +63,15 @@ local function ToggleCollapse()
         table.sort(visibleEntries, function(a, b) return a.finalY < b.finalY end)
 
         for idx, e in ipairs(visibleEntries) do
-            e.animState     = "collapsing"
-            e.animTime      = 0
-            e.collapseDelay = 0
+            addon.SetEntryCollapsing(e, 0)
         end
 
         local showHeadersWhenCollapsed = addon.GetDB("showSectionHeadersWhenCollapsed", false)
-        if not showHeadersWhenCollapsed then
+        local useAnim = addon.GetDB("animations", true)
+        if useAnim then
+            addon.focus.collapse.sectionHeadersFadingOut = true
+            addon.focus.collapse.sectionHeaderFadeTime   = 0
+        else
             for i = 1, addon.SECTION_POOL_SIZE do
                 if sectionPool[i].active then
                     sectionPool[i]:SetAlpha(0)
@@ -70,7 +81,7 @@ local function ToggleCollapse()
             end
         end
 
-        addon.focus.collapse.animating = #visibleEntries > 0
+        addon.focus.collapse.animating = #visibleEntries > 0 or addon.focus.collapse.sectionHeadersFadingOut
         addon.focus.collapse.animStart = GetTime()
         if addon.focus.collapse.animating and addon.EnsureFocusUpdateRunning then
             addon.EnsureFocusUpdateRunning()
@@ -86,6 +97,10 @@ local function ToggleCollapse()
     else
         addon.chevron:SetText("-")
         scrollFrame:Show()
+        if addon.GetDB("animations", true) then
+            addon.focus.collapse.sectionHeadersFadingIn  = true
+            addon.focus.collapse.sectionHeaderFadeTime    = 0
+        end
         addon.FullLayout()
     end
     addon.EnsureDB()
@@ -116,9 +131,7 @@ function addon.StartGroupCollapse(groupKey)
     end)
 
     for i, e in ipairs(entries) do
-        e.animState     = "collapsing"
-        e.animTime      = 0
-        e.collapseDelay = (i - 1) * addon.ENTRY_STAGGER
+        addon.SetEntryCollapsing(e, i - 1)
     end
 
     addon.focus.collapse.groups[groupKey] = GetTime()
@@ -154,9 +167,7 @@ function addon.StartGroupCollapseVisual(groupKey)
     end)
 
     for i, e in ipairs(entries) do
-        e.animState     = "collapsing"
-        e.animTime      = 0
-        e.collapseDelay = (i - 1) * addon.ENTRY_STAGGER
+        addon.SetEntryCollapsing(e, i - 1)
     end
 
     addon.focus.collapse.groups[groupKey] = GetTime()
@@ -174,10 +185,7 @@ function addon.TriggerNearbyEntriesFadeIn()
         return (a.finalY or 0) > (b.finalY or 0)
     end)
     for i, e in ipairs(entries) do
-        e.animState     = "fadein"
-        e.animTime      = 0
-        e.staggerDelay  = (i - 1) * addon.ENTRY_STAGGER
-        e:SetAlpha(0)
+        addon.SetEntryFadeIn(e, i - 1)
     end
 end
 
@@ -358,15 +366,36 @@ local function RefreshContentInCombat()
 
                     if oData and oData.text then
                         local objText = oData.text or ""
+                        local nf, nr = oData.numFulfilled, oData.numRequired
+                        if nf ~= nil and nr ~= nil and type(nf) == "number" and type(nr) == "number" and nr > 1 then
+                            local pattern = tostring(nf) .. "/" .. tostring(nr)
+                            if not objText:find(pattern, 1, true) then
+                                objText = objText .. (" (%d/%d)"):format(nf, nr)
+                            end
+                        end
                         if showObjectiveNumbers then objText = ("%d. %s"):format(j, objText) end
+                        local useTick = oData.finished and addon.GetDB("useTickForCompletedObjectives", false) and not questData.isComplete
                         obj.text:SetText(objText)
                         obj.shadow:SetText(objText)
+                        local tickSize = math.max(10, tonumber(addon.GetDB("objectiveFontSize", 11)) or 11)
+                        if useTick and obj.tick then
+                            obj.tick:SetSize(tickSize, tickSize)
+                            obj.tick:ClearAllPoints()
+                            obj.tick:SetPoint("RIGHT", obj.text, "LEFT", -4, 0)
+                            obj.tick:Show()
+                        elseif obj.tick then
+                            obj.tick:Hide()
+                        end
                         local alpha = 1
                         if oData.finished and (not questData.isAchievement and not questData.isEndeavor) and addon.GetDB("questCompletedObjectiveDisplay", "off") == "fade" then
                             alpha = 0.4
                         end
                         if oData.finished then
-                            obj.text:SetTextColor(effectiveDoneColor[1], effectiveDoneColor[2], effectiveDoneColor[3], alpha)
+                            if useTick then
+                                obj.text:SetTextColor(objColor[1], objColor[2], objColor[3], alpha)
+                            else
+                                obj.text:SetTextColor(effectiveDoneColor[1], effectiveDoneColor[2], effectiveDoneColor[3], alpha)
+                            end
                         else
                             obj.text:SetTextColor(objColor[1], objColor[2], objColor[3], alpha)
                         end
@@ -380,6 +409,7 @@ local function RefreshContentInCombat()
                         obj.text:SetText(turnInText)
                         obj.shadow:SetText(turnInText)
                         obj.text:SetTextColor(doneColor[1], doneColor[2], doneColor[3], 1)
+                        if obj.tick then obj.tick:Hide() end
                     end
                 end
 

@@ -55,18 +55,28 @@ addon.SHADOW_OX       = 2
 addon.SHADOW_OY       = -2
 addon.SHADOW_A        = 0.8
 
-addon.FADE_IN_DUR     = 0.4
-addon.FADE_OUT_DUR    = 0.4
+-- Single source of truth for Focus fade/transition. All animation code reads from here.
+addon.FOCUS_ANIM = {
+    dur        = 0.4,
+    stagger    = 0.05,
+    slideInX   = 20,
+    slideOutX  = 20,
+    driftOutY  = 10,
+}
 addon.COMPLETE_HOLD   = 0.50
 addon.HEIGHT_SPEED    = 8
-addon.FLASH_DUR       = 0.35
+addon.FLASH_DUR       = 0.55
 
-addon.SLIDE_IN_X      = 20
-addon.SLIDE_OUT_X     = 20
-addon.DRIFT_OUT_Y     = 10
-addon.ENTRY_STAGGER   = 0.05
-addon.COLLAPSE_DUR    = 0.4
-addon.COMBAT_FADE_DUR = 0.4
+-- Backward-compatible aliases (derived from FOCUS_ANIM).
+addon.FOCUS_ANIM_DUR  = addon.FOCUS_ANIM.dur
+addon.FADE_IN_DUR     = addon.FOCUS_ANIM.dur
+addon.FADE_OUT_DUR    = addon.FOCUS_ANIM.dur
+addon.COLLAPSE_DUR    = addon.FOCUS_ANIM.dur
+addon.COMBAT_FADE_DUR = addon.FOCUS_ANIM.dur
+addon.ENTRY_STAGGER   = addon.FOCUS_ANIM.stagger
+addon.SLIDE_IN_X      = addon.FOCUS_ANIM.slideInX
+addon.SLIDE_OUT_X     = addon.FOCUS_ANIM.slideOutX
+addon.DRIFT_OUT_Y     = addon.FOCUS_ANIM.driftOutY
 
 addon.HEADER_COLOR    = { 1, 1, 1 }
 addon.DIVIDER_COLOR   = { 1, 1, 1, 0.5 }

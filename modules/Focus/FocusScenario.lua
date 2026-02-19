@@ -173,12 +173,15 @@ local function ReadScenarioEntries()
                     local d, s = GetCriteriaTimerInfo(criteriaInfo)
                     local hasTimer = (d and s) and not (criteriaInfo.failed or criteriaInfo.completed or criteriaInfo.complete)
                     local text = (criteriaInfo.description and criteriaInfo.description ~= "") and criteriaInfo.description or (criteriaInfo.criteriaString or "")
+                    local qty, totalQty = criteriaInfo.quantity, criteriaInfo.totalQuantity
+                    local hasQuantity = qty ~= nil and totalQty ~= nil and type(qty) == "number" and type(totalQty) == "number" and totalQty > 0
                     -- Option 4: Include timer-only criteria (no text) as standalone timer objectives.
                     local obj = {
                         text = text ~= "" and text or nil,
                         finished = criteriaInfo.complete or criteriaInfo.completed or false,
-                        percent = (criteriaInfo.quantity and criteriaInfo.totalQuantity and criteriaInfo.totalQuantity > 0)
-                            and math.floor(100 * criteriaInfo.quantity / criteriaInfo.totalQuantity) or nil,
+                        percent = hasQuantity and math.floor(100 * qty / totalQty) or nil,
+                        numFulfilled = hasQuantity and qty or nil,
+                        numRequired = hasQuantity and totalQty or nil,
                         timerDuration = hasTimer and d or nil,
                         timerStartTime = hasTimer and s or nil,
                     }
@@ -263,11 +266,14 @@ local function ReadScenarioEntries()
                                 local d, s = GetCriteriaTimerInfo(criteriaInfo)
                                 local hasTimer = (d and s) and not (criteriaInfo.failed or criteriaInfo.completed or criteriaInfo.complete)
                                 local text = (criteriaInfo.description and criteriaInfo.description ~= "") and criteriaInfo.description or (criteriaInfo.criteriaString or "")
+                                local qty, totalQty = criteriaInfo.quantity, criteriaInfo.totalQuantity
+                                local hasQuantity = qty ~= nil and totalQty ~= nil and type(qty) == "number" and type(totalQty) == "number" and totalQty > 0
                                 objectives[#objectives + 1] = {
                                     text = text ~= "" and text or nil,
                                     finished = criteriaInfo.complete or criteriaInfo.completed or false,
-                                    percent = (criteriaInfo.quantity and criteriaInfo.totalQuantity and criteriaInfo.totalQuantity > 0)
-                                        and math.floor(100 * criteriaInfo.quantity / criteriaInfo.totalQuantity) or nil,
+                                    percent = hasQuantity and math.floor(100 * qty / totalQty) or nil,
+                                    numFulfilled = hasQuantity and qty or nil,
+                                    numRequired = hasQuantity and totalQty or nil,
                                     timerDuration = hasTimer and d or nil,
                                     timerStartTime = hasTimer and s or nil,
                                 }

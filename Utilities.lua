@@ -38,6 +38,48 @@ function addon.StyleQuestItemButton(btn)
     addon.CreateBorder(btn, Design.QUEST_ITEM_BORDER, 1)
 end
 
+--- Blizzard-inspired clean frame for the floating quest item button.
+--- Dark background, crisp 1px border drawn on OVERLAY so it sits on top of the icon.
+--- Highlight on hover via a subtle white overlay. Idempotent.
+--- @param btn Frame Button frame (SecureActionButtonTemplate) to style.
+function addon.ApplyBlizzardFloatingQuestItemStyle(btn)
+    if not btn or btn._blizzardStyleApplied then return end
+    btn._blizzardStyleApplied = true
+
+    local BORDER_T = 1
+    local BORDER_C = { 0.40, 0.42, 0.48, 0.80 }
+    local BG_C     = { 0.06, 0.06, 0.08, 0.95 }
+
+    local bg = btn:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(BG_C[1], BG_C[2], BG_C[3], BG_C[4])
+
+    local function mkBorder(point1, point2, isHoriz)
+        local t = btn:CreateTexture(nil, "OVERLAY")
+        t:SetColorTexture(BORDER_C[1], BORDER_C[2], BORDER_C[3], BORDER_C[4])
+        if isHoriz then
+            t:SetHeight(BORDER_T)
+            t:SetPoint("LEFT", btn, "LEFT", 0, 0)
+            t:SetPoint("RIGHT", btn, "RIGHT", 0, 0)
+            t:SetPoint(point1, btn, point2, 0, 0)
+        else
+            t:SetWidth(BORDER_T)
+            t:SetPoint("TOP", btn, "TOP", 0, 0)
+            t:SetPoint("BOTTOM", btn, "BOTTOM", 0, 0)
+            t:SetPoint(point1, btn, point2, 0, 0)
+        end
+    end
+    mkBorder("TOPLEFT", "TOPLEFT", true)
+    mkBorder("BOTTOMLEFT", "BOTTOMLEFT", true)
+    mkBorder("TOPLEFT", "TOPLEFT", false)
+    mkBorder("TOPRIGHT", "TOPRIGHT", false)
+
+    local highlight = btn:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints()
+    highlight:SetColorTexture(1, 1, 1, 0.15)
+    btn:SetHighlightTexture(highlight)
+end
+
 -- ============================================================================
 -- BORDERS & TEXT
 -- ============================================================================

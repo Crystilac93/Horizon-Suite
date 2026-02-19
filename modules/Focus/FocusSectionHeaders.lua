@@ -34,7 +34,7 @@ local function AcquireSectionHeader(groupKey, focusedGroupKey)
     local s = sectionPool[addon.focus.layout.sectionIdx]
     s.groupKey = groupKey
 
-    local label = addon.SECTION_LABELS[groupKey] or groupKey
+    local label = addon.L[addon.SECTION_LABELS[groupKey] or groupKey]
     label = addon.ApplyTextCase(label, "sectionHeaderTextCase", "upper")
     local color = addon.GetSectionColor(groupKey)
     if addon.GetDB("dimNonSuperTracked", false) and focusedGroupKey and groupKey ~= focusedGroupKey then
@@ -59,6 +59,7 @@ local function AcquireSectionHeader(groupKey, focusedGroupKey)
         if not key then return end
 
         if addon.IsCategoryCollapsed(key) then
+            if addon.PrepareGroupExpandSlideDown then addon.PrepareGroupExpandSlideDown(key) end
             addon.SetCategoryCollapsed(key, false)
             if self.chevron then
                 self.chevron:SetText("−")
@@ -71,6 +72,7 @@ local function AcquireSectionHeader(groupKey, focusedGroupKey)
                 scrollFrame:Show()
             end
             addon.FullLayout()
+            if addon.ApplyGroupExpandSlideDown then addon.ApplyGroupExpandSlideDown() end
         else
             if self.chevron then
                 self.chevron:SetText("+")
@@ -82,7 +84,14 @@ local function AcquireSectionHeader(groupKey, focusedGroupKey)
     end)
 
     s.active = true
-    s:SetAlpha(1)
+    if addon.focus.collapse.sectionHeadersFadingIn and addon.GetDB("animations", true) then
+        local staggerIdx = addon.focus.layout.sectionIdx - 1
+        s.staggerDelay = staggerIdx * (addon.FOCUS_ANIM and addon.FOCUS_ANIM.stagger or 0.05)
+        s:SetAlpha(0)
+    else
+        s.staggerDelay = nil
+        s:SetAlpha(1)
+    end
     s:Show()
     return s
 end

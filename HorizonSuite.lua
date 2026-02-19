@@ -20,6 +20,9 @@ local addon = _G.HorizonSuite
 
 addon.modules = {}
 
+-- Localization: L[key] returns translated string or key as fallback. Locale files (e.g. options/koKR.lua) overwrite addon.L when loaded.
+addon.L = setmetatable({}, { __index = function(t, k) return k end })
+
 --- Register a module. Called by module files at load time.
 -- @param key string Module identifier (e.g. "focus")
 -- @param def table { title, description, order, OnInit, OnEnable, OnDisable }
@@ -125,3 +128,4 @@ end
 -- Binding display names for Key Bindings UI (must match Binding name in Bindings.xml exactly)
 _G["BINDING_NAME_CLICK HSCollapseButton:LeftButton"] = "Collapse Tracker"
 _G["BINDING_NAME_CLICK HSNearbyToggleButton:LeftButton"] = "Toggle Nearby Group"
+_G["BINDING_NAME_CLICK HSFloatingQuestItem:LeftButton"] = "Use Floating Quest Item"

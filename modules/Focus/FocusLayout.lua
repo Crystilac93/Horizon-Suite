@@ -92,7 +92,7 @@ end
 local headerBtn = CreateFrame("Button", nil, addon.HS)
 headerBtn:SetPoint("TOPLEFT", addon.HS, "TOPLEFT", 0, 0)
 headerBtn:SetPoint("TOPRIGHT", addon.HS, "TOPRIGHT", 0, 0)
-headerBtn:SetHeight(addon.PADDING + addon.HEADER_HEIGHT)
+headerBtn:SetHeight(addon.PADDING + addon.GetHeaderHeight())
 headerBtn:RegisterForClicks("LeftButtonUp")
 headerBtn:SetScript("OnClick", function()
     addon.ToggleCollapse()
@@ -100,14 +100,18 @@ end)
 headerBtn:SetScript("OnEnter", function()
     if addon.GetDB("hideObjectivesHeader", false) then
         addon.chevron:SetAlpha(1)
-        addon.optionsBtn:SetAlpha(1)
+        if not addon.GetDB("hideOptionsButton", false) then
+            addon.optionsBtn:SetAlpha(1)
+        end
     end
 end)
 headerBtn:SetScript("OnLeave", function()
     if addon.GetDB("hideObjectivesHeader", false) then
         if addon.optionsBtn:IsMouseOver() then return end
         addon.chevron:SetAlpha(0)
-        addon.optionsBtn:SetAlpha(0)
+        if not addon.GetDB("hideOptionsButton", false) then
+            addon.optionsBtn:SetAlpha(0)
+        end
     end
 end)
 headerBtn:RegisterForDrag("LeftButton")
@@ -194,29 +198,33 @@ local function FullLayout()
     end
 
     local minimal = addon.GetDB("hideObjectivesHeader", false)
+    local hideOptBtn = addon.GetDB("hideOptionsButton", false)
     if minimal then
         addon.headerText:Hide()
         addon.headerShadow:Hide()
         addon.countText:Hide()
         addon.countShadow:Hide()
         addon.divider:Hide()
-        addon.optionsLabel:SetText("Options")
-        addon.optionsBtn:SetWidth(math.max(addon.optionsLabel:GetStringWidth() + 4, 44))
         addon.optionsBtn:SetFrameLevel(headerBtn:GetFrameLevel() + 1)
         addon.optionsBtn:SetParent(addon.HS)
         headerBtn:SetHeight(addon.MINIMAL_HEADER_HEIGHT)
         addon.chevron:Show()
-        addon.optionsBtn:Show()
-        -- Visible on hover only: use alpha so frames stay in layout and remain clickable
-        if not lastMinimal then
-            addon.chevron:SetAlpha(headerBtn:IsMouseOver() and 1 or 0)
-            addon.optionsBtn:SetAlpha(headerBtn:IsMouseOver() and 1 or 0)
+        if hideOptBtn then
+            addon.optionsBtn:Hide()
+        else
+            addon.optionsLabel:SetText("Options")
+            addon.optionsBtn:SetWidth(math.max(addon.optionsLabel:GetStringWidth() + 4, 44))
+            addon.optionsBtn:Show()
+            -- Visible on hover only: use alpha so frames stay in layout and remain clickable
+            if not lastMinimal then
+                addon.chevron:SetAlpha(headerBtn:IsMouseOver() and 1 or 0)
+                addon.optionsBtn:SetAlpha(headerBtn:IsMouseOver() and 1 or 0)
+            end
         end
     else
         addon.optionsBtn:SetFrameLevel(headerBtn:GetFrameLevel() + 1)
         addon.optionsBtn:SetParent(addon.HS)
         addon.chevron:SetAlpha(1)
-        addon.optionsBtn:SetAlpha(1)
         addon.headerText:Show()
         addon.headerShadow:Show()
         local headerStr = addon.ApplyTextCase("OBJECTIVES", "headerTextCase", "upper")
@@ -224,11 +232,16 @@ local function FullLayout()
         addon.headerShadow:SetText(headerStr)
         if addon.GetDB("showQuestCount", true) then addon.countText:Show(); addon.countShadow:Show() else addon.countText:Hide(); addon.countShadow:Hide() end
         addon.chevron:Show()
-        addon.optionsBtn:Show()
-        addon.optionsLabel:SetText("Options")
-        addon.optionsBtn:SetWidth(math.max(addon.optionsLabel:GetStringWidth() + 4, 44))
+        if hideOptBtn then
+            addon.optionsBtn:Hide()
+        else
+            addon.optionsBtn:SetAlpha(1)
+            addon.optionsBtn:Show()
+            addon.optionsLabel:SetText("Options")
+            addon.optionsBtn:SetWidth(math.max(addon.optionsLabel:GetStringWidth() + 4, 44))
+        end
         addon.divider:SetShown(addon.GetDB("showHeaderDivider", true))
-        headerBtn:SetHeight(addon.PADDING + addon.HEADER_HEIGHT)
+        headerBtn:SetHeight(addon.PADDING + addon.GetHeaderHeight())
     end
     lastMinimal = minimal
 
@@ -322,7 +335,9 @@ local function FullLayout()
                     local sec = addon.AcquireSectionHeader(grp.key, focusedGroupKey)
                     if sec then
                         sec:ClearAllPoints()
-                        sec:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", addon.GetContentLeftOffset(), yOff)
+                        local x = addon.GetContentLeftOffset()
+                        sec:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", x, yOff)
+                        sec.finalX, sec.finalY = x, yOff
                         yOff = yOff - (addon.SECTION_SIZE + 4) - addon.GetSectionToEntryGap()
                     end
                 end
@@ -330,7 +345,7 @@ local function FullLayout()
                 scrollChild:SetHeight(totalContentH)
                 scrollFrame:SetVerticalScroll(0)
                 addon.focus.layout.scrollOffset = 0
-                local headerArea = addon.PADDING + addon.HEADER_HEIGHT + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap()
+                local headerArea = addon.PADDING + addon.GetHeaderHeight() + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap()
                 local visibleH = math.min(totalContentH, addon.GetMaxContentHeight())
                 local mplusHeight = (hasMplus and addon.GetMplusBlockHeight and (addon.GetMplusBlockHeight() + gap * 2)) or 0
                 addon.focus.layout.targetHeight = math.max(addon.MIN_HEIGHT, headerArea + visibleH + addon.PADDING + mplusHeight)
@@ -386,8 +401,7 @@ local function FullLayout()
             if onlyDelveShown and addon.ClearEntry then
                 addon.ClearEntry(entry)
             elseif entry.animState ~= "completing" and entry.animState ~= "fadeout" then
-                entry.animState = "fadeout"
-                entry.animTime  = 0
+                addon.SetEntryFadeOut(entry)
             end
             activeMap[key] = nil
         end
@@ -411,15 +425,12 @@ local function FullLayout()
             if not entry then
                 entry = AcquireEntry()
                 if entry then
-                    entry.animState = "fadein"
-                    entry.animTime  = 0
+                    addon.SetEntryFadeIn(entry, 0)
                     activeMap[key] = entry
                 end
             elseif entry.animState == "idle" and not entry.questID and not entry.entryKey then
                 -- Zombie entry left over from a group collapse: reset it for fadein.
-                entry.animState = "fadein"
-                entry.animTime  = 0
-                entry:SetAlpha(0)
+                addon.SetEntryFadeIn(entry, 0)
             end
             if entry then
                 entry.groupKey = grp.key
@@ -469,8 +480,7 @@ local function FullLayout()
             for key in pairs(promotedKeys) do
                 local entry = activeMap[key]
                 if entry and (entry.animState == "active" or entry.animState == "fadein") and entry.finalX and entry.finalY then
-                    entry.animState = "fadeout"
-                    entry.animTime  = 0
+                    addon.SetEntryFadeOut(entry)
                     entry.promotionFadeOut = true
                     promotionFadeOutCount = promotionFadeOutCount + 1
                 end
@@ -513,7 +523,9 @@ local function FullLayout()
             local sec = addon.AcquireSectionHeader(grp.key, focusedGroupKey)
             if sec then
                 sec:ClearAllPoints()
-                sec:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", addon.GetContentLeftOffset(), yOff)
+                local x = addon.GetContentLeftOffset()
+                sec:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", x, yOff)
+                sec.finalX, sec.finalY = x, yOff
                 yOff = yOff - (addon.SECTION_SIZE + 4) - addon.GetSectionToEntryGap()
             end
         end
@@ -537,9 +549,12 @@ local function FullLayout()
                     entry.groupKey = grp.key
                     entry.finalX = addon.GetContentLeftOffset()
                     entry.finalY = yOff
-                    entry.staggerDelay = entryIndex * addon.ENTRY_STAGGER
+                    entry.staggerDelay = entryIndex * addon.FOCUS_ANIM.stagger
                     entryIndex = entryIndex + 1
 
+                    if not entry:IsShown() and (entry.animState == "active" or entry.animState == "idle") and addon.GetDB("animations", true) then
+                        addon.SetEntryFadeIn(entry, entryIndex - 1)
+                    end
                     entry:ClearAllPoints()
                     entry:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", addon.GetContentLeftOffset(), yOff)
                     entry:Show()
@@ -560,7 +575,7 @@ local function FullLayout()
     addon.focus.layout.scrollOffset = math.min(prevScroll, maxScr)
     scrollFrame:SetVerticalScroll(addon.focus.layout.scrollOffset)
 
-    local headerArea    = addon.PADDING + addon.HEADER_HEIGHT + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap()
+    local headerArea    = addon.PADDING + addon.GetHeaderHeight() + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap()
     local visibleH      = math.min(totalContentH, addon.GetMaxContentHeight())
     local mplusHeight   = (hasMplus and addon.GetMplusBlockHeight and (addon.GetMplusBlockHeight() + gap * 2)) or 0
     addon.focus.layout.targetHeight  = math.max(addon.MIN_HEIGHT, headerArea + visibleH + addon.PADDING + mplusHeight)

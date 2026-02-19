@@ -15,6 +15,7 @@ addon.focus = {
     lastPlayerMapID = nil,
     placeholderRefreshScheduled = false,
     layoutPendingAfterCombat     = false,
+    pendingDimensionsAfterCombat  = false,
     pendingHideAfterCombat       = false,
 
     rares = {
@@ -26,6 +27,11 @@ addon.focus = {
         animating = false,
         animStart = 0,
         groups    = {},  -- [groupKey] = startTime
+        sectionHeadersFadingOut = false,
+        sectionHeadersFadingIn  = false,
+        sectionHeaderFadeTime   = 0,
+        expandSlideDownStarts   = nil,  -- { [key] = startY } for expand slide-down
+        expandSlideDownStartsSec = nil, -- { [groupKey] = startY }
     },
 
     combat = {
@@ -61,5 +67,8 @@ addon.focus = {
     recentlyUntrackedWorldQuests      = nil,
     recentlyUntrackedWeekliesAndDailies = nil,
     lastWorldQuestWatchSet            = nil,
+
+    -- Objective signature cache for reliable quest-update flash (FocusEvents)
+    lastQuestObjectiveSignature       = {},
 }
 

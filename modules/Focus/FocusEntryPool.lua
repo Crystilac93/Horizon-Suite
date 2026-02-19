@@ -161,7 +161,12 @@ local function CreateQuestEntry(parent, index)
 
         objShadow:SetPoint("CENTER", objText, "CENTER", addon.SHADOW_OX, addon.SHADOW_OY)
 
-        e.objectives[j] = { text = objText, shadow = objShadow }
+        local tickTex = e:CreateTexture(nil, "OVERLAY")
+        tickTex:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+        tickTex:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+        tickTex:Hide()
+
+        e.objectives[j] = { text = objText, shadow = objShadow, tick = tickTex }
         objText:Hide()
         objShadow:Hide()
     end
@@ -212,7 +217,7 @@ local function CreateQuestEntry(parent, index)
         e.scenarioTimerBars[si] = bar
     end
 
-    e.flash = e:CreateTexture(nil, "HIGHLIGHT")
+    e.flash = e:CreateTexture(nil, "OVERLAY")
     e.flash:SetAllPoints(e)
     e.flash:SetColorTexture(1, 1, 1, 0)
 
@@ -354,6 +359,9 @@ local function ApplyTypography()
     addon.headerShadow:SetTextColor(0, 0, 0, shadowA)
     addon.headerShadow:SetPoint("CENTER", addon.headerText, "CENTER", shadowOx, shadowOy)
 
+    local headerC = addon.GetHeaderColor()
+    addon.headerText:SetTextColor(headerC[1], headerC[2], headerC[3], 1)
+
     addon.countShadow:SetTextColor(0, 0, 0, shadowA)
     addon.countShadow:SetPoint("CENTER", addon.countText, "CENTER", shadowOx, shadowOy)
 
@@ -378,10 +386,15 @@ local function ApplyTypography()
 end
 
 local function ApplyDimensions(widthOverride)
+    if InCombatLockdown() then
+        addon.focus.pendingDimensionsAfterCombat = true
+        return
+    end
+    addon.focus.pendingDimensionsAfterCombat = false
     local w = (widthOverride and type(widthOverride) == "number") and widthOverride or addon.GetPanelWidth()
     addon.HS:SetSize(w, addon.HS:GetHeight() or addon.MIN_HEIGHT)
     addon.divider:SetSize(w - addon.PADDING * 2, addon.DIVIDER_HEIGHT)
-    addon.divider:SetPoint("TOP", addon.HS, "TOPLEFT", w / 2, -(addon.PADDING + addon.HEADER_HEIGHT))
+    addon.divider:SetPoint("TOP", addon.HS, "TOPLEFT", w / 2, -(addon.PADDING + addon.GetHeaderHeight()))
     addon.scrollChild:SetWidth(w)
     local leftOffset = addon.GetContentLeftOffset and addon.GetContentLeftOffset() or (addon.PADDING + addon.ICON_COLUMN_WIDTH)
     for i = 1, addon.POOL_SIZE do

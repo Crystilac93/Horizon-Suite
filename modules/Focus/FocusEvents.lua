@@ -69,6 +69,71 @@ _G.HorizonSuite_RequestRefresh   = ScheduleRefresh
 _G.HorizonSuite_FullLayout       = addon.FullLayout
 
 -- ============================================================================
+-- OBJECTIVE SIGNATURE CACHE (reliable quest-update flash)
+-- ============================================================================
+
+--- Builds a compact signature for quest objectives for change detection.
+--- @param questID number
+--- @return string|nil Signature string, or nil if no objectives
+local function BuildObjectiveSignature(questID)
+    if not C_QuestLog or not C_QuestLog.GetQuestObjectives then return nil end
+    local objectives = C_QuestLog.GetQuestObjectives(questID) or {}
+    if #objectives == 0 then return nil end
+    local parts = {}
+    for i = 1, #objectives do
+        local o = objectives[i]
+        local text = (o and o.text) or ""
+        local fin = (o and o.finished) and "1" or "0"
+        local nf = (o and type(o.numFulfilled) == "number") and tostring(o.numFulfilled) or ""
+        local nr = (o and type(o.numRequired) == "number") and tostring(o.numRequired) or ""
+        parts[i] = text .. "|" .. fin .. "|" .. nf .. "|" .. nr
+    end
+    return table.concat(parts, ";")
+end
+
+--- Checks if a quest's objectives changed vs cache; if so, triggers flash on the matching entry.
+--- Skips if objectiveProgressFlash is off or if this is the first time we see the quest (no prior cache).
+--- @param questID number
+--- @return boolean True if flash was triggered
+local function CheckQuestObjectiveChangeAndFlash(questID)
+    if not questID or questID <= 0 then return false end
+    if not addon.GetDB("objectiveProgressFlash", true) then return false end
+
+    local cache = addon.focus.lastQuestObjectiveSignature
+    local current = BuildObjectiveSignature(questID)
+    if not current then return false end
+
+    local prior = cache[questID]
+    cache[questID] = current
+
+    -- First time seeing this quest: no "change" to flash.
+    if prior == nil then return false end
+    if prior == current then return false end
+
+    -- Change detected: flash only the matching pool entry.
+    for i = 1, addon.POOL_SIZE do
+        local e = addon.pool[i]
+        if e and e.questID == questID then
+            e.flashTime = addon.FLASH_DUR
+            if addon.EnsureFocusUpdateRunning then addon.EnsureFocusUpdateRunning() end
+            return true
+        end
+    end
+    -- Entry not yet in pool (e.g. layout deferred); flash will not show for this tick.
+    return false
+end
+
+--- Iterates watched quest IDs and runs objective change check. Used when event has no questID.
+local function CheckAllWatchedQuestChanges()
+    if not C_QuestLog or not C_QuestLog.GetNumQuestWatches or not C_QuestLog.GetQuestIDForQuestWatchIndex then return end
+    local n = C_QuestLog.GetNumQuestWatches()
+    for i = 1, n do
+        local qid = C_QuestLog.GetQuestIDForQuestWatchIndex(i)
+        if qid then CheckQuestObjectiveChangeAndFlash(qid) end
+    end
+end
+
+-- ============================================================================
 -- EVENT HANDLERS (table dispatch)
 -- ============================================================================
 
@@ -111,6 +176,10 @@ local function OnPlayerRegenDisabled()
 end
 
 local function OnPlayerRegenEnabled()
+    if addon.focus.pendingDimensionsAfterCombat then
+        addon.focus.pendingDimensionsAfterCombat = nil
+        if addon.ApplyDimensions then addon.ApplyDimensions() end
+    end
     if addon.focus.layoutPendingAfterCombat then
         addon.focus.layoutPendingAfterCombat = nil
         if addon.GetDB("hideInCombat", false) and addon.focus.enabled then
@@ -190,12 +259,8 @@ end
 
 local function OnQuestWatchUpdate(questID)
     if not addon.focus.enabled then ScheduleRefresh(); return end
-    if questID and addon.GetDB("objectiveProgressFlash", true) then
-        for i = 1, addon.POOL_SIZE do
-            if addon.pool[i].questID == questID then
-                addon.pool[i].flashTime = addon.FLASH_DUR
-            end
-        end
+    if questID then
+        CheckQuestObjectiveChangeAndFlash(questID)
     end
     ScheduleRefresh()
 end
@@ -210,6 +275,20 @@ local function OnQuestAccepted(questID)
         if not isWQ and C_QuestLog and C_QuestLog.AddQuestWatch then
             C_QuestLog.AddQuestWatch(questID)
         end
+    end
+    ScheduleRefresh()
+end
+
+local function OnQuestLogUpdate()
+    if not addon.focus.enabled then ScheduleRefresh(); return end
+    CheckAllWatchedQuestChanges()
+    ScheduleRefresh()
+end
+
+local function OnUnitQuestLogChanged(_, unitToken)
+    if not addon.focus.enabled then ScheduleRefresh(); return end
+    if unitToken == "player" then
+        CheckAllWatchedQuestChanges()
     end
     ScheduleRefresh()
 end
@@ -258,6 +337,8 @@ local eventHandlers = {
     PLAYER_ENTERING_WORLD    = function() OnPlayerLoginOrEnteringWorld() end,
     QUEST_TURNED_IN          = function(_, questID) OnQuestTurnedIn(questID) end,
     QUEST_ACCEPTED           = function(_, questID) OnQuestAccepted(questID) end,
+    QUEST_LOG_UPDATE         = function() OnQuestLogUpdate() end,
+    UNIT_QUEST_LOG_CHANGED   = function(_, unitToken) OnUnitQuestLogChanged(_, unitToken) end,
     QUEST_WATCH_UPDATE       = function(_, questID) OnQuestWatchUpdate(questID) end,
     QUEST_WATCH_LIST_CHANGED = function(_, questID, added) OnQuestWatchListChanged(questID, added) end,
     VIGNETTE_MINIMAP_UPDATED = function() ScheduleRefresh() end,

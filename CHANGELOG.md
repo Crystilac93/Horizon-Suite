@@ -6,6 +6,16 @@ All notable changes to Horizon Suite are documented here.
 
 ## [Unreleased]
 
+### New Features
+
+- **(Focus) Per-objective progress (e.g. 15/18) on individual objectives** — Objectives with multiple instances (e.g. "Pressure Valve fixed", "Cache and Release" valves) now display numeric progress when the API provides it, so you can see partial completion at a glance.
+
+### Fixes
+
+- **Focus Tracker — ADDON_ACTION_BLOCKED** — Fixed error when `HSFrame:SetSize()` (and other protected dimension calls) were invoked during combat when changing options. `ApplyDimensions` is now guarded by `InCombatLockdown()` and deferred until `PLAYER_REGEN_ENABLED`.
+
+- **(Focus) Scenario and Delve objectives now show per-objective progress (e.g. 0/5 Workers rescued)** — Objectives from C_ScenarioInfo (Delves, scenarios, dungeons) now pass quantity/totalQuantity as numFulfilled/numRequired so the count displays correctly.
+
 <!-- Changelog entries are generated from closed GitHub Issues at release time. -->
 
 ---
