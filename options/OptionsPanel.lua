@@ -312,8 +312,21 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             table.insert(refreshers, w)
         elseif opt.type == "color" and currentCard then
             local def = (opt.default and type(opt.default) == "table" and #opt.default >= 3) and opt.default or addon.HEADER_COLOR
-            local getTbl = function() return getDB(opt.dbKey, nil) end
-            local setKeyVal = function(v) setDB(opt.dbKey, v) end
+            local getTbl, setKeyVal
+            if opt.get and opt.set then
+                -- Custom get/set (e.g. M+ R/G/B keys)
+                getTbl = function()
+                    local r, g, b = opt.get()
+                    return (type(r) == "number" and type(g) == "number" and type(b) == "number") and {r, g, b} or nil
+                end
+                setKeyVal = function(v)
+                    local t = type(v) == "table" and v[1] and v[2] and v[3] and v or nil
+                    if t then opt.set(t[1], t[2], t[3]) end
+                end
+            else
+                getTbl = function() return getDB(opt.dbKey, nil) end
+                setKeyVal = function(v) setDB(opt.dbKey, v) end
+            end
             local row = OptionsWidgets_CreateColorSwatchRow(currentCard, currentCard.contentAnchor, opt.name or "Color", def, getTbl, setKeyVal, notifyMainAddon)
             currentCard.contentAnchor = row
             currentCard.contentHeight = currentCard.contentHeight + OptionGap + RowHeights.colorRow
@@ -622,7 +635,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
                     local m = getMatrix()
                     local cats = m.categories or {}
                     local tbl = cats[key] and cats[key].title
-                    if tbl and tbl[1] then
+                    if tbl and type(tbl) == "table" and type(tbl[1]) == "number" and type(tbl[2]) == "number" and type(tbl[3]) == "number" then
                         previewSwatch:SetColorTexture(tbl[1], tbl[2], tbl[3], 1)
                     else
                         previewSwatch:SetColorTexture(titleDef[1], titleDef[2], titleDef[3], 1)

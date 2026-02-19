@@ -349,6 +349,9 @@ local function RefreshContentInCombat()
                 entry.titleText:SetText(displayTitle)
                 entry.titleShadow:SetText(displayTitle)
                 local titleColor = (addon.GetTitleColor and addon.GetTitleColor(effectiveCat)) or questData.color
+                if not titleColor or type(titleColor) ~= "table" or not titleColor[1] or not titleColor[2] or not titleColor[3] then
+                    titleColor = addon.QUEST_COLORS and addon.QUEST_COLORS.DEFAULT or { 0.9, 0.9, 0.9 }
+                end
                 if questData.isDungeonQuest and not questData.isTracked then
                     titleColor = { titleColor[1] * DUNGEON_UNTRACKED_DIM_FACTOR, titleColor[2] * DUNGEON_UNTRACKED_DIM_FACTOR, titleColor[3] * DUNGEON_UNTRACKED_DIM_FACTOR }
                 elseif shouldDim then

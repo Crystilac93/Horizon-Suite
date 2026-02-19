@@ -17,7 +17,7 @@ local mplusBlock = CreateFrame("Frame", nil, UIParent)
 mplusBlock:SetSize(addon.GetPanelWidth() - addon.PADDING * 2, MPLUS_MIN_HEIGHT)
 mplusBlock:SetFrameStrata(addon.HS:GetFrameStrata())
 mplusBlock:SetFrameLevel(addon.HS:GetFrameLevel() + 5)
-mplusBlock:EnableMouse(false)
+mplusBlock:EnableMouse(true)
 mplusBlock:Hide()
 
 -- Cinematic gradient background (dark top, slightly lighter center, dark bottom).
@@ -47,11 +47,12 @@ mplusIcon:SetAtlas("questlog-questtypeicon-dungeon")
 mplusIcon:Hide()  -- Hide the icon for M+ block
 
 -- Line 1: Dungeon name + keystone level
+local mplusHeroShadow = mplusBlock:CreateFontString(nil, "BORDER")
 local mplusHeroText = mplusBlock:CreateFontString(nil, "OVERLAY")
 mplusHeroText:SetWordWrap(true)
 mplusHeroText:SetJustifyH("LEFT")
 
--- Line 2: Timer (elapsed / target)
+-- Line 2: Timer (elapsed / target). No shadow: still looks heavy with outline.
 local mplusPillText = mplusBlock:CreateFontString(nil, "OVERLAY")
 mplusPillText:SetJustifyH("LEFT")
 
@@ -71,10 +72,12 @@ progressBarFill:SetWidth(1)
 progressBarFill:SetColorTexture(0.20, 0.55, 0.30, 0.90)
 
 -- Percentage label (left of center inside bar)
+local progressPercentShadow = mplusProgressBar:CreateFontString(nil, "BORDER")
 local progressPercentLabel = mplusProgressBar:CreateFontString(nil, "OVERLAY")
 progressPercentLabel:SetJustifyH("RIGHT")
 
 -- Count label (right of center inside bar)
+local progressCountShadow = mplusProgressBar:CreateFontString(nil, "BORDER")
 local progressCountLabel = mplusProgressBar:CreateFontString(nil, "OVERLAY")
 progressCountLabel:SetJustifyH("LEFT")
 
@@ -82,12 +85,12 @@ progressCountLabel:SetJustifyH("LEFT")
 progressPercentLabel:SetPoint("RIGHT", mplusProgressBar, "CENTER", -3, 0)
 progressCountLabel:SetPoint("LEFT", mplusProgressBar, "CENTER", 3, 0)
 
--- Line 4: Affixes (one per line)
+-- Line 4: Affixes (one per line). No shadow: multi-line text + shadow creates fuzzy overlap.
 local mplusAffixesText = mplusBlock:CreateFontString(nil, "OVERLAY")
 mplusAffixesText:SetWordWrap(true)
 mplusAffixesText:SetJustifyH("LEFT")
 
--- Lines 5+: Bosses (one per line)
+-- Lines 5+: Bosses (one per line). No shadow: multi-line text + shadow creates fuzzy overlap.
 local mplusBossesText = mplusBlock:CreateFontString(nil, "OVERLAY")
 mplusBossesText:SetWordWrap(true)
 mplusBossesText:SetJustifyH("LEFT")
@@ -121,9 +124,10 @@ local function GetMplusData()
         timer = 0,
         timeLimit = 0,
         deathPenalty = 0,
+        numDeaths = 0,
         bossList = {},  -- Array of {name, completed}
         enemyForces = { current = 0, total = 0, percent = 0 },
-        affixes = {}
+        affixes = {}  -- { name, desc, iconFileID }
     }
 
     -- Get active challenge map ID
@@ -159,7 +163,7 @@ local function GetMplusData()
                     if C_ChallengeMode.GetAffixInfo then
                         local name, desc, iconFileID = C_ChallengeMode.GetAffixInfo(affixID)
                         if name and name ~= "" then
-                            data.affixes[#data.affixes + 1] = { name = name, desc = desc or "" }
+                            data.affixes[#data.affixes + 1] = { name = name, desc = desc or "", iconFileID = iconFileID }
                             affixesFound = true
                         end
                     end
@@ -175,7 +179,7 @@ local function GetMplusData()
                     if affixInfo and affixInfo.id then
                         local name, desc, iconFileID = C_ChallengeMode.GetAffixInfo(affixInfo.id)
                         if name and name ~= "" then
-                            data.affixes[#data.affixes + 1] = { name = name, desc = desc or "" }
+                            data.affixes[#data.affixes + 1] = { name = name, desc = desc or "", iconFileID = iconFileID }
                             affixesFound = true
                         end
                     end
@@ -183,23 +187,18 @@ local function GetMplusData()
             end
         end
         
-        -- Method 3: Get from map ID if we have one
-        if not affixesFound and mapId and C_ChallengeMode.GetMapUIInfo then
-            local _, _, keyLevel = C_ChallengeMode.GetMapUIInfo(mapId)
-            if keyLevel and keyLevel > 0 then
-                -- Affixes are typically stored on a weekly basis, try to get them
-                -- This is a fallback - affixes may not be available until key is inserted
-                print("HorizonSuite: Affixes not available from GetActiveKeystoneInfo, may need key insertion")
-            end
-        end
+        -- Method 3: Affixes may not be available until key is inserted; leave empty if so.
     end
 
     -- Get timer
     data.timer = GetMplusTimer() or 0
 
-    -- Get death penalty
+    -- Get death count and penalty
     if C_ChallengeMode and C_ChallengeMode.GetDeathCount then
         local numDeaths, timePenalty = C_ChallengeMode.GetDeathCount()
+        if numDeaths and numDeaths > 0 then
+            data.numDeaths = numDeaths
+        end
         if timePenalty and timePenalty > 0 then
             data.deathPenalty = timePenalty
         end
@@ -248,8 +247,13 @@ end
 -- UpdateMplusBlockDisplay so we can skip hidden elements and
 -- avoid anchor-chain issues (hidden frames collapse anchors).
 
+local function GetBlockContentWidth()
+    local w = (addon.HS and addon.HS.GetWidth and addon.HS:GetWidth()) or addon.GetPanelWidth()
+    return (w or addon.PANEL_WIDTH) - addon.PADDING * 2
+end
+
 local function PositionMplusBlock(pos)
-    local panelWidth = addon.GetPanelWidth() - addon.PADDING * 2
+    local panelWidth = GetBlockContentWidth()
     mplusBlock:SetWidth(panelWidth)
     mplusBlock:ClearAllPoints()
     if pos == "bottom" then
@@ -260,15 +264,11 @@ local function PositionMplusBlock(pos)
     end
 end
 
--- Cached block width – only grows during a dungeon run to keep the
--- progress bar from jumping around when the timer string changes width.
-local cachedBlockWidth = 0
-
 local function UpdateMplusBlockDisplay(data)
     if not data then return end
 
     -- Apply typography settings
-    local fontPath = addon.GetDB("fontPath", addon.DEFAULT_FONT_PATH or "Fonts\\FRIZQT__.TTF")
+    local fontPath = addon.GetDB("fontPath", (addon.GetDefaultFontPath and addon.GetDefaultFontPath()) or "Fonts\\FRIZQT__.TTF")
     local fontOutline = addon.GetDB("fontOutline", "OUTLINE")
 
     -- Get sizes with validation (clamp between 8-32)
@@ -277,7 +277,7 @@ local function UpdateMplusBlockDisplay(data)
     local dungeonG = addon.GetDB("mplusDungeonColorG", 0.96)
     local dungeonB = addon.GetDB("mplusDungeonColorB", 1.0)
 
-    local timerSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusTimerSize", 12)) or 12))
+    local timerSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusTimerSize", 13)) or 13))
     local timerR = addon.GetDB("mplusTimerColorR", 0.6)
     local timerG = addon.GetDB("mplusTimerColorG", 0.88)
     local timerB = addon.GetDB("mplusTimerColorB", 1.0)
@@ -285,17 +285,17 @@ local function UpdateMplusBlockDisplay(data)
     local timerOvertimeG = addon.GetDB("mplusTimerOvertimeColorG", 0.25)
     local timerOvertimeB = addon.GetDB("mplusTimerOvertimeColorB", 0.2)
 
-    local progressSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusProgressSize", 11)) or 11))
+    local progressSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusProgressSize", 12)) or 12))
     local progressR = addon.GetDB("mplusProgressColorR", 0.72)
     local progressG = addon.GetDB("mplusProgressColorG", 0.76)
     local progressB = addon.GetDB("mplusProgressColorB", 0.88)
 
-    local affixSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusAffixSize", 10)) or 10))
+    local affixSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusAffixSize", 12)) or 12))
     local affixR = addon.GetDB("mplusAffixColorR", 0.85)
     local affixG = addon.GetDB("mplusAffixColorG", 0.85)
     local affixB = addon.GetDB("mplusAffixColorB", 0.95)
 
-    local bossSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusBossSize", 11)) or 11))
+    local bossSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusBossSize", 12)) or 12))
     local bossR = addon.GetDB("mplusBossColorR", 0.78)
     local bossG = addon.GetDB("mplusBossColorG", 0.82)
     local bossB = addon.GetDB("mplusBossColorB", 0.92)
@@ -308,12 +308,29 @@ local function UpdateMplusBlockDisplay(data)
     local barDoneG = addon.GetDB("mplusBarDoneColorG", 0.65)
     local barDoneB = addon.GetDB("mplusBarDoneColorB", 0.25)
 
+    -- Shadow settings (same as Focus typography)
+    local shadowOx = tonumber(addon.GetDB("shadowOffsetX", 2)) or 2
+    local shadowOy = tonumber(addon.GetDB("shadowOffsetY", -2)) or -2
+    local shadowA = addon.GetDB("showTextShadow", true) and (tonumber(addon.GetDB("shadowAlpha", 0.8)) or 0.8) or 0
+
     -- Apply fonts
+    mplusHeroShadow:SetFont(fontPath, dungeonSize, fontOutline)
+    mplusHeroShadow:SetTextColor(0, 0, 0, shadowA)
+    mplusHeroShadow:SetJustifyH("LEFT")
+    mplusHeroShadow:SetPoint("CENTER", mplusHeroText, "CENTER", shadowOx, shadowOy)
     mplusHeroText:SetFont(fontPath, dungeonSize, fontOutline)
     mplusHeroText:SetTextColor(dungeonR, dungeonG, dungeonB, 1)
 
     mplusPillText:SetFont(fontPath, timerSize, fontOutline)
 
+    progressPercentShadow:SetFont(fontPath, progressSize, fontOutline)
+    progressPercentShadow:SetTextColor(0, 0, 0, shadowA)
+    progressPercentShadow:SetJustifyH("RIGHT")
+    progressPercentShadow:SetPoint("CENTER", progressPercentLabel, "CENTER", shadowOx, shadowOy)
+    progressCountShadow:SetFont(fontPath, progressSize, fontOutline)
+    progressCountShadow:SetTextColor(0, 0, 0, shadowA)
+    progressCountShadow:SetJustifyH("LEFT")
+    progressCountShadow:SetPoint("CENTER", progressCountLabel, "CENTER", shadowOx, shadowOy)
     progressPercentLabel:SetFont(fontPath, progressSize, fontOutline)
     progressPercentLabel:SetTextColor(progressR, progressG, progressB, 1)
     progressCountLabel:SetFont(fontPath, progressSize, fontOutline)
@@ -328,7 +345,9 @@ local function UpdateMplusBlockDisplay(data)
     -- Line 1: Dungeon name + keystone level
     local dungeonName = data.dungeonName ~= "" and data.dungeonName or "Mythic+"
     local level = data.level > 0 and (" (+" .. data.level .. ")") or ""
-    mplusHeroText:SetText(dungeonName .. level)
+    local heroStr = dungeonName .. level
+    mplusHeroText:SetText(heroStr)
+    mplusHeroShadow:SetText(heroStr)
 
     -- Line 2: Timer (elapsed / target + penalty)
     local timerStr = "—"
@@ -340,7 +359,15 @@ local function UpdateMplusBlockDisplay(data)
         local elapsedStr = string.format("%d:%02d", math.floor(elapsed / 60), math.floor(elapsed % 60))
         local targetStr = string.format("%d:%02d", math.floor(target / 60), math.floor(target % 60))
         timerStr = elapsedStr .. " / " .. targetStr
-        if data.deathPenalty and data.deathPenalty > 0 then
+        if data.numDeaths and data.numDeaths > 0 then
+            local deathStr = data.numDeaths == 1 and "1 death" or (data.numDeaths .. " deaths")
+            timerStr = timerStr .. "  |cffcc4444" .. deathStr
+            if data.deathPenalty and data.deathPenalty > 0 then
+                local penStr = string.format(" +%d:%02d", math.floor(data.deathPenalty / 60), math.floor(data.deathPenalty % 60))
+                timerStr = timerStr .. penStr
+            end
+            timerStr = timerStr .. "|r"
+        elseif data.deathPenalty and data.deathPenalty > 0 then
             local penStr = string.format("+%d:%02d", math.floor(data.deathPenalty / 60), math.floor(data.deathPenalty % 60))
             timerStr = timerStr .. "  |cffcc4444" .. penStr .. "|r"
         end
@@ -358,7 +385,9 @@ local function UpdateMplusBlockDisplay(data)
         local pctStr  = string.format("%.2f%%", data.enemyForces.percent)
         local cntStr  = string.format("(%d/%d)", data.enemyForces.current, data.enemyForces.total)
         progressPercentLabel:SetText(pctStr)
+        progressPercentShadow:SetText(pctStr)
         progressCountLabel:SetText(cntStr)
+        progressCountShadow:SetText(cntStr)
 
         -- Color: user-picked bar fill; switches to "done" color at 100%
         if data.enemyForces.percent >= 100 then
@@ -370,18 +399,25 @@ local function UpdateMplusBlockDisplay(data)
         mplusProgressBar:Show()
     else
         progressPercentLabel:SetText("")
+        progressPercentShadow:SetText("")
         progressCountLabel:SetText("")
+        progressCountShadow:SetText("")
         mplusProgressBar:Hide()
     end
 
     -- Line 4: Affixes (one per line)
     local affixStr = ""
+    local showIcons = addon.GetDB("mplusShowAffixIcons", true)
     if #data.affixes > 0 then
-        local affixNames = {}
+        local affixLines = {}
         for _, a in ipairs(data.affixes) do
-            affixNames[#affixNames + 1] = a.name
+            local line = a.name
+            if showIcons and a.iconFileID then
+                line = "|T" .. a.iconFileID .. ":" .. (affixSize or 14) .. ":" .. (affixSize or 14) .. ":0:0|t " .. line
+            end
+            affixLines[#affixLines + 1] = line
         end
-        affixStr = table.concat(affixNames, "\n")
+        affixStr = table.concat(affixLines, "\n")
     end
     mplusAffixesText:SetText(affixStr)
 
@@ -403,41 +439,28 @@ local function UpdateMplusBlockDisplay(data)
     mplusBossesText:SetText(bossStr)
 
     -- ----------------------------------------------------------------
-    -- Compute stable width (timer excluded – its pixel width changes
-    -- each second as digits switch).  cachedBlockWidth only grows
-    -- during a run so the progress bar stays rock-solid.
+    -- Block width matches panel so resize works both ways. Content wraps
+    -- within that; progress bar stays stable. Use live HS width during drag.
     -- ----------------------------------------------------------------
     local heroLeft = 4          -- small inset from block edge (no icon column needed)
     local sidePadding = heroLeft + 4  -- left + right inset
 
-    local maxContentW = 0
-    local widths = {
-        mplusHeroText:GetStringWidth() or 0,
-        mplusAffixesText:GetStringWidth() or 0,
-        mplusBossesText:GetStringWidth() or 0,
-        (progressPercentLabel:GetStringWidth() or 0) + 12 + (progressCountLabel:GetStringWidth() or 0),
-    }
-    for _, w in ipairs(widths) do
-        if w > maxContentW then maxContentW = w end
-    end
-
-    local panelWidth = addon.GetPanelWidth() - addon.PADDING * 2
-    local dividerWidth = (addon.divider and addon.divider:GetWidth()) or panelWidth
-    local neededWidth = maxContentW + sidePadding
-    cachedBlockWidth = math.max(cachedBlockWidth, panelWidth, dividerWidth, neededWidth)
-    mplusBlock:SetWidth(cachedBlockWidth)
+    local panelWidth = GetBlockContentWidth()
+    mplusBlock:SetWidth(panelWidth)
 
     -- ----------------------------------------------------------------
     -- Position every element explicitly from the top.  No anchor
     -- chains through hidden frames, no RIGHT-anchor wobble.
     -- ----------------------------------------------------------------
-    local barWidth = cachedBlockWidth - sidePadding
+    local barWidth = math.max(1, panelWidth - sidePadding)
     local barH = math.max(PROGRESS_BAR_HEIGHT, progressSize + 6)
     local y = -4
 
     mplusHeroText:ClearAllPoints()
     mplusHeroText:SetPoint("TOPLEFT", mplusBlock, "TOPLEFT", heroLeft, y)
     mplusHeroText:SetWidth(barWidth)
+    mplusHeroShadow:SetWidth(barWidth)
+    mplusHeroShadow:SetWordWrap(true)
     local heroH = mplusHeroText:GetStringHeight() or dungeonSize
     y = y - heroH - 6
 
@@ -455,15 +478,7 @@ local function UpdateMplusBlockDisplay(data)
         y = y - barH - 6
     end
 
-    mplusAffixesText:ClearAllPoints()
-    mplusAffixesText:SetPoint("TOPLEFT", mplusBlock, "TOPLEFT", heroLeft, y)
-    mplusAffixesText:SetWidth(barWidth)
-    local affixH = 0
-    if affixStr ~= "" then
-        affixH = mplusAffixesText:GetStringHeight() or affixSize
-        y = y - affixH - 6
-    end
-
+    -- Bosses (objectives) above affixes
     mplusBossesText:ClearAllPoints()
     mplusBossesText:SetPoint("TOPLEFT", mplusBlock, "TOPLEFT", heroLeft, y)
     mplusBossesText:SetWidth(barWidth)
@@ -473,11 +488,59 @@ local function UpdateMplusBlockDisplay(data)
         y = y - bossH - 6
     end
 
+    mplusAffixesText:ClearAllPoints()
+    mplusAffixesText:SetPoint("TOPLEFT", mplusBlock, "TOPLEFT", heroLeft, y)
+    mplusAffixesText:SetWidth(barWidth)
+    local affixH = 0
+    if affixStr ~= "" then
+        affixH = mplusAffixesText:GetStringHeight() or affixSize
+        y = y - affixH - 6
+    end
+
     -- Final block height
     local heightNeeded = -y + 4  -- y is negative, add bottom padding
     local finalHeight = math.max(MPLUS_MIN_HEIGHT, heightNeeded)
     mplusBlock:SetHeight(finalHeight)
 end
+
+local TOOLTIP_ICON_SIZE = 20
+local TOOLTIP_FONT_SIZE = 13
+
+local function ShowMplusTooltip()
+    if not addon.GetDB("mplusShowAffixDescriptions", true) then return end
+    local data = GetMplusData()
+    if not data or #data.affixes == 0 then return end
+    local tt = GameTooltip
+    tt:SetOwner(mplusBlock, "ANCHOR_RIGHT")
+    tt:ClearLines()
+    for _, a in ipairs(data.affixes) do
+        local title = a.name
+        if a.iconFileID then
+            title = "|T" .. a.iconFileID .. ":" .. TOOLTIP_ICON_SIZE .. ":" .. TOOLTIP_ICON_SIZE .. ":0:0|t " .. title
+        end
+        tt:AddLine(title, 1, 1, 1)
+        if a.desc and a.desc ~= "" then
+            tt:AddLine(a.desc, 0.8, 0.8, 0.8, true)
+        end
+    end
+    tt:Show()
+    local fontPath = (GameFontNormal and GameFontNormal:GetFont()) or "Fonts\\FRIZQT__.TTF"
+    for i = 1, tt:NumLines() do
+        local left = _G["GameTooltipTextLeft" .. i]
+        if left then
+            left:SetFont(fontPath, TOOLTIP_FONT_SIZE, "OUTLINE")
+        end
+    end
+end
+
+local function HideMplusTooltip()
+    if GameTooltip:IsOwned(mplusBlock) then
+        GameTooltip:Hide()
+    end
+end
+
+mplusBlock:SetScript("OnEnter", ShowMplusTooltip)
+mplusBlock:SetScript("OnLeave", HideMplusTooltip)
 
 -- OnUpdate for timer refresh (updates every second)
 local timeSinceLastUpdate = 0
@@ -514,10 +577,11 @@ local function UpdateMplusBlock()
                 { name = "Boss 4", completed = false },
             },
             enemyForces = { current = 340, total = 400, percent = 85.25 },
+            numDeaths = 2,
             affixes = {
-                { name = "Fortified" },
-                { name = "Bursting" },
-                { name = "Sanguine" },
+                { name = "Fortified", desc = "Non-boss enemies have 20% more health." },
+                { name = "Bursting", desc = "When slain, non-boss enemies burst, causing damage." },
+                { name = "Sanguine", desc = "When slain, non-boss enemies leave a pool of blood." },
             }
         }
         UpdateMplusBlockDisplay(demoData)
@@ -536,7 +600,6 @@ local function UpdateMplusBlock()
     
     if not shouldShow then
         mplusBlock:Hide()
-        cachedBlockWidth = 0  -- reset so next dungeon recalculates
         return
     end
 

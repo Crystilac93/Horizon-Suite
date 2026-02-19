@@ -439,6 +439,7 @@ local function ApplyDimensions(widthOverride)
     for i = 1, addon.SECTION_POOL_SIZE do
         sectionPool[i]:SetSize(w - addon.PADDING - leftOffset, addon.SECTION_SIZE + 4)
     end
+    if addon.UpdateMplusBlock then addon.UpdateMplusBlock() end
 end
 
 local function ClearEntry(entry, full)

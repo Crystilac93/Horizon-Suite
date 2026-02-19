@@ -462,8 +462,8 @@ local function PopulateEntry(entry, questData, groupKey)
         end
     end
 
-    -- Numbering (always on): apply to the final title after any title transforms above.
-    if questData.categoryIndex and type(questData.categoryIndex) == "number" then
+    -- Entry numbering (per category): apply when option is on.
+    if addon.GetDB("showCategoryEntryNumbers", true) and questData.categoryIndex and type(questData.categoryIndex) == "number" then
         displayTitle = ("%d. %s"):format(questData.categoryIndex, displayTitle)
     end
 
@@ -489,6 +489,9 @@ local function PopulateEntry(entry, questData, groupKey)
     entry.titleShadow:SetText(displayTitle)
     local effectiveCat = (addon.GetEffectiveColorCategory and addon.GetEffectiveColorCategory(questData.category, groupKey, questData.baseCategory)) or questData.category
     local c = (addon.GetTitleColor and addon.GetTitleColor(effectiveCat)) or questData.color
+    if not c or type(c) ~= "table" or not c[1] or not c[2] or not c[3] then
+        c = addon.QUEST_COLORS and addon.QUEST_COLORS.DEFAULT or { 0.9, 0.9, 0.9 }
+    end
     if questData.isDungeonQuest and not questData.isTracked then
         c = { c[1] * 0.65, c[2] * 0.65, c[3] * 0.65 }
     elseif addon.GetDB("dimNonSuperTracked", false) and not questData.isSuperTracked then

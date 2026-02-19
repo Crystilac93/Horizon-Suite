@@ -589,7 +589,7 @@ function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultT
             r = r, g = g, b = b, hasOpacity = false,
             swatchFunc = function()
                 local nr, ng, nb = GetColorPickerEffectiveRGB()
-                setKeyVal(nr, ng, nb)
+                setKeyVal({nr, ng, nb})
                 tex:SetColorTexture(nr, ng, nb, 1)
                 if notify then notify() end
             end,
@@ -597,14 +597,14 @@ function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultT
                 _activeColorPickerCallbacks = nil
                 local p = ColorPickerFrame.previousValues
                 if p then
-                    setKeyVal(p.r, p.g, p.b)
+                    setKeyVal({p.r, p.g, p.b})
                     swatch:Refresh()
                 end
             end,
             finishedFunc = function()
                 _activeColorPickerCallbacks = nil
                 local nr, ng, nb = GetColorPickerEffectiveRGB()
-                setKeyVal(nr, ng, nb)
+                setKeyVal({nr, ng, nb})
                 tex:SetColorTexture(nr, ng, nb, 1)
                 if notify then notify() end
             end,

@@ -69,6 +69,13 @@ local function MatrixKey(category)
     return category
 end
 
+local function SanitizeColor(c, default)
+    if c and type(c) == "table" and type(c[1]) == "number" and type(c[2]) == "number" and type(c[3]) == "number" then
+        return c
+    end
+    return default or addon.QUEST_COLORS.DEFAULT
+end
+
 local function GetTitleColor(category)
     if not category then
         return addon.QUEST_COLORS.DEFAULT
@@ -77,14 +84,14 @@ local function GetTitleColor(category)
     local cm = GetColorMatrix()
     local key = MatrixKey(category)
     if cm and cm.categories and cm.categories[key] and cm.categories[key].title then
-        return cm.categories[key].title
+        return SanitizeColor(cm.categories[key].title, addon.QUEST_COLORS[category] or addon.QUEST_COLORS.DEFAULT)
     end
 
     -- Legacy per-category questColors support (for safety if migration didn't run yet).
     local db = HorizonDB and HorizonDB.questColors
     if db then
-        if db[category] then return db[category] end
-        if category == "CALLING" and db.WORLD then return db.WORLD end
+        if db[category] then return SanitizeColor(db[category], addon.QUEST_COLORS[category] or addon.QUEST_COLORS.DEFAULT) end
+        if category == "CALLING" and db.WORLD then return SanitizeColor(db.WORLD, addon.QUEST_COLORS.WORLD or addon.QUEST_COLORS.DEFAULT) end
     end
 
     return addon.QUEST_COLORS[category] or addon.QUEST_COLORS.DEFAULT
@@ -94,7 +101,7 @@ local function GetObjectiveColor(category)
     local cm = GetColorMatrix()
     local key = category and MatrixKey(category) or nil
     if cm and cm.categories and key and cm.categories[key] and cm.categories[key].objective then
-        return cm.categories[key].objective
+        return SanitizeColor(cm.categories[key].objective, addon.QUEST_COLORS[category] or addon.QUEST_COLORS.DEFAULT)
     end
     return addon.QUEST_COLORS[category] or addon.QUEST_COLORS.DEFAULT
 end
@@ -103,7 +110,7 @@ local function GetZoneColor(category)
     local cm = GetColorMatrix()
     local key = category and MatrixKey(category) or nil
     if cm and cm.categories and key and cm.categories[key] and cm.categories[key].zone then
-        return cm.categories[key].zone
+        return SanitizeColor(cm.categories[key].zone, addon.ZONE_COLOR)
     end
     return addon.ZONE_COLOR
 end
@@ -116,7 +123,7 @@ end
 local function GetSectionColor(groupKey)
     local cm = GetColorMatrix()
     if cm and cm.categories and groupKey and cm.categories[groupKey] and cm.categories[groupKey].section then
-        return cm.categories[groupKey].section
+        return SanitizeColor(cm.categories[groupKey].section, addon.SECTION_COLORS[groupKey] or addon.SECTION_COLORS.DEFAULT)
     end
     return addon.SECTION_COLORS[groupKey] or addon.SECTION_COLORS.DEFAULT
 end
