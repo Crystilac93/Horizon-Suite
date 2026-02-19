@@ -49,6 +49,13 @@ These APIs are called by Focus but have **no dedicated generated docs file** in 
 | **GetQuestLogSpecialItemInfo** (global) | FocusAggregator | Legacy API for quest item link/texture; takes logIndex. Guard with existence check. |
 | **GetInstanceInfo** (global) | FocusCollapse, FocusSlash, FocusDungeons | Standard WoW API; not C_* namespace. Documented elsewhere. |
 | **QuestUtils_IsQuestWorldQuest** (global) | FocusCategories | Blizzard internal; fallback before C_QuestLog.IsWorldQuest. |
+| **ShowQuestComplete** (global) | FocusInteractions | Blizzard function; used for click-to-complete on auto-complete quests. Guard with existence check. |
+
+---
+
+## Click-to-complete limitations
+
+There is **no API to programmatically turn in quests** that require NPC interaction. Only **auto-complete** quests (`C_QuestLog.GetInfo(logIndex).isAutoComplete` + `C_QuestLog.IsComplete(questID)`) can be completed via `ShowQuestComplete(questID)`. For non-auto-complete quests, Focus continues to guide (super-track, open details); the player must interact with the turn-in NPC manually.
 
 ---
 

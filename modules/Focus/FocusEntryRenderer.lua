@@ -144,9 +144,12 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
 
     if questData.isComplete and shownObjs == 0 then
         local obj = entry.objectives[1]
-        local turnInText = addon.GetDB("showObjectiveNumbers", false) and "1. Ready to turn in" or "Ready to turn in"
-        obj.text:SetText(turnInText)
-        obj.shadow:SetText(turnInText)
+        local isAutoComplete = questData.isAutoComplete and true or false
+        local firstLineText = isAutoComplete
+            and (_G.QUEST_WATCH_QUEST_COMPLETE or "Quest Complete")
+            or (addon.GetDB("showObjectiveNumbers", false) and "1. Ready to turn in" or "Ready to turn in")
+        obj.text:SetText(firstLineText)
+        obj.shadow:SetText(firstLineText)
         obj.text:SetTextColor(doneColor[1], doneColor[2], doneColor[3], 1)
         obj.text:ClearAllPoints()
         local turnInIndent = (prevAnchor == entry.titleText) and objIndent or 0
@@ -157,6 +160,22 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
         if not objH or objH < 1 then objH = addon.OBJ_SIZE + 2 end
         totalH = totalH + objSpacing + objH
         prevAnchor = obj.text
+
+        if isAutoComplete then
+            local obj2 = entry.objectives[2]
+            local clickText = _G.QUEST_WATCH_CLICK_TO_COMPLETE or "(click to complete)"
+            obj2.text:SetText(clickText)
+            obj2.shadow:SetText(clickText)
+            obj2.text:SetTextColor(doneColor[1], doneColor[2], doneColor[3], 1)
+            obj2.text:ClearAllPoints()
+            obj2.text:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", 0, -objSpacing)
+            obj2.text:Show()
+            obj2.shadow:Show()
+            local obj2H = obj2.text:GetStringHeight()
+            if not obj2H or obj2H < 1 then obj2H = addon.OBJ_SIZE + 2 end
+            totalH = totalH + objSpacing + obj2H
+            prevAnchor = obj2.text
+        end
     end
 
     return totalH, prevAnchor

@@ -157,7 +157,7 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
             { questID = 90005, title = "Boar Pelts",
               color = addon.QUEST_COLORS.COMPLETE, category = "COMPLETE",
               questTypeAtlas = "QuestTurnin",
-              isComplete = true, isSuperTracked = false, isNearby = false, isAccepted = true,
+              isComplete = true, isAutoComplete = true, isSuperTracked = false, isNearby = false, isAccepted = true,
               zoneName = "Elwynn Forest",
               objectives = {
                   { text = "Boar Pelts: 10/10", finished = true },
@@ -344,6 +344,35 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
             HSPrint("ShowUnacceptedPopup not available.")
         end
 
+    elseif cmd == "clicktodebug" then
+        HSPrint("|cFF00CCFF--- Click-to-complete debug ---|r")
+        if not C_QuestLog then
+            HSPrint("C_QuestLog: not available")
+        else
+            HSPrint("ShowQuestComplete: " .. (ShowQuestComplete and "yes" or "no"))
+            HSPrint("requireModifierForClickToComplete: " .. tostring(addon.GetDB("requireModifierForClickToComplete", false)))
+            local n = C_QuestLog.GetNumQuestWatches and C_QuestLog.GetNumQuestWatches() or 0
+            HSPrint("Tracked quests: " .. tostring(n))
+            local eligible = 0
+            for i = 1, n do
+                local qid = C_QuestLog.GetQuestIDForQuestWatchIndex and C_QuestLog.GetQuestIDForQuestWatchIndex(i)
+                if qid and qid > 0 then
+                    local title = C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(qid) or ("Quest " .. tostring(qid))
+                    local logIdx = C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(qid)
+                    local isComplete = C_QuestLog.IsComplete and C_QuestLog.IsComplete(qid)
+                    local isAuto = false
+                    if logIdx and C_QuestLog.GetInfo then
+                        local ok, info = pcall(C_QuestLog.GetInfo, logIdx)
+                        if ok and info then isAuto = info.isAutoComplete and true or false end
+                    end
+                    local status = (isAuto and isComplete) and "|cFF00FF00eligible|r" or "not eligible"
+                    if isAuto and isComplete then eligible = eligible + 1 end
+                    HSPrint("  [" .. tostring(qid) .. "] " .. tostring(title):sub(1, 40) .. " | complete=" .. tostring(isComplete) .. " | autoComplete=" .. tostring(isAuto) .. " | " .. status)
+                end
+            end
+            HSPrint("Eligible for click-to-complete: " .. tostring(eligible))
+        end
+
     elseif cmd == "delvedebug" then
         HSPrint("|cFF00CCFF--- Delve / Tier debug (run inside a Delve) ---|r")
         if C_PartyInfo and C_PartyInfo.IsDelveInProgress then
@@ -382,11 +411,12 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
         HSPrint("  /horizon delvedebug      - Dump Delve/tier APIs (run inside a Delve to find tier number)")
         HSPrint("  /horizon endeavordebug   - Dump Endeavor APIs + GetInitiativeTaskInfo fields (for tooltip/rewards)")
         HSPrint("  /horizon unaccepted      - Show popup of unaccepted quests in current zone with type labels (test)")
+        HSPrint("  /horizon clicktodebug    - Debug: list tracked quests and which are eligible for click-to-complete")
         HSPrint("")
         HSPrint("  Click the header row to collapse / expand.")
         HSPrint("  Scroll with mouse wheel when content overflows.")
         HSPrint("  Drag the panel to reposition it (saved across sessions).")
-        HSPrint("  Left-click a quest or rare to super-track; double-click quest to open log.")
-        HSPrint("  Right-click a quest to untrack it; right-click rare to clear super-track.")
+        HSPrint("  Left-click a quest or rare to super-track; Left-click auto-complete quests to complete them.")
+        HSPrint("  Shift+Left-click opens quest details; Right-click a quest to untrack, rare to clear super-track.")
     end
 end

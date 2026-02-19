@@ -10,6 +10,39 @@ local addon = _G.HorizonSuite
 
 local pool = addon.pool
 
+--- Try to complete an auto-complete quest via ShowQuestComplete (Blizzard behavior).
+--- Returns true if completion was triggered; false otherwise.
+--- @param questID number
+--- @return boolean
+local function TryCompleteQuestFromClick(questID)
+    if not questID or questID <= 0 then return false end
+    -- Test-mode bypass: when /horizon test is active, simulate click-to-complete for fake auto-complete quests.
+    if addon.testQuests and questID >= 90001 and questID <= 90010 then
+        for _, q in ipairs(addon.testQuests) do
+            if q.questID == questID and q.isComplete and q.isAutoComplete then
+                local printFn = addon.HSPrint or print
+                printFn("|cFF00FF00[DEBUG]|r Click-to-complete hit (test quest " .. tostring(questID) .. ") - would call ShowQuestComplete in live.")
+                if addon.ScheduleRefresh then addon.ScheduleRefresh() end
+                return true
+            end
+        end
+    end
+    if not C_QuestLog or not C_QuestLog.GetLogIndexForQuestID or not C_QuestLog.IsComplete then return false end
+    local logIndex = C_QuestLog.GetLogIndexForQuestID(questID)
+    if not logIndex then return false end
+    if not C_QuestLog.GetInfo then return false end
+    -- pcall: GetInfo can throw on invalid logIndex.
+    local ok, info = pcall(C_QuestLog.GetInfo, logIndex)
+    if not ok or not info or not info.isAutoComplete then return false end
+    if not C_QuestLog.IsComplete(questID) then return false end
+    if ShowQuestComplete and type(ShowQuestComplete) == "function" then
+        pcall(ShowQuestComplete, questID)
+        if addon.ScheduleRefresh then addon.ScheduleRefresh() end
+        return true
+    end
+    return false
+end
+
 StaticPopupDialogs["HORIZONSUITE_ABANDON_QUEST"] = StaticPopupDialogs["HORIZONSUITE_ABANDON_QUEST"] or {
     text = "Abandon %s?",
     button1 = YES,
@@ -129,6 +162,14 @@ for i = 1, addon.POOL_SIZE do
 
             local requireCtrl = addon.GetDB("requireCtrlForQuestClicks", false)
             local isWorldQuest = addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(self.questID)
+
+            -- Plain Left (no Shift): try click-to-complete for auto-complete quests (Blizzard behavior).
+            if not IsShiftKeyDown() then
+                local needMod = addon.GetDB("requireModifierForClickToComplete", false)
+                if (not needMod or IsControlKeyDown()) and TryCompleteQuestFromClick(self.questID) then
+                    return
+                end
+            end
 
             -- Shift+Left: always open quest log & map (safe, read-only). For world quests, optionally add to watch list.
             if IsShiftKeyDown() then

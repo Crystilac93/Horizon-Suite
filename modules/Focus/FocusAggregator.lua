@@ -202,11 +202,15 @@ local function ReadTrackedQuests()
         end
 
         local questLevel
+        local isAutoComplete = false
         if logIndex then
             -- pcall: C_QuestLog.GetInfo can throw on invalid logIndex.
             if C_QuestLog.GetInfo then
                 local ok, info = pcall(C_QuestLog.GetInfo, logIndex)
-                if ok and info and info.level then questLevel = info.level end
+                if ok and info then
+                    if info.level then questLevel = info.level end
+                    if info.isAutoComplete then isAutoComplete = true end
+                end
             end
             if not questLevel and GetQuestLogTitle then
                 -- pcall: GetQuestLogTitle can throw on invalid logIndex.
@@ -223,6 +227,7 @@ local function ReadTrackedQuests()
             isComplete = isComplete, isSuperTracked = isSuper, isNearby = isNearby,
             isAccepted = isAccepted, zoneName = zoneName, itemLink = itemLink, itemTexture = itemTexture,
             questTypeAtlas = questTypeAtlas, isDungeonQuest = isDungeonQuest, isTracked = isTracked, level = questLevel,
+            isAutoComplete = isAutoComplete,
         }
         if objectivesDoneCount and objectivesTotalCount then
             entry.objectivesDoneCount = objectivesDoneCount
