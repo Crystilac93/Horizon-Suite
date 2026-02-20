@@ -230,7 +230,7 @@ local headerShadow = HS:CreateFontString(nil, "BORDER")
 headerShadow:SetFontObject(addon.HeaderFont)
 headerShadow:SetTextColor(0, 0, 0, addon.SHADOW_A)
 headerShadow:SetJustifyH("LEFT")
-headerShadow:SetText("OBJECTIVES")
+headerShadow:SetText(addon.L["OBJECTIVES"])
 
 local headerText = HS:CreateFontString(nil, "OVERLAY")
 headerText:SetFontObject(addon.HeaderFont)
@@ -240,7 +240,7 @@ do
 end
 headerText:SetJustifyH("LEFT")
 headerText:SetPoint("TOPLEFT", HS, "TOPLEFT", addon.PADDING, -addon.PADDING)
-headerText:SetText("OBJECTIVES")
+headerText:SetText(addon.L["OBJECTIVES"])
 headerShadow:SetPoint("CENTER", headerText, "CENTER", addon.SHADOW_OX, addon.SHADOW_OY)
 
 local countText = HS:CreateFontString(nil, "OVERLAY")
@@ -267,7 +267,7 @@ local optionsLabel = optionsBtn:CreateFontString(nil, "OVERLAY")
 optionsLabel:SetFontObject(addon.ObjFont)
 optionsLabel:SetTextColor(0.60, 0.65, 0.75, 1)
 optionsLabel:SetJustifyH("RIGHT")
-optionsLabel:SetText("Options")
+optionsLabel:SetText(addon.L["Options"])
 optionsBtn:SetSize(math.max(optionsLabel:GetStringWidth() + 4, 44), 20)
 optionsBtn:SetPoint("RIGHT", chevron, "LEFT", -6, 0)
 optionsLabel:SetPoint("RIGHT", optionsBtn, "RIGHT", -2, 0)
@@ -286,7 +286,7 @@ optionsBtn:SetScript("OnEnter", function(self)
     end
     if GameTooltip then
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:SetText("Options", nil, nil, nil, nil, true)
+        GameTooltip:SetText(addon.L["Options"], nil, nil, nil, nil, true)
         GameTooltip:Show()
     end
 end)
@@ -417,7 +417,7 @@ resizeHandle:EnableMouse(true)
 resizeHandle:SetScript("OnEnter", function(self)
     if GameTooltip then
         GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
-        GameTooltip:SetText("Drag to resize", nil, nil, nil, nil, true)
+        GameTooltip:SetText(addon.L["Drag to resize"], nil, nil, nil, nil, true)
         GameTooltip:Show()
     end
 end)

@@ -428,8 +428,8 @@ PlayCinematic = function(typeName, title, subtitle, opts)
     L.subText:SetPoint("TOP", L.divider, "BOTTOM", 0, -20)
 
     if addon.Presence.pendingDiscovery and (typeName == "ZONE_CHANGE" or typeName == "SUBZONE_CHANGE") and (not addon.GetDB or addon.GetDB("showPresenceDiscovery", true)) then
-        L.discoveryText:SetText("Discovered")
-        L.discoveryShadow:SetText("Discovered")
+        L.discoveryText:SetText(addon.L["Discovered"])
+        L.discoveryShadow:SetText(addon.L["Discovered"])
         local dc = getDiscoveryColor()
         L.discoveryText:SetTextColor(dc[1], dc[2], dc[3], 1)
         L.discoveryShadow:SetTextColor(0, 0, 0, (addon.SHADOW_A ~= nil) and addon.SHADOW_A or 0.8)
@@ -470,8 +470,8 @@ end
 local function ShowDiscoveryLine()
     if not curLayer then return end
     if addon.GetDB and not addon.GetDB("showPresenceDiscovery", true) then return end
-    curLayer.discoveryText:SetText("Discovered")
-    curLayer.discoveryShadow:SetText("Discovered")
+    curLayer.discoveryText:SetText(addon.L["Discovered"])
+    curLayer.discoveryShadow:SetText(addon.L["Discovered"])
     local dc = getDiscoveryColor()
     curLayer.discoveryText:SetTextColor(dc[1], dc[2], dc[3], 1)
     curLayer.discoveryShadow:SetTextColor(0, 0, 0, (addon.SHADOW_A ~= nil) and addon.SHADOW_A or 0.8)

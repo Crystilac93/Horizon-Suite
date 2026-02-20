@@ -62,7 +62,7 @@ local function AcquireSectionHeader(groupKey, focusedGroupKey)
         elseif addon.IsCategoryCollapsed(groupKey) then
             s.chevron:SetText("+")
         else
-            s.chevron:SetText("−")
+            s.chevron:SetText("-")
         end
     end
 
@@ -77,7 +77,7 @@ local function AcquireSectionHeader(groupKey, focusedGroupKey)
             if addon.PrepareGroupExpandSlideDown then addon.PrepareGroupExpandSlideDown(key) end
             addon.SetCategoryCollapsed(key, false)
             if self.chevron then
-                self.chevron:SetText("−")
+                self.chevron:SetText("-")
             end
             if addon.focus.collapsed then
                 addon.focus.collapsed = false

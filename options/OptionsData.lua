@@ -194,7 +194,7 @@ local OptionCategories = {
         options = {
             { type = "section", name = L["Instance"] },
             { type = "toggle", name = L["Show in dungeon"], desc = L["Show tracker in party dungeons."], dbKey = "showInDungeon", get = function() return getDB("showInDungeon", false) end, set = function(v) setDB("showInDungeon", v) end },
-            { type = "toggle", name = "Always show M+ block", desc = L["Show the M+ block whenever an active keystone is running"], dbKey = "mplusAlwaysShow", get = function() return getDB("mplusAlwaysShow", false) end, set = function(v) setDB("mplusAlwaysShow", v); if _G.HorizonSuite_FullLayout then _G.HorizonSuite_FullLayout() end end },
+            { type = "toggle", name = L["Always show M+ block"], desc = L["Show the M+ block whenever an active keystone is running"], dbKey = "mplusAlwaysShow", get = function() return getDB("mplusAlwaysShow", false) end, set = function(v) setDB("mplusAlwaysShow", v); if _G.HorizonSuite_FullLayout then _G.HorizonSuite_FullLayout() end end },
             { type = "toggle", name = L["Show in raid"], desc = L["Show tracker in raids."], dbKey = "showInRaid", get = function() return getDB("showInRaid", false) end, set = function(v) setDB("showInRaid", v) end },
             { type = "toggle", name = L["Show in battleground"], desc = L["Show tracker in battlegrounds."], dbKey = "showInBattleground", get = function() return getDB("showInBattleground", false) end, set = function(v) setDB("showInBattleground", v) end },
             { type = "toggle", name = L["Show in arena"], desc = L["Show tracker in arenas."], dbKey = "showInArena", get = function() return getDB("showInArena", false) end, set = function(v) setDB("showInArena", v) end },

@@ -796,7 +796,7 @@ function OptionsWidgets_CreateReorderList(parent, anchor, opt, scrollFrameRef, p
     local container = CreateFrame("Frame", nil, parent)
     container:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -Def.SectionGap)
     container:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 0)
-    local sectionLabel = OptionsWidgets_CreateSectionHeader(container, opt.name or "Order")
+    local sectionLabel = OptionsWidgets_CreateSectionHeader(container, opt.name or L["Order"])
     sectionLabel:SetPoint("TOPLEFT", container, "TOPLEFT", Def.CardPadding, -Def.CardPadding)
 
     local rows = {}

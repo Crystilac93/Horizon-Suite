@@ -158,7 +158,7 @@ resizeHandle:SetFrameLevel(panel:GetFrameLevel() + 10)
 resizeHandle:SetScript("OnEnter", function(self)
     if GameTooltip then
         GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
-        GameTooltip:SetText("Drag to resize", nil, nil, nil, nil, true)
+        GameTooltip:SetText(L["Drag to resize"], nil, nil, nil, nil, true)
         GameTooltip:Show()
     end
 end)
@@ -397,7 +397,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             resetBtn:SetScript("OnLeave", function() SetTextColor(rl, Def.TextColorLabel) end)
             currentCard.contentAnchor = resetBtn
             currentCard.contentHeight = currentCard.contentHeight + 6 + 22
-            local overridesSub = OptionsWidgets_CreateSectionHeader(currentCard, "Element overrides")
+            local overridesSub = OptionsWidgets_CreateSectionHeader(currentCard, L["Element overrides"])
             overridesSub:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -SectionGap)
             currentCard.contentAnchor = overridesSub
             currentCard.contentHeight = currentCard.contentHeight + SectionGap + RowHeights.sectionLabel
@@ -613,7 +613,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
                     container.expanded = expand
                     if expand then
                         EnsureRows()
-                        chevron:SetText("\226\128\147")  -- minus sign
+                        chevron:SetText("-")  -- hyphen-minus for locale compatibility (En Dash fails on koKR)
                         for _, r in ipairs(container.rows) do r:Show() end
                         container:SetHeight(GROUP_HEADER_H + GROUP_ROWS_PER_KEY * (GROUP_ROW_GAP + GROUP_ROW_H))
                     else
@@ -680,7 +680,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             numPerCategoryGroups = #perCategoryOrder
 
             -- Per-category collapsible groups (excludes NEARBY and COMPLETE)
-            local catHdr = OptionsWidgets_CreateSectionHeader(currentCard, "Per category")
+            local catHdr = OptionsWidgets_CreateSectionHeader(currentCard, L["Per category"])
             catHdr:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -SectionGap)
             currentCard.contentAnchor = catHdr
             currentCard.contentHeight = currentCard.contentHeight + SectionGap + RowHeights.sectionLabel
@@ -699,18 +699,18 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             div1:SetColorTexture(dc[1], dc[2], dc[3], dc[4] or 0.2)
 
             -- Grouping Overrides: toggles + NEARBY and COMPLETE collapsible groups
-            local goHdr = OptionsWidgets_CreateSectionHeader(currentCard, "Grouping Overrides")
+            local goHdr = OptionsWidgets_CreateSectionHeader(currentCard, L["Grouping Overrides"])
             goHdr:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -SectionGap)
             currentCard.contentAnchor = goHdr
             currentCard.contentHeight = currentCard.contentHeight + SectionGap + RowHeights.sectionLabel
 
-            local ovCompleted = OptionsWidgets_CreateToggleSwitch(currentCard, "Ready to Turn In overrides base colours", "Ready to Turn In uses its colours for quests in that section.", function() return getOverride("useCompletedOverride") end, function(v) setOverride("useCompletedOverride", v) end)
+            local ovCompleted = OptionsWidgets_CreateToggleSwitch(currentCard, L["Ready to Turn In overrides base colours"], L["Ready to Turn In uses its colours for quests in that section."], function() return getOverride("useCompletedOverride") end, function(v) setOverride("useCompletedOverride", v) end)
             ovCompleted:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -OptionGap)
             ovCompleted:SetPoint("RIGHT", currentCard, "RIGHT", -CardPadding, 0)
             currentCard.contentAnchor = ovCompleted
             currentCard.contentHeight = currentCard.contentHeight + OptionGap + 38
 
-            local ovCurrentZone = OptionsWidgets_CreateToggleSwitch(currentCard, "Current Zone overrides base colours", "Current Zone uses its colours for quests in that section.", function() return getOverride("useCurrentZoneOverride") end, function(v) setOverride("useCurrentZoneOverride", v) end)
+            local ovCurrentZone = OptionsWidgets_CreateToggleSwitch(currentCard, L["Current Zone overrides base colours"], L["Current Zone uses its colours for quests in that section."], function() return getOverride("useCurrentZoneOverride") end, function(v) setOverride("useCurrentZoneOverride", v) end)
             ovCurrentZone:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -OptionGap)
             ovCurrentZone:SetPoint("RIGHT", currentCard, "RIGHT", -CardPadding, 0)
             currentCard.contentAnchor = ovCurrentZone
@@ -729,20 +729,20 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             div2:SetColorTexture(dc[1], dc[2], dc[3], dc[4] or 0.2)
 
             -- Other global colours (always visible)
-            local otherHdr = OptionsWidgets_CreateSectionHeader(currentCard, "Other colors")
+            local otherHdr = OptionsWidgets_CreateSectionHeader(currentCard, L["Other colors"])
             otherHdr:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -SectionGap)
             currentCard.contentAnchor = otherHdr
             currentCard.contentHeight = currentCard.contentHeight + SectionGap + RowHeights.sectionLabel
 
-            local ovCompletedObj = OptionsWidgets_CreateToggleSwitch(currentCard, "Use distinct color for completed objectives", "When on, completed objectives (e.g. 1/1) use the color below; when off, they use the same color as incomplete objectives.", function() return getDB("useCompletedObjectiveColor", true) end, function(v) setDB("useCompletedObjectiveColor", v) notifyMainAddon() end)
+            local ovCompletedObj = OptionsWidgets_CreateToggleSwitch(currentCard, L["Use distinct color for completed objectives"], L["When on, completed objectives (e.g. 1/1) use the color below; when off, they use the same color as incomplete objectives."], function() return getDB("useCompletedObjectiveColor", true) end, function(v) setDB("useCompletedObjectiveColor", v) notifyMainAddon() end)
             ovCompletedObj:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -OptionGap)
             ovCompletedObj:SetPoint("RIGHT", currentCard, "RIGHT", -CardPadding, 0)
             currentCard.contentAnchor = ovCompletedObj
             currentCard.contentHeight = currentCard.contentHeight + OptionGap + 38
 
             local otherDefs = {
-                { dbKey = "highlightColor", label = "Highlight", def = (addon.HIGHLIGHT_COLOR_DEFAULT or { 0.4, 0.7, 1 }) },
-                { dbKey = "completedObjectiveColor", label = "Completed objective", def = (addon.OBJ_DONE_COLOR or { 0.30, 0.80, 0.30 }) },
+                { dbKey = "highlightColor", label = L["Highlight"], def = (addon.HIGHLIGHT_COLOR_DEFAULT or { 0.4, 0.7, 1 }) },
+                { dbKey = "completedObjectiveColor", label = L["Completed objective"], def = (addon.OBJ_DONE_COLOR or { 0.30, 0.80, 0.30 }) },
             }
             local otherRows = {}
             for _, od in ipairs(otherDefs) do

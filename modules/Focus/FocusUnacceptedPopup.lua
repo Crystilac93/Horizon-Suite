@@ -462,7 +462,7 @@ local function CreatePopupFrame()
     refreshBtn:EnableMouse(true)
     local refreshLabel = refreshBtn:CreateFontString(nil, "OVERLAY")
     refreshLabel:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
-    refreshLabel:SetText("Refresh")
+    refreshLabel:SetText(addon.L["Refresh"])
     refreshLabel:SetPoint("CENTER", refreshBtn, "CENTER", 0, 0)
     refreshBtn:SetScript("OnClick", function()
         addon.ShowUnacceptedPopup()
@@ -494,7 +494,7 @@ local function CreatePopupFrame()
     footer:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -PADDING, PADDING)
     footer:SetJustifyH("LEFT")
     footer:SetWordWrap(true)
-    footer:SetText("Best-effort only. Some unaccepted quests are not exposed until you interact with NPCs or meet phasing conditions.")
+    footer:SetText(addon.L["Best-effort only. Some unaccepted quests are not exposed until you interact with NPCs or meet phasing conditions."])
     panel.footerText = footer
 
     popupFrame = panel
@@ -508,7 +508,7 @@ local function PopulatePopup(rows, mapID, zoneName)
     if not popupFrame or not contentFrame then return end
 
     local count = #rows
-    popupFrame.titleText:SetText(("Unaccepted Quests - %s (map %s) - %d match(es)"):format(zoneName, tostring(mapID), count))
+    popupFrame.titleText:SetText((addon.L["Unaccepted Quests - %s (map %s) - %d match(es)"]):format(zoneName, tostring(mapID), count))
 
     local contentWidth = (scrollFrame and scrollFrame:GetWidth() and scrollFrame:GetWidth() > 0)
         and scrollFrame:GetWidth()

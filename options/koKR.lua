@@ -43,6 +43,9 @@ L["Ready to Turn In overrides base colours"]                        = "완료 �
 L["Ready to Turn In uses its colours for quests in that section."]  = "보고 가능한 퀘스트가 있으면 해당 구역에 완료 색상을 우선 적용합니다."
 L["Current Zone overrides base colours"]                            = "현재 지역 색상을 우선 적용"
 L["Current Zone uses its colours for quests in that section."]      = "현재 지역에 해당하는 퀘스트가 있으면 해당 구역에 지역 색상을 우선 적용합니다."
+L["Use distinct color for completed objectives"]                     = "완료된 목표에 다른 색상 사용"
+L["When on, completed objectives (e.g. 1/1) use the color below; when off, they use the same color as incomplete objectives."] = "활성화하면 완료된 목표(예: 1/1)에 아래 색상을 사용하고, 비활성화하면 미완료 목표와 같은 색상을 사용합니다."
+L["Completed objective"]                                           = "완료된 목표"
 
 -- =====================================================================
 -- OptionsPanel.lua — Button labels
@@ -57,6 +60,11 @@ L["Reset to default"]                                               = "기본값
 -- OptionsPanel.lua — Search bar placeholder
 -- =====================================================================
 L["Search settings..."]                                             = "설정 검색..."
+
+-- =====================================================================
+-- OptionsPanel.lua — Resize handle tooltip
+-- =====================================================================
+L["Drag to resize"]                                                 = "드래그하여 크기 조절"
 
 -- =====================================================================
 -- OptionsData.lua Category names (sidebar)
@@ -125,6 +133,8 @@ L["Max height of the scrollable list (pixels)."]        = "스크롤 목록의 �
 -- =====================================================================
 -- OptionsData.lua Visibility
 -- =====================================================================
+L["Always show M+ block"]                                           = "쐐기돌 블록 항상 표시"
+L["Show the M+ block whenever an active keystone is running"]       = "활성 쐐기돌 실행 중에는 쐐기돌 블록을 항상 표시합니다."
 L["Show in dungeon"]                                    = "던전에서 표시"
 L["Show tracker in party dungeons."]                    = "파티 던전에서 추적기를 표시합니다."
 L["Show in raid"]                                       = "공격대에서 표시"
@@ -151,6 +161,10 @@ L["Super-minimal mode"]                                 = "초간결 모드"
 L["Hide header for a pure text list."]                  = "헤더를 숨기고 텍스트 목록만 표시합니다."
 L["Show options button"]                               = "옵션 버튼 표시"
 L["Show the Options button in the tracker header."]     = "추적기 헤더에 옵션 버튼을 표시합니다."
+L["Header color"]                                       = "헤더 색상"
+L["Color of the OBJECTIVES header text."]               = "목표 헤더 텍스트의 색상."
+L["Header height"]                                      = "헤더 높이"
+L["Height of the header bar in pixels (18–48)."]        = "헤더 바 높이 (픽셀, 18–48)."
 
 -- =====================================================================
 -- OptionsData.lua Display — List
@@ -173,6 +187,15 @@ L["Show completed count"]                               = "완료 수 표시"
 L["Show X/Y progress in quest title."]                  = "퀘스트 제목에 X/Y 진행도를 표시합니다."
 L["Use tick for completed objectives"]                  = "완료된 목표에 체크 표시 사용"
 L["When on, completed objectives show a checkmark (✓) instead of green color."] = "활성화하면 완료된 목표에 초록색 대신 체크 표시(✓)가 나타납니다."
+L["Show entry numbers"]                                 = "항목 번호 표시"
+L["Prefix quest titles with 1., 2., 3. within each category."] = "각 유형 내에서 퀘스트 제목 앞에 1., 2., 3. 번호를 붙입니다."
+L["Completed objectives"]                               = "완료된 목표"
+L["For multi-objective quests, how to display objectives you've completed (e.g. 1/1)."] = "다중 목표 퀘스트에서 완료된 목표(예: 1/1) 표시 방식."
+L["Show all"]                                           = "모두 표시"
+L["Fade completed"]                                     = "완료 시 흐리게"
+L["Hide completed"]                                     = "완료 시 숨기기"
+L["Show '**' in-zone suffix"]                           = "지역 내 '**' 접미사 표시"
+L["Append ** to world quests and weeklies/dailies that are not yet in your quest log (in-zone only)."] = "퀘스트 목록에 없는 월드 퀘스트/주간·일일 퀘스트에 ** 접미사를 붙입니다 (해당 지역 내에서만)."
 
 -- =====================================================================
 -- OptionsData.lua Display — Spacing
@@ -232,6 +255,14 @@ L["Show Mythic+ block"]                                 = "쐐기돌 블록 표�
 L["Show timer, completion %, and affixes in Mythic+ dungeons."] = "쐐기돌 던전에서 타이머, 완료율, 쐐기돌 속성을 표시합니다."
 L["M+ block position"]                                  = "쐐기돌 블록 위치"
 L["Position of the Mythic+ block relative to the quest list."] = "퀘스트 목록에 대한 쐐기돌 블록의 위치."
+L["Show affix icons"]                                    = "시즌 효과 아이콘 표시"
+L["Show affix icons next to modifier names in the M+ block."] = "쐐기돌 블록의 시즌 효과 이름 옆에 아이콘을 표시합니다."
+L["Show affix descriptions in tooltip"]                  = "툴팁에 시즌 효과 설명 표시"
+L["Show affix descriptions when hovering over the M+ block."] = "쐐기돌 블록 위에 마우스를 올리면 시즌 효과 설명을 표시합니다."
+L["M+ completed boss display"]                         = "쐐기돌 처치 보스 표시"
+L["How to show defeated bosses: checkmark icon or green color."] = "처치한 보스 표시 방식: 체크 아이콘 또는 초록색."
+L["Checkmark"]                                          = "체크 표시"
+L["Green color"]                                        = "초록색"
 
 -- =====================================================================
 -- OptionsData.lua Features — Achievements
@@ -319,6 +350,38 @@ L["Shadow alpha"]                                       = "그림자 투명도"
 L["Shadow opacity (0–1)."]                              = "그림자 투명도 (0–1)."
 
 -- =====================================================================
+-- OptionsData.lua Typography — Mythic+ Typography
+-- =====================================================================
+L["Mythic+ Typography"]                                  = "쐐기돌 글꼴"
+L["Dungeon name size"]                                   = "던전명 크기"
+L["Font size for dungeon name (8–32 px)."]              = "던전명 글꼴 크기 (8–32 px)."
+L["Dungeon name color"]                                  = "던전명 색상"
+L["Text color for dungeon name."]                        = "던전명 텍스트 색상."
+L["Timer size"]                                         = "타이머 크기"
+L["Font size for timer (8–32 px)."]                     = "타이머 글꼴 크기 (8–32 px)."
+L["Timer color"]                                        = "타이머 색상"
+L["Text color for timer (in time)."]                    = "타이머 텍스트 색상 (제한 시간 내)."
+L["Timer overtime color"]                               = "타이머 초과 색상"
+L["Text color for timer when over the time limit."]      = "시간 초과 시 타이머 텍스트 색상."
+L["Progress size"]                                      = "진행도 크기"
+L["Font size for enemy forces (8–32 px)."]               = "적 병력 글꼴 크기 (8–32 px)."
+L["Progress color"]                                     = "진행도 색상"
+L["Text color for enemy forces."]                        = "적 병력 텍스트 색상."
+L["Bar fill color"]                                     = "바 채우기 색상"
+L["Progress bar fill color (in progress)."]             = "진행 바 채우기 색상 (진행 중)."
+L["Bar complete color"]                                 = "바 완료 색상"
+L["Progress bar fill color when enemy forces are at 100%."] = "적 병력 100% 시 진행 바 채우기 색상."
+L["Affix size"]                                         = "시즌 효과 크기"
+L["Font size for affixes (8–32 px)."]                   = "시즌 효과 글꼴 크기 (8–32 px)."
+L["Affix color"]                                        = "시즌 효과 색상"
+L["Text color for affixes."]                             = "시즌 효과 텍스트 색상."
+L["Boss size"]                                          = "보스명 크기"
+L["Font size for boss names (8–32 px)."]                = "보스명 글꼴 크기 (8–32 px)."
+L["Boss color"]                                         = "보스명 색상"
+L["Text color for boss names."]                          = "보스명 텍스트 색상."
+L["Reset Mythic+ typography"]                           = "쐐기돌 글꼴 초기화"
+
+-- =====================================================================
 -- OptionsData.lua Appearance
 -- =====================================================================
 L["Backdrop opacity"]                                   = "배경 투명도"
@@ -352,6 +415,19 @@ L["Color of the objective-complete flash."]             = "목표 완료 시 표
 L["Subtle"]                                             = "은은함"
 L["Medium"]                                             = "보통"
 L["Strong"]                                             = "강함"
+L["Require Ctrl for click to complete"]                 = "클릭 완료 시 Ctrl 필요"
+L["When on, requires Ctrl+Left-click to complete auto-complete quests. When off, plain Left-click completes them (Blizzard default). Only affects quests that can be completed by click (no NPC turn-in needed)."] = "활성화하면 자동 완료 퀘스트를 완료할 때 Ctrl+좌클릭이 필요합니다. 비활성화하면 일반 좌클릭으로 완료됩니다 (Blizzard 기본값). NPC 제출 없이 클릭으로 완료 가능한 퀘스트에만 적용됩니다."
+L["Suppress untracked until reload"]                     = "재접속 전까지 추적 해제 숨기기"
+L["When on, right-click untrack on world quests and in-zone weeklies/dailies hides them until you reload or start a new session. When off, they reappear when you return to the zone."] = "활성화하면 월드 퀘스트와 지역 내 주간·일일 퀘스트에서 우클릭 추적 해제 시 재접속할 때까지 숨깁니다. 비활성화하면 해당 지역에 돌아오면 다시 표시됩니다."
+L["Permanently suppress untracked quests"]               = "추적 해제한 퀘스트 영구 숨기기"
+L["When on, right-click untracked world quests and in-zone weeklies/dailies are hidden permanently (persists across reloads). Takes priority over 'Suppress until reload'. Accepting a suppressed quest removes it from the blacklist."] = "활성화하면 우클릭 추적 해제한 월드 퀘스트와 지역 내 주간·일일 퀘스트가 영구적으로 숨겨집니다 (재접속 후에도 유지). '재접속 전까지 숨기기'보다 우선합니다. 숨긴 퀘스트를 수락하면 차단 목록에서 제거됩니다."
+
+-- =====================================================================
+-- OptionsData.lua Blacklist
+-- =====================================================================
+L["Blacklisted quests"]                                  = "차단된 퀘스트"
+L["Permanently suppressed quests"]                       = "영구 숨김 퀘스트"
+L["Right-click untrack quests with 'Permanently suppress untracked quests' enabled to add them here."] = "'추적 해제한 퀘스트 영구 숨기기'가 활성화된 상태에서 우클릭 추적 해제한 퀘스트가 여기에 추가됩니다."
 
 -- =====================================================================
 -- OptionsData.lua Presence
@@ -411,6 +487,7 @@ L["Quest Level"]                                        = "퀘스트 레벨"
 -- OptionsData.lua Misc
 -- =====================================================================
 L["Custom"]                                             = "사용자 지정"
+L["Order"]                                              = "순서"
 
 -- =====================================================================
 -- Tracker section labels (SECTION_LABELS)
@@ -432,3 +509,13 @@ L["ENDEAVORS"]         = "활동 과제"
 L["DECOR"]             = "장식"
 L["QUESTS"]            = "퀘스트"
 L["READY TO TURN IN"]  = "보고 가능"
+
+-- =====================================================================
+-- Core.lua, FocusLayout.lua, PresenceCore.lua, FocusUnacceptedPopup.lua
+-- =====================================================================
+L["OBJECTIVES"]                                                                                    = "목표"
+L["Options"]                                                                                       = "옵션"
+L["Discovered"]                                                                                    = "발견됨"
+L["Refresh"]                                                                                       = "새로고침"
+L["Best-effort only. Some unaccepted quests are not exposed until you interact with NPCs or meet phasing conditions."] = "최선을 다해 검색합니다. 일부 미수락 퀘스트는 NPC와 상호작용하거나 페이징 조건을 만족해야 노출됩니다."
+L["Unaccepted Quests - %s (map %s) - %d match(es)"]                                                  = "미수락 퀘스트 - %s (맵 %s) - %d건 일치"
