@@ -1293,7 +1293,7 @@ end
 
 local optionFrames = {}
 local TAB_ROW_HEIGHT = 32
-local HEADER_ROW_HEIGHT = 24
+local HEADER_ROW_HEIGHT = 28
 local SIDEBAR_TOP_PAD = 4
 local COLLAPSE_ANIM_DUR = 0.18
 local easeOut = addon.easeOut or function(t) return 1 - (1-t)*(1-t) end
@@ -1379,10 +1379,10 @@ for _, mk in ipairs(groupOrder) do
     SetTextColor(chevron, Def.TextColorSection)
     header.chevron = chevron
     local headerLabel = header:CreateFontString(nil, "OVERLAY")
-    headerLabel:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", (Def.LabelSize or 13) - 1, "OUTLINE")
+    headerLabel:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", (Def.LabelSize or 13) + 1, "OUTLINE")
     headerLabel:SetPoint("LEFT", chevron, "RIGHT", 4, 0)
     SetTextColor(headerLabel, Def.TextColorSection)
-    headerLabel:SetText(g.label)
+    headerLabel:SetText((g.label or ""):upper())
     -- Container for tab buttons (animates height on collapse)
     local tabsContainer = CreateFrame("Frame", nil, sidebar)
     tabsContainer:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, 0)
@@ -1391,11 +1391,16 @@ for _, mk in ipairs(groupOrder) do
     local fullHeight = TAB_ROW_HEIGHT * #g.categories
     tabsContainer:SetHeight(GetGroupCollapsed(mk) and 0 or fullHeight)
     g.tabsContainer = tabsContainer
-    -- Anchor spacer: 1px frame so next group anchors to non-zero-height frame when tabsContainer collapses to 0
+    -- Spacer anchored to header (not tabsContainer) so layout stays valid when tabsContainer collapses to 0.
+    -- WoW can mishandle anchors to zero-height frames; using header + offset avoids that.
     local spacer = CreateFrame("Frame", nil, sidebar)
-    spacer:SetSize(1, 1)
-    spacer:SetPoint("TOPLEFT", tabsContainer, "BOTTOMLEFT", 0, 0)
+    spacer:SetSize(2, 2)
     spacer:SetAlpha(0)
+    local function UpdateSpacerPosition()
+        spacer:ClearAllPoints()
+        spacer:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -tabsContainer:GetHeight())
+    end
+    UpdateSpacerPosition()
     lastSidebarRow = spacer
     header:SetScript("OnClick", function()
         local collapsed = not GetGroupCollapsed(mk)
@@ -1412,6 +1417,7 @@ for _, mk in ipairs(groupOrder) do
             local t = math.min(elapsed / COLLAPSE_ANIM_DUR, 1)
             local h = self.animFrom + (self.animTo - self.animFrom) * easeOut(t)
             self:SetHeight(math.max(0, h))
+            UpdateSpacerPosition()
             if t >= 1 then self:SetScript("OnUpdate", nil) end
         end)
     end)

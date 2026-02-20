@@ -23,6 +23,24 @@ local TYPOGRAPHY_KEYS = {
     fontOutline = true,
 }
 
+local PRESENCE_KEYS = {
+    presenceFrameY = true,
+    presenceFrameScale = true,
+    presenceBossEmoteColor = true,
+    presenceDiscoveryColor = true,
+    presenceZoneChange = true,
+    presenceLevelUp = true,
+    presenceBossEmote = true,
+    presenceAchievement = true,
+    presenceQuestEvents = true,
+    presenceAnimations = true,
+    presenceEntranceDur = true,
+    presenceExitDur = true,
+    presenceHoldScale = true,
+    presenceMainSize = true,
+    presenceSubSize = true,
+}
+
 local MPLUS_TYPOGRAPHY_KEYS = {
     fontPath = true,
     fontOutline = true,
@@ -71,6 +89,9 @@ function OptionsData_SetDB(key, value)
     end
     if MPLUS_TYPOGRAPHY_KEYS[key] and addon.ApplyMplusTypography then
         addon.ApplyMplusTypography()
+    end
+    if PRESENCE_KEYS[key] and addon.Presence and addon.Presence.ApplyPresenceOptions then
+        addon.Presence.ApplyPresenceOptions()
     end
     if key == "lockPosition" and addon.UpdateResizeHandleVisibility then
         addon.UpdateResizeHandleVisibility()
@@ -243,6 +264,7 @@ local OptionCategories = {
             { type = "toggle", name = L["Show completed count"], desc = L["Show X/Y progress in quest title."], dbKey = "showCompletedCount", get = function() return getDB("showCompletedCount", false) end, set = function(v) setDB("showCompletedCount", v) end },
             { type = "dropdown", name = L["Completed objectives"], desc = L["For multi-objective quests, how to display objectives you've completed (e.g. 1/1)."], dbKey = "questCompletedObjectiveDisplay", options = { { L["Show all"], "off" }, { L["Fade completed"], "fade" }, { L["Hide completed"], "hide" } }, get = function() return getDB("questCompletedObjectiveDisplay", "off") end, set = function(v) setDB("questCompletedObjectiveDisplay", v) end },
             { type = "toggle", name = L["Use tick for completed objectives"], desc = L["When on, completed objectives show a checkmark (✓) instead of green color."], dbKey = "useTickForCompletedObjectives", get = function() return getDB("useTickForCompletedObjectives", false) end, set = function(v) setDB("useTickForCompletedObjectives", v) end },
+            { type = "toggle", name = L["Show quest type icons"], desc = L["Show quest type icon in the Focus tracker (quest accept/complete, world quest, quest update)."], dbKey = "showQuestTypeIcons", get = function() return getDB("showQuestTypeIcons", false) end, set = function(v) setDB("showQuestTypeIcons", v) end },
             { type = "toggle", name = L["Show '**' in-zone suffix"], desc = L["Append ** to world quests and weeklies/dailies that are not yet in your quest log (in-zone only)."], dbKey = "showInZoneSuffix", get = function() return getDB("showInZoneSuffix", true) end, set = function(v) setDB("showInZoneSuffix", v) end },
             { type = "section", name = L["Spacing"] },
             { type = "toggle", name = L["Compact mode"], desc = L["Preset: sets entry and objective spacing to 4 and 1 px."], dbKey = "compactMode", get = function() return getDB("compactMode", false) end, set = function(v) setDB("compactMode", v); if v then setDB("titleSpacing", 4); setDB("objSpacing", 1) end end },
@@ -409,14 +431,61 @@ local OptionCategories = {
         },
     },
     {
-        key = "Presence",
-        name = L["Presence"],
+        key = "PresenceDisplay",
+        name = L["Display"],
         moduleKey = "presence",
         options = {
             { type = "section", name = L["Display"] },
-            { type = "toggle", name = L["Show quest type icons"], desc = L["Show quest type icon on Presence toasts and in the Focus tracker (quest accept/complete, world quest, quest update)."], dbKey = "showQuestTypeIcons", get = function() return getDB("showQuestTypeIcons", false) end, set = function(v) setDB("showQuestTypeIcons", v) end },
-            { type = "slider", name = L["Presence icon size"], desc = L["Quest icon size on toasts (16–36 px). Default 24."], dbKey = "presenceIconSize", min = 16, max = 36, get = function() return math.max(16, math.min(36, getDB("presenceIconSize", 24) or 24)) end, set = function(v) setDB("presenceIconSize", math.max(16, math.min(36, v))) end },
+            { type = "toggle", name = L["Show quest type icons on toasts"], desc = L["Show quest type icon on Presence toasts (quest accept/complete, world quest, quest update)."], dbKey = "showPresenceQuestTypeIcons", get = function() local v = getDB("showPresenceQuestTypeIcons", nil); if v == nil then return getDB("showQuestTypeIcons", false) end; return v end, set = function(v) setDB("showPresenceQuestTypeIcons", v) end },
+            { type = "slider", name = L["Toast icon size"], desc = L["Quest icon size on Presence toasts (16–36 px). Default 24."], dbKey = "presenceIconSize", min = 16, max = 36, get = function() return math.max(16, math.min(36, getDB("presenceIconSize", 24) or 24)) end, set = function(v) setDB("presenceIconSize", math.max(16, math.min(36, v))) end },
             { type = "toggle", name = L["Show discovery line"], desc = L["Show 'Discovered' under zone/subzone when entering a new area."], dbKey = "showPresenceDiscovery", get = function() return getDB("showPresenceDiscovery", true) end, set = function(v) setDB("showPresenceDiscovery", v) end },
+            { type = "slider", name = L["Frame vertical position"], desc = L["Vertical offset of the Presence frame from center (-300 to 0)."], dbKey = "presenceFrameY", min = -300, max = 0, get = function() return math.max(-300, math.min(0, tonumber(getDB("presenceFrameY", -180)) or -180)) end, set = function(v) setDB("presenceFrameY", math.max(-300, math.min(0, v))) end },
+            { type = "slider", name = L["Frame scale"], desc = L["Scale of the Presence frame (0.5–1.5)."], dbKey = "presenceFrameScale", min = 0.5, max = 1.5, get = function() return math.max(0.5, math.min(1.5, tonumber(getDB("presenceFrameScale", 1)) or 1)) end, set = function(v) setDB("presenceFrameScale", math.max(0.5, math.min(1.5, v))) end },
+        },
+    },
+    {
+        key = "PresenceColors",
+        name = L["Colors"],
+        moduleKey = "presence",
+        options = {
+            { type = "section", name = L["Colors"] },
+            { type = "color", name = L["Boss emote color"], desc = L["Color of raid and dungeon boss emote text."], dbKey = "presenceBossEmoteColor", default = addon.PRESENCE_BOSS_EMOTE_COLOR },
+            { type = "color", name = L["Discovery line color"], desc = L["Color of the 'Discovered' line under zone text."], dbKey = "presenceDiscoveryColor", default = addon.PRESENCE_DISCOVERY_COLOR },
+        },
+    },
+    {
+        key = "PresenceNotifications",
+        name = L["Notification types"],
+        moduleKey = "presence",
+        options = {
+            { type = "section", name = L["Notification types"] },
+            { type = "toggle", name = L["Show zone changes"], desc = L["Show zone and subzone change notifications."], dbKey = "presenceZoneChange", get = function() return getDB("presenceZoneChange", true) end, set = function(v) setDB("presenceZoneChange", v) end },
+            { type = "toggle", name = L["Show level up"], desc = L["Show level-up notification."], dbKey = "presenceLevelUp", get = function() return getDB("presenceLevelUp", true) end, set = function(v) setDB("presenceLevelUp", v) end },
+            { type = "toggle", name = L["Show boss emotes"], desc = L["Show raid and dungeon boss emote notifications."], dbKey = "presenceBossEmote", get = function() return getDB("presenceBossEmote", true) end, set = function(v) setDB("presenceBossEmote", v) end },
+            { type = "toggle", name = L["Show achievements"], desc = L["Show achievement earned notifications."], dbKey = "presenceAchievement", get = function() return getDB("presenceAchievement", true) end, set = function(v) setDB("presenceAchievement", v) end },
+            { type = "toggle", name = L["Show quest events"], desc = L["Show quest accept, complete, and progress notifications."], dbKey = "presenceQuestEvents", get = function() return getDB("presenceQuestEvents", true) end, set = function(v) setDB("presenceQuestEvents", v) end },
+        },
+    },
+    {
+        key = "PresenceAnimation",
+        name = L["Animation"],
+        moduleKey = "presence",
+        options = {
+            { type = "section", name = L["Animation"] },
+            { type = "toggle", name = L["Enable animations"], desc = L["Enable entrance and exit animations for Presence notifications."], dbKey = "presenceAnimations", get = function() return getDB("presenceAnimations", true) end, set = function(v) setDB("presenceAnimations", v) end },
+            { type = "slider", name = L["Entrance duration"], desc = L["Duration of the entrance animation in seconds (0.2–1.5)."], dbKey = "presenceEntranceDur", min = 0.2, max = 1.5, get = function() return math.max(0.2, math.min(1.5, tonumber(getDB("presenceEntranceDur", 0.7)) or 0.7)) end, set = function(v) setDB("presenceEntranceDur", math.max(0.2, math.min(1.5, v))) end },
+            { type = "slider", name = L["Exit duration"], desc = L["Duration of the exit animation in seconds (0.2–1.5)."], dbKey = "presenceExitDur", min = 0.2, max = 1.5, get = function() return math.max(0.2, math.min(1.5, tonumber(getDB("presenceExitDur", 0.8)) or 0.8)) end, set = function(v) setDB("presenceExitDur", math.max(0.2, math.min(1.5, v))) end },
+            { type = "slider", name = L["Hold duration scale"], desc = L["Multiplier for how long each notification stays on screen (0.5–2)."], dbKey = "presenceHoldScale", min = 0.5, max = 2, get = function() return math.max(0.5, math.min(2, tonumber(getDB("presenceHoldScale", 1)) or 1)) end, set = function(v) setDB("presenceHoldScale", math.max(0.5, math.min(2, v))) end },
+        },
+    },
+    {
+        key = "PresenceTypography",
+        name = L["Typography"],
+        moduleKey = "presence",
+        options = {
+            { type = "section", name = L["Typography"] },
+            { type = "slider", name = L["Main title size"], desc = L["Font size for the main title (24–72 px)."], dbKey = "presenceMainSize", min = 24, max = 72, get = function() return math.max(24, math.min(72, tonumber(getDB("presenceMainSize", 48)) or 48)) end, set = function(v) setDB("presenceMainSize", math.max(24, math.min(72, v))) end },
+            { type = "slider", name = L["Subtitle size"], desc = L["Font size for the subtitle (12–40 px)."], dbKey = "presenceSubSize", min = 12, max = 40, get = function() return math.max(12, math.min(40, tonumber(getDB("presenceSubSize", 24)) or 24)) end, set = function(v) setDB("presenceSubSize", math.max(12, math.min(40, v))) end },
         },
     },
 }

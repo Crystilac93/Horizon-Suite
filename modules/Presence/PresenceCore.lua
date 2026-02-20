@@ -27,13 +27,13 @@ local MAIN_SIZE    = 48
 local SUB_SIZE     = 24
 local FRAME_WIDTH  = 800
 local FRAME_HEIGHT = 250
-local FRAME_Y      = -180
+local FRAME_Y_DEF  = -180
 local DIVIDER_W    = 400
 local DIVIDER_H    = 2
 local MAX_QUEUE    = 5
 
-local ENTRANCE_DUR  = 0.7
-local EXIT_DUR      = 0.8
+local ENTRANCE_DUR_DEF  = 0.7
+local EXIT_DUR_DEF      = 0.8
 local CROSSFADE_DUR = 0.4
 local ELEMENT_DUR   = 0.4
 local SUBTITLE_TRANSITION_DUR = 0.12
@@ -62,19 +62,56 @@ local TYPES = {
     SCENARIO_UPDATE     = { pri = 1, category = "SCENARIO", subCategory = "DEFAULT", sz = 36, dur = 2.5 },  -- category overridden by opts.category (DELVES|DUNGEON|SCENARIO); sz=36 matches SCENARIO_START
 }
 
+local function getFrameY()
+    local v = addon.GetDB and tonumber(addon.GetDB("presenceFrameY", FRAME_Y_DEF)) or FRAME_Y_DEF
+    return math.max(-300, math.min(0, v))
+end
+
+local function getFrameScale()
+    local v = addon.GetDB and tonumber(addon.GetDB("presenceFrameScale", 1)) or 1
+    return math.max(0.5, math.min(1.5, v))
+end
+
+local function getEntranceDur()
+    if addon.GetDB and not addon.GetDB("presenceAnimations", true) then return 0 end
+    local v = addon.GetDB and tonumber(addon.GetDB("presenceEntranceDur", ENTRANCE_DUR_DEF)) or ENTRANCE_DUR_DEF
+    return math.max(0.2, math.min(1.5, v))
+end
+
+local function getExitDur()
+    if addon.GetDB and not addon.GetDB("presenceAnimations", true) then return 0 end
+    local v = addon.GetDB and tonumber(addon.GetDB("presenceExitDur", EXIT_DUR_DEF)) or EXIT_DUR_DEF
+    return math.max(0.2, math.min(1.5, v))
+end
+
+local function getHoldScale()
+    local v = addon.GetDB and tonumber(addon.GetDB("presenceHoldScale", 1)) or 1
+    return math.max(0.5, math.min(2, v))
+end
+
+local function getMainSize()
+    local v = addon.GetDB and tonumber(addon.GetDB("presenceMainSize", MAIN_SIZE)) or MAIN_SIZE
+    return math.max(24, math.min(72, v))
+end
+
+local function getSubSize()
+    local v = addon.GetDB and tonumber(addon.GetDB("presenceSubSize", SUB_SIZE)) or SUB_SIZE
+    return math.max(12, math.min(40, v))
+end
+
 local function getCategoryColor(cat, default)
     local c = (addon.GetQuestColor and addon.GetQuestColor(cat)) or (addon.QUEST_COLORS and addon.QUEST_COLORS[cat]) or (addon.QUEST_COLORS and addon.QUEST_COLORS.DEFAULT) or default
     return c
 end
 
 local function getDiscoveryColor()
-    return addon.PRESENCE_DISCOVERY_COLOR or getCategoryColor("COMPLETE", { 0.4, 1, 0.5 })
+    return (addon.GetPresenceDiscoveryColor and addon.GetPresenceDiscoveryColor()) or addon.PRESENCE_DISCOVERY_COLOR or getCategoryColor("COMPLETE", { 0.4, 1, 0.5 })
 end
 
 local function resolveColors(typeName, cfg, opts)
     opts = opts or {}
     if cfg.specialColor and typeName == "BOSS_EMOTE" then
-        local c = addon.PRESENCE_BOSS_EMOTE_COLOR or { 1, 0.2, 0.2 }
+        local c = (addon.GetPresenceBossEmoteColor and addon.GetPresenceBossEmoteColor()) or addon.PRESENCE_BOSS_EMOTE_COLOR or { 1, 0.2, 0.2 }
         local sc = getCategoryColor("DEFAULT", { 1, 1, 1 })
         return c, sc
     end
@@ -372,7 +409,8 @@ end
 local function updateExit()
     local L   = curLayer
     -- Linear fade for smoother exit; easeIn (t^2) was abrupt in the final 20%
-    local e   = math.min(anim.elapsed / EXIT_DUR, 1)
+    local exitDur = getExitDur()
+    local e   = (exitDur > 0) and math.min(anim.elapsed / exitDur, 1) or 1
     local inv = 1 - e
 
     L.titleText:SetAlpha(inv)
@@ -454,15 +492,21 @@ local function PresenceOnUpdate(_, dt)
     end
 
     if anim.phase == "entrance" then
-        updateEntrance()
-        if anim.elapsed >= ENTRANCE_DUR then
+        local entDur = getEntranceDur()
+        if entDur > 0 then
+            updateEntrance()
+        else
+            finalizeEntrance()
+        end
+        if anim.elapsed >= entDur then
             finalizeEntrance()
             anim.phase   = "hold"
             anim.elapsed = 0
         end
     elseif anim.phase == "crossfade" then
         updateCrossfade()
-        if anim.elapsed >= ENTRANCE_DUR then
+        local entDur = getEntranceDur()
+        if anim.elapsed >= entDur then
             finalizeEntrance()
             resetLayer(oldLayer)
             anim.phase   = "hold"
@@ -475,7 +519,8 @@ local function PresenceOnUpdate(_, dt)
         end
     elseif anim.phase == "exit" then
         updateExit()
-        if anim.elapsed >= EXIT_DUR then
+        local exitDur = getExitDur()
+        if anim.elapsed >= exitDur then
             onComplete()
         end
     end
@@ -522,7 +567,8 @@ local function Init()
 
     F = CreateFrame("Frame", "HorizonSuitePresenceFrame", UIParent)
     F:SetSize(FRAME_WIDTH, FRAME_HEIGHT)
-    F:SetPoint("TOP", 0, FRAME_Y)
+    F:SetPoint("TOP", 0, getFrameY())
+    F:SetScale(getFrameScale())
     F:Hide()
 
     layerA   = CreateLayer(F)
@@ -558,8 +604,8 @@ PlayCinematic = function(typeName, title, subtitle, opts)
     end
     local L = curLayer
     local c, sc = resolveColors(typeName, cfg, opts)
-    local mainSz = cfg.sz
-    local subSz  = (cfg.sz >= SUB_SIZE) and SUB_SIZE or cfg.sz
+    local mainSz = math.max(12, math.min(72, math.floor(cfg.sz * (getMainSize() / MAIN_SIZE))))
+    local subSz  = math.max(12, math.min(40, math.floor(((cfg.sz >= SUB_SIZE) and SUB_SIZE or cfg.sz) * (getSubSize() / SUB_SIZE))))
 
     L.titleText:SetFont(FONT_PATH, mainSz, "OUTLINE")
     L.titleShadow:SetFont(FONT_PATH, mainSz, "OUTLINE")
@@ -583,7 +629,9 @@ PlayCinematic = function(typeName, title, subtitle, opts)
         local showIcon = false
         local atlas
         local questRelated = (typeName == "QUEST_ACCEPT" or typeName == "QUEST_COMPLETE" or typeName == "QUEST_UPDATE" or typeName == "WORLD_QUEST" or typeName == "WORLD_QUEST_ACCEPT")
-        if questRelated and opts.questID and addon.GetQuestTypeAtlas and addon.GetDB and addon.GetDB("showQuestTypeIcons", false) then
+        local presenceVal = addon.GetDB and addon.GetDB("showPresenceQuestTypeIcons", nil)
+        local showIcons = (presenceVal ~= nil) and presenceVal or (addon.GetDB and addon.GetDB("showQuestTypeIcons", false))
+        if questRelated and opts.questID and addon.GetQuestTypeAtlas and addon.GetDB and showIcons then
             local catForAtlas = "DEFAULT"
             if typeName == "QUEST_COMPLETE" then
                 catForAtlas = "COMPLETE"  -- turn-in icon
@@ -627,7 +675,7 @@ PlayCinematic = function(typeName, title, subtitle, opts)
     activeTitle   = title
     activeTypeName = typeName
     anim.elapsed = 0
-    anim.holdDur = cfg.dur
+    anim.holdDur = cfg.dur * getHoldScale()
 
     if oldLayer.titleText:GetAlpha() > 0 then
         anim.phase = "crossfade"
@@ -779,7 +827,7 @@ local function DumpDebug()
     end
 
     if addon.GetDB then
-        p("Options: showPresenceDiscovery=" .. tostring(addon.GetDB("showPresenceDiscovery", true)) .. ", showQuestTypeIcons=" .. tostring(addon.GetDB("showQuestTypeIcons", false)) .. ", presenceIconSize=" .. tostring(addon.GetDB("presenceIconSize", 24)))
+        p("Options: showPresenceDiscovery=" .. tostring(addon.GetDB("showPresenceDiscovery", true)) .. ", showPresenceQuestTypeIcons=" .. tostring(addon.GetDB("showPresenceQuestTypeIcons", false)) .. ", presenceIconSize=" .. tostring(addon.GetDB("presenceIconSize", 24)))
     end
 
     if GetZoneText then
@@ -793,7 +841,17 @@ end
 -- Exports
 -- ============================================================================
 
+--- Re-apply frame position and scale from DB. Call when presence options change.
+--- @return nil
+local function ApplyPresenceOptions()
+    if not F then return end
+    F:ClearAllPoints()
+    F:SetPoint("TOP", 0, getFrameY())
+    F:SetScale(getFrameScale())
+end
+
 addon.Presence.Init               = Init
+addon.Presence.ApplyPresenceOptions = ApplyPresenceOptions
 addon.Presence.QueueOrPlay        = QueueOrPlay
 addon.Presence.SoftUpdateSubtitle = SoftUpdateSubtitle
 addon.Presence.ShowDiscoveryLine  = ShowDiscoveryLine

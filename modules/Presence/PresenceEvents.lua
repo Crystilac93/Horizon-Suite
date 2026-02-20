@@ -102,10 +102,12 @@ local function OnAddonLoaded(addonName)
 end
 
 local function OnPlayerLevelUp(_, level)
+    if addon.GetDB and not addon.GetDB("presenceLevelUp", true) then return end
     addon.Presence.QueueOrPlay("LEVEL_UP", "LEVEL UP", "You have reached level " .. (level or "??"))
 end
 
 local function OnRaidBossEmote(_, msg, unitName)
+    if addon.GetDB and not addon.GetDB("presenceBossEmote", true) then return end
     local bossName = unitName or "Boss"
     local formatted = msg or ""
     formatted = formatted:gsub("|T.-|t", "")
@@ -117,11 +119,13 @@ local function OnRaidBossEmote(_, msg, unitName)
 end
 
 local function OnAchievementEarned(_, achID)
+    if addon.GetDB and not addon.GetDB("presenceAchievement", true) then return end
     local _, name = GetAchievementInfo(achID)
     addon.Presence.QueueOrPlay("ACHIEVEMENT", "ACHIEVEMENT EARNED", StripPresenceMarkup(name or ""))
 end
 
 local function OnQuestAccepted(_, questID)
+    if addon.GetDB and not addon.GetDB("presenceQuestEvents", true) then return end
     local opts = (questID and { questID = questID }) or {}
     if C_QuestLog and C_QuestLog.GetTitleForQuestID then
         local questName = StripPresenceMarkup(C_QuestLog.GetTitleForQuestID(questID) or "New Quest")
@@ -136,6 +140,7 @@ local function OnQuestAccepted(_, questID)
 end
 
 local function OnQuestTurnedIn(_, questID)
+    if addon.GetDB and not addon.GetDB("presenceQuestEvents", true) then return end
     local opts = (questID and { questID = questID }) or {}
     local questName = "Objective"
     if C_QuestLog then
@@ -218,6 +223,7 @@ local function ExecuteQuestUpdate(questID, isBlindUpdate, source)
     if not msg or msg == "" then msg = "Objective updated" end
 
     -- 6. Normalize to "X/Y Objective" and trigger notification
+    if addon.GetDB and not addon.GetDB("presenceQuestEvents", true) then return end
     local stripped = StripPresenceMarkup(msg)
     local normalized = NormalizeQuestUpdateText(stripped)
     addon.Presence.QueueOrPlay("QUEST_UPDATE", "QUEST UPDATE", normalized, { questID = questID, source = source })
@@ -303,6 +309,7 @@ local function OnUIInfoMessage(_, msgType, msg)
                 if t then hasPendingUpdate = true break end
             end
             if hasPendingUpdate then return end
+            if addon.GetDB and not addon.GetDB("presenceQuestEvents", true) then return end
 
             local now = GetTime()
             if lastUIInfoMsg == msg and (now - lastUIInfoTime) < UI_MSG_THROTTLE then return end
@@ -585,6 +592,7 @@ local function OnZoneChangedNewArea()
                 addon.Presence.pendingDiscovery = nil
             end
         else
+            if addon.GetDB and not addon.GetDB("presenceZoneChange", true) then return end
             local opts = {}
             local displaySub = sub
             if addon.IsDelveActive and addon.IsDelveActive() then
@@ -625,6 +633,7 @@ local function OnZoneChanged()
                 -- In Delves, ZONE_CHANGE already showed delve+tier; suppress SUBZONE_CHANGE
                 -- to avoid duplicate or inverted toast (parent/delve swap from GetZoneText/GetSubZoneText).
                 if addon.IsDelveActive and addon.IsDelveActive() then return end
+                if addon.GetDB and not addon.GetDB("presenceZoneChange", true) then return end
 
                 local opts = {}
                 local displaySub = sub

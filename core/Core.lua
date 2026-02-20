@@ -62,6 +62,26 @@ function addon.GetHeaderHeight()
     return math.max(18, math.min(48, v))
 end
 
+--- Returns boss emote colour from DB or default (Presence module).
+--- @return table {r,g,b}
+function addon.GetPresenceBossEmoteColor()
+    local c = addon.GetDB("presenceBossEmoteColor", nil)
+    if c and type(c) == "table" and c[1] and c[2] and c[3] then
+        return c
+    end
+    return addon.PRESENCE_BOSS_EMOTE_COLOR or { 1, 0.2, 0.2 }
+end
+
+--- Returns discovery line colour from DB or default (Presence module).
+--- @return table {r,g,b}
+function addon.GetPresenceDiscoveryColor()
+    local c = addon.GetDB("presenceDiscoveryColor", nil)
+    if c and type(c) == "table" and c[1] and c[2] and c[3] then
+        return c
+    end
+    return addon.PRESENCE_DISCOVERY_COLOR or { 0.4, 1, 0.5 }
+end
+
 function addon.GetContentLeftOffset()
     -- Left gutter contains (optional) quest-type icon and (optional) quest item button.
     -- When quest-type icons are off, don't reserve ICON_COLUMN_WIDTH, so the list sits tighter.
