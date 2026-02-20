@@ -631,7 +631,8 @@ local function PopulateEntry(entry, questData, groupKey)
         end
     end
     if affixStr ~= "" and entry.affixText then
-        local fontPath = addon.GetDB("fontPath", (addon.GetDefaultFontPath and addon.GetDefaultFontPath()) or "Fonts\\FRIZQT__.TTF")
+        local rawFont = addon.GetDB("fontPath", (addon.GetDefaultFontPath and addon.GetDefaultFontPath()) or "Fonts\\FRIZQT__.TTF")
+        local fontPath = (addon.ResolveFontPath and addon.ResolveFontPath(rawFont)) or rawFont
         local fontOutline = addon.GetDB("fontOutline", "OUTLINE")
         local affixSize = math.max(10, math.min(16, tonumber(addon.GetDB("mplusAffixSize", 12)) or 12))
         entry.affixText:SetWidth(textWidth)

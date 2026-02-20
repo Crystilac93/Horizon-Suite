@@ -267,7 +267,8 @@ local function PositionMplusBlock(pos)
 end
 
 local function ApplyMplusTypography()
-    local fontPath = addon.GetDB("fontPath", (addon.GetDefaultFontPath and addon.GetDefaultFontPath()) or "Fonts\\FRIZQT__.TTF")
+    local rawFont = addon.GetDB("fontPath", (addon.GetDefaultFontPath and addon.GetDefaultFontPath()) or "Fonts\\FRIZQT__.TTF")
+    local fontPath = (addon.ResolveFontPath and addon.ResolveFontPath(rawFont)) or rawFont
     local fontOutline = addon.GetDB("fontOutline", "OUTLINE")
 
     local dungeonSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusDungeonSize", 14)) or 14))

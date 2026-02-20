@@ -295,6 +295,7 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
     SetTextColor(label, Def.TextColorLabel)
     label:SetText(labelText or "")
     label:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+
     local desc = row:CreateFontString(nil, "OVERLAY")
     desc:SetFont(Def.FontPath, Def.SectionSize, "OUTLINE")
     desc:SetJustifyH("LEFT")
@@ -308,16 +309,19 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
     btn:SetHeight(26)
     btn:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -28)
     btn:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+
     local btnBg = btn:CreateTexture(nil, "BACKGROUND")
     btnBg:SetPoint("TOPLEFT", btn, "TOPLEFT", 2, -2)
     btnBg:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -2, 2)
     btnBg:SetColorTexture(Def.InputBg[1], Def.InputBg[2], Def.InputBg[3], Def.InputBg[4])
+
     local btnText = btn:CreateFontString(nil, "OVERLAY")
     btnText:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
     SetTextColor(btnText, Def.TextColorLabel)
     btnText:SetPoint("LEFT", btn, "LEFT", 8, 0)
     btnText:SetPoint("RIGHT", btn, "RIGHT", -24, 0)
     btnText:SetJustifyH("LEFT")
+
     local chevron = btn:CreateFontString(nil, "OVERLAY")
     chevron:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
     SetTextColor(chevron, Def.TextColorSection)
@@ -328,28 +332,22 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
     list:SetFrameStrata("TOOLTIP")
     list:Hide()
     list:SetSize(200, 1)
+
     local listBg = list:CreateTexture(nil, "BACKGROUND")
     listBg:SetAllPoints(list)
     listBg:SetColorTexture(Def.SectionCardBg[1], Def.SectionCardBg[2], Def.SectionCardBg[3], Def.SectionCardBg[4])
     addon.CreateBorder(list, Def.SectionCardBorder)
 
-    -- ScrollFrame for dropdown content
     local scrollFrame = CreateFrame("ScrollFrame", nil, list)
     scrollFrame:SetAllPoints(list)
-    
+
     local scrollChild = CreateFrame("Frame", nil, scrollFrame)
     scrollFrame:SetScrollChild(scrollChild)
     scrollChild:SetWidth(1)
     scrollChild:SetHeight(1)
 
-    -- Enable mousewheel scrolling
-    list:EnableMouseWheel(true)
-    list:SetScript("OnMouseWheel", function(self, delta)
-        local current = scrollFrame:GetVerticalScroll()
-        local maxScroll = math.max(0, scrollChild:GetHeight() - scrollFrame:GetHeight())
-        local newScroll = math.max(0, math.min(current - (delta * 22), maxScroll))
-        scrollFrame:SetVerticalScroll(newScroll)
-    end)
+    -- Keep our own list of option buttons; GetNumChildren()/GetChildren() is unreliable.
+    local optionButtons = {}
 
     local catch = CreateFrame("Button", nil, UIParent)
     catch:SetFrameStrata("TOOLTIP")
@@ -368,72 +366,130 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
         closeList()
     end
 
-    btn:SetScript("OnClick", function()
-        if list:IsShown() then
-             closeList()
-             return
+    local function normalizeOptions(opts)
+        if type(opts) ~= "table" then return {} end
+        -- Rebuild into a dense array.
+        local out = {}
+        for k, v in pairs(opts) do
+            if type(k) == "number" and type(v) == "table" then
+                -- Expected shape: { name, value }
+                out[#out + 1] = v
+            elseif type(k) == "string" then
+                -- Map shape: name -> value
+                out[#out + 1] = { k, v }
+            end
         end
+        table.sort(out, function(a, b)
+            return tostring(a and a[1] or "") < tostring(b and b[1] or "")
+        end)
+        return out
+    end
+
+    local function populate()
         list:SetParent(UIParent)
         list:ClearAllPoints()
         list:SetPoint("TOPLEFT", btn, "BOTTOMLEFT", 0, -2)
-        local opts = (type(options) == "function" and options()) or options or {}
+
+        local opts = normalizeOptions((type(options) == "function" and options()) or options or {})
         local num = #opts
+
         local rowH = 22
-        local maxHeight = 220
+        local maxHeight = 330
         local totalHeight = num * rowH
-        list:SetHeight(math.min(totalHeight, maxHeight))
+
         list:SetWidth(btn:GetWidth())
+        list:SetHeight(math.min(totalHeight, maxHeight))
         scrollChild:SetWidth(btn:GetWidth())
-        scrollChild:SetHeight(totalHeight)
+        scrollChild:SetHeight(math.max(totalHeight, 1))
         scrollFrame:SetVerticalScroll(0)
-        
-        while scrollChild:GetNumChildren() < num do
-            local b = CreateFrame("Button", nil, scrollChild)
-            b:SetHeight(rowH)
-            b:SetPoint("LEFT", scrollChild, "LEFT", 0, 0)
-            b:SetPoint("RIGHT", scrollChild, "RIGHT", 0, 0)
-            local tb = b:CreateFontString(nil, "OVERLAY")
-            tb:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
-            tb:SetPoint("LEFT", b, "LEFT", 8, 0)
-            tb:SetJustifyH("LEFT")
-            b.text = tb
-            local hi = b:CreateTexture(nil, "BACKGROUND")
-            hi:SetAllPoints(b)
-            hi:SetColorTexture(1, 1, 1, 0.06)
-            hi:Hide()
-            b:SetScript("OnEnter", function() hi:Show() end)
-            b:SetScript("OnLeave", function() hi:Hide() end)
-        end
-        local children = { scrollChild:GetChildren() }
-        for i, opt in ipairs(opts) do
-            local name = opt[1]
-            local value = opt[2]
-            local b = children[i]
-            if b then
-                b:SetPoint("TOP", scrollChild, "TOP", 0, -(i - 1) * rowH)
-                b.text:SetText(name)
-                b:SetScript("OnClick", function()
-                    setValue(value, name)
-                end)
-                b:Show()
+
+         for i = 1, num do
+             local b = optionButtons[i]
+             if not b then
+                 b = CreateFrame("Button", nil, scrollChild)
+                 b:SetHeight(rowH)
+
+                local tb = b:CreateFontString(nil, "OVERLAY")
+                tb:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+                tb:SetPoint("LEFT", b, "LEFT", 8, 0)
+                tb:SetJustifyH("LEFT")
+                b.text = tb
+
+                local hi = b:CreateTexture(nil, "BACKGROUND")
+                hi:SetAllPoints(b)
+                hi:SetColorTexture(1, 1, 1, 0.06)
+                hi:Hide()
+                b:SetScript("OnEnter", function() hi:Show() end)
+                b:SetScript("OnLeave", function() hi:Hide() end)
+
+                optionButtons[i] = b
             end
         end
-        for i = #opts + 1, #children do
-            if children[i] then children[i]:Hide() end
+
+        for i = 1, num do
+            local opt = opts[i]
+            local name = opt and opt[1]
+            local value = opt and opt[2]
+            local b = optionButtons[i]
+
+            b:ClearAllPoints()
+            b:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -(i - 1) * rowH)
+            b:SetPoint("TOPRIGHT", scrollChild, "TOPRIGHT", 0, -(i - 1) * rowH)
+
+            b.text:SetText(name)
+            b:SetScript("OnClick", function()
+                setValue(value, name)
+            end)
+            b:Show()
         end
+
+        for i = num + 1, #optionButtons do
+            optionButtons[i]:Hide()
+        end
+
         list:Show()
         catch:Show()
+    end
+
+    btn:SetScript("OnClick", function()
+        if list:IsShown() then
+            closeList()
+            return
+        end
+        populate()
+    end)
+
+    list:EnableMouseWheel(true)
+    list:SetScript("OnMouseWheel", function(_, delta)
+        local current = scrollFrame:GetVerticalScroll()
+        local maxScroll = math.max(0, scrollChild:GetHeight() - scrollFrame:GetHeight())
+        local newScroll = math.max(0, math.min(current - (delta * 22), maxScroll))
+        scrollFrame:SetVerticalScroll(newScroll)
     end)
 
     function row:Refresh()
         local val = get()
-        local opts = (type(options) == "function" and options()) or options or {}
+        local opts = normalizeOptions((type(options) == "function" and options()) or options or {})
+
+        local valResolved = (addon.ResolveFontPath and addon.ResolveFontPath(val)) or val
+
         for _, opt in ipairs(opts) do
-            if opt[2] == val then
+            local optVal = opt[2]
+            if optVal == val then
                 btnText:SetText(opt[1])
                 return
             end
+            local optResolved = (addon.ResolveFontPath and addon.ResolveFontPath(optVal)) or optVal
+            if optResolved == valResolved then
+                if displayFn then
+                    btnText:SetText(displayFn(optVal))
+                else
+                    btnText:SetText(opt[1])
+                end
+                return
+            end
         end
+
         if displayFn then
             btnText:SetText(displayFn(val))
         else

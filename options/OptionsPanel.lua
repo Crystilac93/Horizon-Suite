@@ -301,15 +301,14 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             if optionFrames then optionFrames[oid] = { tabIndex = tabIndex, frame = w } end
             table.insert(refreshers, w)
         elseif opt.type == "dropdown" and currentCard then
-            local opts = (type(opt.options) == "function" and opt.options()) or opt.options or {}
-            local w = OptionsWidgets_CreateCustomDropdown(currentCard, opt.name, opt.desc or opt.tooltip, opts, opt.get, opt.set, opt.displayFn)
-            w:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -OptionGap)
-            w:SetPoint("RIGHT", currentCard, "RIGHT", -CardPadding, 0)
-            currentCard.contentAnchor = w
-            currentCard.contentHeight = currentCard.contentHeight + OptionGap + RowHeights.dropdown
-            local oid = opt.dbKey or (addon.OptionCategories[tabIndex].key .. "_" .. (opt.name or ""):gsub("%s+", "_"))
-            if optionFrames then optionFrames[oid] = { tabIndex = tabIndex, frame = w } end
-            table.insert(refreshers, w)
+             local w = OptionsWidgets_CreateCustomDropdown(currentCard, opt.name, opt.desc or opt.tooltip, opt.options or {}, opt.get, opt.set, opt.displayFn)
+             w:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -OptionGap)
+             w:SetPoint("RIGHT", currentCard, "RIGHT", -CardPadding, 0)
+             currentCard.contentAnchor = w
+             currentCard.contentHeight = currentCard.contentHeight + OptionGap + RowHeights.dropdown
+             local oid = opt.dbKey or (addon.OptionCategories[tabIndex].key .. "_" .. (opt.name or ""):gsub("%s+", "_"))
+             if optionFrames then optionFrames[oid] = { tabIndex = tabIndex, frame = w } end
+             table.insert(refreshers, w)
         elseif opt.type == "color" and currentCard then
             local def = (opt.default and type(opt.default) == "table" and #opt.default >= 3) and opt.default or addon.HEADER_COLOR
             local getTbl, setKeyVal
@@ -1636,7 +1635,8 @@ searchDropdownCatch:SetScript("OnClick", function() HideSearchDropdown() end)
 -- Update panel fonts (called when font option changes or on show)
 function updateOptionsPanelFonts()
     if not panel:IsShown() then return end
-    local path = addon.OptionsData_GetDB("fontPath", (addon.GetDefaultFontPath and addon.GetDefaultFontPath()) or "Fonts\\FRIZQT__.TTF")
+    local raw = addon.OptionsData_GetDB("fontPath", (addon.GetDefaultFontPath and addon.GetDefaultFontPath()) or "Fonts\\FRIZQT__.TTF")
+    local path = (addon.ResolveFontPath and addon.ResolveFontPath(raw)) or raw
     local size = addon.OptionsData_GetDB("headerFontSize", 16)
     if OptionsWidgets_SetDef then OptionsWidgets_SetDef({ FontPath = path, HeaderSize = size }) end
     titleText:SetFont(path, size, "OUTLINE")

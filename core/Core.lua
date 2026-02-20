@@ -7,9 +7,10 @@
 if not _G.HorizonSuite then _G.HorizonSuite = {} end
 local addon = _G.HorizonSuite
 
--- ============================================================================
+-- ==========================================================================
 -- DB AND DIMENSION HELPERS (depend on Config constants)
--- ============================================================================
+-- ==========================================================================
+
 
 function addon.GetTitleSpacing()
     if addon.GetDB("compactMode", false) then
@@ -668,3 +669,32 @@ addon.HandleScroll        = HandleScroll
 addon.SavePanelPosition   = SavePanelPosition
 addon.RestoreSavedPosition = RestoreSavedPosition
 addon.ApplyGrowUpAnchor   = ApplyGrowUpAnchor
+
+-- Refresh LibSharedMedia fonts when media packs register late.
+do
+    local f = CreateFrame("Frame")
+    f:RegisterEvent("PLAYER_LOGIN")
+    f:SetScript("OnEvent", function()
+        if addon.RefreshFontList then addon.RefreshFontList() end
+
+        local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
+        if LSM and LSM.RegisterCallback and not addon.__hsLSMFontCallbacksRegistered then
+            addon.__hsLSMFontCallbacksRegistered = true
+            -- CallbackHandler signature: RegisterCallback(eventName, method[, arg])
+            -- LSM fires: "LibSharedMedia_Registered" (self, mediatype, key)
+            if not addon.__OnLSMFontRegistered then
+                function addon.__OnLSMFontRegistered(_, mediaType)
+                    if mediaType == "font" and addon.RefreshFontList then
+                        addon.RefreshFontList()
+                    end
+                end
+            end
+            -- CallbackHandler rule: don't do Library:RegisterCallback(); register from your own 'self'.
+            -- This registers addon as the callback owner and listens to the LSM event.
+            LSM.RegisterCallback(addon, "LibSharedMedia_Registered", "__OnLSMFontRegistered")
+        end
+
+        f:UnregisterEvent("PLAYER_LOGIN")
+    end)
+end
+

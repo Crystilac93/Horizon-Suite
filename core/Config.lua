@@ -222,23 +222,60 @@ addon.CATEGORY_TO_GROUP = {
 
 -- Font list for options: "Game Font" first, then LibSharedMedia fonts if available
 local fontListNames, fontListPaths = {}, {}
+
+-- Saved value can be a file path (legacy/Game Font/Custom) or an LSM font key.
+-- Returns a usable font file path.
+function addon.ResolveFontPath(value)
+    if type(value) ~= "string" or value == "" then
+        return addon.GetDefaultFontPath()
+    end
+    -- Heuristic: real paths contain slashes/backslashes.
+    if value:find("\\") or value:find("/") then
+        return value
+    end
+    local LSM = (LibStub and LibStub("LibSharedMedia-3.0", true)) or nil
+    if LSM and LSM.Fetch then
+        local ok, path = pcall(LSM.Fetch, LSM, "font", value, true)
+        if ok and type(path) == "string" and path ~= "" then
+            return path
+        end
+    end
+    return addon.GetDefaultFontPath()
+end
+
 function addon.RefreshFontList()
-    table.wipe(fontListNames)
-    table.wipe(fontListPaths)
+    wipe(fontListNames)
+    wipe(fontListPaths)
     local gamePath = addon.GetDefaultFontPath()
     fontListNames[1] = "Game Font"
+    -- value for index 1 stays a concrete path for backwards compat
     fontListPaths[1] = gamePath
-    local LSM = (LibStub and LibStub:GetLibrary("LibSharedMedia-3.0", true)) or nil
-    if LSM and LSM.HashTable and LSM:HashTable("font") then
-        local t = {}
-        for name, path in pairs(LSM:HashTable("font")) do
-            t[#t + 1] = { name = name, path = path }
+    local LSM = (LibStub and LibStub("LibSharedMedia-3.0", true)) or nil
+    if not (LSM and LSM.HashTable and LSM.Fetch) then
+        return
+    end
+
+    -- HashTable is the authoritative list of *registered* media. LSM:List() can be incomplete
+    -- depending on load order or internal filtering.
+    local hash = LSM:HashTable("font")
+    if type(hash) ~= "table" then
+        return
+    end
+
+    local t = {}
+    for name in pairs(hash) do
+        if type(name) == "string" and name ~= "" then
+            local ok, path = pcall(LSM.Fetch, LSM, "font", name, true)
+            if ok and type(path) == "string" and path ~= "" then
+                t[#t + 1] = name
+            end
         end
-        table.sort(t, function(a, b) return (a.name or "") < (b.name or "") end)
-        for _, f in ipairs(t) do
-            fontListNames[#fontListNames + 1] = f.name
-            fontListPaths[#fontListPaths + 1] = f.path
-        end
+    end
+    table.sort(t)
+    for _, name in ipairs(t) do
+        fontListNames[#fontListNames + 1] = name
+        -- store the LSM key as the value so the dropdown can persist it
+        fontListPaths[#fontListPaths + 1] = name
     end
 end
 
@@ -259,8 +296,32 @@ end
 
 function addon.GetFontNameForPath(path)
     if #fontListNames == 0 then addon.RefreshFontList() end
-    for i = 1, #fontListPaths do
-        if fontListPaths[i] == path then return fontListNames[i] end
+    if type(path) ~= "string" or path == "" then
+        return "Custom"
     end
-    return "Custom"
+
+    -- If it's an LSM key (we store keys in fontListPaths), return the friendly name.
+    for i = 1, #fontListPaths do
+        if fontListPaths[i] == path then
+            return fontListNames[i]
+        end
+    end
+
+    -- If it's a concrete file path, try to find a matching LSM entry by resolving keys.
+    if path:find("\\") or path:find("/") then
+        for i = 1, #fontListPaths do
+            local v = fontListPaths[i]
+            if type(v) == "string" and v ~= "" and not (v:find("\\") or v:find("/")) then
+                local resolved = addon.ResolveFontPath(v)
+                if resolved == path then
+                    return fontListNames[i]
+                end
+            end
+        end
+        return "Custom"
+    end
+
+    -- Otherwise, it's probably an unknown key; show it as-is.
+    return path
 end
+

@@ -372,7 +372,7 @@ for i = 1, addon.SECTION_POOL_SIZE do
 end
 
 local function UpdateFontObjectsFromDB()
-    local fontPath   = addon.GetDB("fontPath", addon.GetDefaultFontPath())
+    local fontPath   = addon.ResolveFontPath and addon.ResolveFontPath(addon.GetDB("fontPath", addon.GetDefaultFontPath())) or addon.GetDB("fontPath", addon.GetDefaultFontPath())
     local outline    = addon.GetDB("fontOutline", "OUTLINE")
     local headerSz   = tonumber(addon.GetDB("headerFontSize", 16)) or 16
     local titleSz    = tonumber(addon.GetDB("titleFontSize", 13)) or 13

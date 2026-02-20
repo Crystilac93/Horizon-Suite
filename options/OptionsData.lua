@@ -100,12 +100,26 @@ local defaultFontPath = (addon.GetDefaultFontPath and addon.GetDefaultFontPath()
 local function GetFontDropdownOptions()
     if addon.RefreshFontList then addon.RefreshFontList() end
     local list = (addon.GetFontList and addon.GetFontList()) or {}
+
+
     local saved = getDB("fontPath", defaultFontPath)
+    -- Back-compat: if saved value is a concrete font file path, try to map it
+    -- back to the corresponding LSM key so the dropdown can select it.
+    if addon.GetFontNameForPath then
+        local mapped = addon.GetFontNameForPath(saved)
+        if mapped and mapped ~= "" and mapped ~= "Custom" and mapped ~= saved then
+            local path = addon.ResolveFontPath and addon.ResolveFontPath(mapped) or nil
+            if path and path == saved then
+                saved = mapped
+            end
+        end
+    end
     for _, o in ipairs(list) do
         if o[2] == saved then return list end
     end
     local out = {}
     for i = 1, #list do out[i] = list[i] end
+    -- If it's not one of our known choices, keep it selectable as "Custom".
     out[#out + 1] = { L["Custom"], saved }
     return out
 end
