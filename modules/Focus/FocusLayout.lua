@@ -643,6 +643,9 @@ local function FullLayout()
         end
     end
 
+    -- Persist for other modules/tests.
+    addon.focus.layout.sectionLabelX = sectionLabelX
+
     for gi, grp in ipairs(grouped) do
         local isCollapsed = showSections and addon.IsCategoryCollapsed(grp.key)
 
@@ -671,16 +674,28 @@ local function FullLayout()
                 end
             end
         else
-             local entrySpacing = ((grp.key == "DELVES" or grp.key == "DUNGEON") and addon.DELVE_ENTRY_SPACING) or addon.GetTitleSpacing()
-             local categoryCounter = 0
-             for _, qData in ipairs(grp.quests) do
+            local entrySpacing = ((grp.key == "DELVES" or grp.key == "DUNGEON") and addon.DELVE_ENTRY_SPACING) or addon.GetTitleSpacing()
+            local categoryCounter = 0
+            for _, qData in ipairs(grp.quests) do
                 categoryCounter = categoryCounter + 1
                 qData.categoryIndex = categoryCounter
-                 local key = qData.entryKey or qData.questID
-                 local entry = activeMap[key]
-                 if entry then
+                local key = qData.entryKey or qData.questID
+                local entry = activeMap[key]
+                if entry then
                     entry.groupKey = grp.key
-                    entry.finalX = addon.GetContentLeftOffset()
+
+                    -- Use the same base X as section headers so entries stay aligned with categories.
+                    -- Keep a small indent for entries (for numbering/chevron separation) via layout.entryIndentPx.
+                    local entryBaseX = addon.PADDING
+                    local entryIndentPx = (addon.focus and addon.focus.layout and addon.focus.layout.entryIndentPx) or 0
+
+                    -- Extra cushion when quest icons are enabled:
+                    -- Do NOT shift the whole entry; that can make the icon sit left of the supertrack bar.
+                    local iconModePad = 0
+
+                    local entryX = entryBaseX + sectionLabelX + entryIndentPx + iconModePad
+
+                    entry.finalX = entryX
                     entry.finalY = yOff
                     entry.staggerDelay = entryIndex * addon.FOCUS_ANIM.stagger
                     entryIndex = entryIndex + 1
@@ -689,13 +704,40 @@ local function FullLayout()
                         SafeEntryFadeIn(entry, entryIndex - 1)
                     end
                     entry:ClearAllPoints()
-                    entry:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", addon.GetContentLeftOffset(), yOff)
+                    entry:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", entryX, yOff)
+
+                    -- Keep questTypeIcon anchored to the entry frame so it scrolls/clips correctly.
+                    if entry.questTypeIcon then
+                        entry.questTypeIcon:ClearAllPoints()
+                        local showIcons = addon.GetDB("showQuestTypeIcons", false)
+                        if showIcons then
+                            -- Place icon to the right of the supertracked highlight bar so the bar is always leftmost.
+                            local highlightStyle = addon.NormalizeHighlightStyle(addon.GetDB("activeQuestHighlight", "bar-left")) or "bar-left"
+                            local barW = math.max(2, math.min(6, tonumber(addon.GetDB("highlightBarWidth", 2)) or 2))
+                            local barLeft = addon.BAR_LEFT_OFFSET or 12
+                            local padAfterBar = 6
+
+                            if highlightStyle == "bar-left" or highlightStyle == "pill-left" then
+                                -- bar starts at -barLeft; its right edge is (-barLeft + barW)
+                                entry.questTypeIcon:SetPoint("TOPLEFT", entry, "TOPLEFT", -barLeft + barW + padAfterBar, 0)
+                            else
+                                -- Fallback to legacy off-to-the-left placement for non-left-bar styles.
+                                local iconRight = (addon.BAR_LEFT_OFFSET or 12) + 2
+                                entry.questTypeIcon:SetPoint("TOPRIGHT", entry, "TOPLEFT", -iconRight, 0)
+                            end
+                        else
+                            -- Icons off: keep the legacy off-to-the-left placement so text alignment remains unchanged.
+                            local iconRight = (addon.BAR_LEFT_OFFSET or 12) + 2
+                            entry.questTypeIcon:SetPoint("TOPRIGHT", entry, "TOPLEFT", -iconRight, 0)
+                        end
+                    end
+
                     entry:Show()
                     yOff = yOff - entry.entryHeight - entrySpacing
-                 end
-             end
-         end
-     end
+                end
+            end
+        end
+    end
 
     if slideUpStarts and next(slideUpStarts) and addon.GetDB("animations", true) then
         for i = 1, addon.POOL_SIZE do

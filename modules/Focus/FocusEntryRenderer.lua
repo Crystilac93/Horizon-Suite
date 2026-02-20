@@ -80,6 +80,9 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
     local objIndent = addon.GetObjIndent()
     -- Indentation now comes from the entry's padded title anchor; keep objective indent consistent.
 
+    -- Additional left padding for objectives only (not zone line), matching bar->icon gap when icons are enabled.
+    local OBJ_EXTRA_LEFT_PAD = 14
+
     local objTextWidth = textWidth - objIndent
     if objTextWidth < 1 then objTextWidth = addon.GetPanelWidth() - addon.PADDING * 2 - objIndent - (addon.CONTENT_RIGHT_PADDING or 0) end
 
@@ -152,8 +155,8 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
             end
 
             obj.text:ClearAllPoints()
-            -- Keep objectives aligned with the quest title's left edge.
-            obj.text:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", 0, -objSpacing)
+            -- Give objectives a small constant inset from the title.
+            obj.text:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", OBJ_EXTRA_LEFT_PAD, -objSpacing)
             obj.text:Show()
             obj.shadow:Show()
 
@@ -180,7 +183,7 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
         obj.shadow:SetText(firstLineText)
         obj.text:SetTextColor(doneColor[1], doneColor[2], doneColor[3], 1)
         obj.text:ClearAllPoints()
-        obj.text:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", 0, -objSpacing)
+        obj.text:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", OBJ_EXTRA_LEFT_PAD, -objSpacing)
         obj.text:Show()
         obj.shadow:Show()
         local objH = obj.text:GetStringHeight()
@@ -195,7 +198,7 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
             obj2.shadow:SetText(clickText)
             obj2.text:SetTextColor(doneColor[1], doneColor[2], doneColor[3], 1)
             obj2.text:ClearAllPoints()
-            obj2.text:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", 0, -objSpacing)
+            obj2.text:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", OBJ_EXTRA_LEFT_PAD, -objSpacing)
             obj2.text:Show()
             obj2.shadow:Show()
             local obj2H = obj2.text:GetStringHeight()
@@ -417,28 +420,68 @@ local function PopulateEntry(entry, questData, groupKey)
     local showQuestIcons = addon.GetDB("showQuestTypeIcons", false)
     local showAchievementIcons = addon.GetDB("showAchievementIcons", true)
     local showDecorIcons = addon.GetDB("showDecorIcons", true)
-    local hasIcon = (questData.questTypeAtlas and showQuestIcons) or (questData.isAchievement and questData.achievementIcon and showQuestIcons and showAchievementIcons) or (questData.isDecor and questData.decorIcon and showQuestIcons and showDecorIcons)
+    local hasIcon = ((questData.questTypeAtlas ~= nil) and showQuestIcons) or (questData.isAchievement and questData.achievementIcon and showQuestIcons and showAchievementIcons) or (questData.isDecor and questData.decorIcon and showQuestIcons and showDecorIcons)
     local isOffMapWorld = (questData.category == "WORLD") and questData.isTracked and not questData.isNearby
 
     local leftOffset = addon.GetContentLeftOffset and addon.GetContentLeftOffset() or (addon.PADDING + addon.ICON_COLUMN_WIDTH)
     local textWidth = addon.GetPanelWidth() - addon.PADDING - leftOffset
     local titleLeftOffset = 0
 
-    if questData.category == "DELVES" then
+    -- Extra spacing between icon column and title when icons are enabled.
+    -- Keep icons-off layout exactly as-is.
+    -- NOTE: ApplyHighlightStyle() resets title anchors, so we apply the final title X *after* highlight styling.
+    local function ApplyIconModeTitleOffset()
+        local basePad = entry.__baseTitlePadPx or 0
+        local extraTitlePad = 0
+        if showQuestIcons then
+            local highlightStyle = addon.NormalizeHighlightStyle(addon.GetDB("activeQuestHighlight", "bar-left")) or "bar-left"
+            local iconW = addon.QUEST_TYPE_ICON_SIZE or 14
+            local iconTitleGap = 6
+            if highlightStyle == "bar-left" or highlightStyle == "pill-left" then
+                local barLeft = addon.BAR_LEFT_OFFSET or 12
+                local barW = math.max(2, math.min(6, tonumber(addon.GetDB("highlightBarWidth", 2)) or 2))
+                local padAfterBar = 6
+                local iconLeft = -barLeft + barW + padAfterBar
+                extraTitlePad = math.max(0, iconLeft + iconW + iconTitleGap)
+            else
+                extraTitlePad = iconW + iconTitleGap
+            end
+        end
+
+        -- Preserve any vertical padding already applied (e.g. bar-top highlight style)
+        local _, _, _, curX, curY = entry.titleText:GetPoint(1)
+        curY = (type(curY) == "number") and curY or 0
+        entry.titleText:ClearAllPoints()
+        entry.titleText:SetPoint("TOPLEFT", entry, "TOPLEFT", basePad + extraTitlePad, curY)
+        entry.titleShadow:ClearAllPoints()
+        entry.titleShadow:SetPoint("CENTER", entry.titleText, "CENTER", addon.SHADOW_OX, addon.SHADOW_OY)
+        return extraTitlePad
+    end
+
+    -- Apply an initial offset (will be re-applied after highlight style too).
+    ApplyIconModeTitleOffset()
+
+    -- Quest type icon visibility is fully controlled by the toggle;
+    -- positioning is handled in FocusLayout.
+    if not showQuestIcons then
+        entry.questTypeIcon:Hide()
+    elseif questData.category == "DELVES" then
         entry.questTypeIcon:SetAtlas(addon.DELVE_TIER_ATLAS)
         entry.questTypeIcon:Show()
-    elseif questData.isAchievement and questData.achievementIcon and showQuestIcons and showAchievementIcons then
+    elseif questData.isAchievement and questData.achievementIcon and showAchievementIcons then
         entry.questTypeIcon:SetTexture(questData.achievementIcon)
         entry.questTypeIcon:Show()
-    elseif questData.isDecor and questData.decorIcon and showQuestIcons and showDecorIcons then
+    elseif questData.isDecor and questData.decorIcon and showDecorIcons then
         entry.questTypeIcon:SetTexture(questData.decorIcon)
         entry.questTypeIcon:Show()
-    elseif hasIcon then
+    elseif questData.questTypeAtlas then
         entry.questTypeIcon:SetAtlas(questData.questTypeAtlas)
         entry.questTypeIcon:Show()
     else
+        -- Toggle on but no icon data: hide.
         entry.questTypeIcon:Hide()
     end
+
     if entry.trackedFromOtherZoneIcon then
         entry.trackedFromOtherZoneIcon:Hide()
     end
@@ -501,6 +544,9 @@ local function PopulateEntry(entry, questData, groupKey)
     entry._savedColor = nil
 
     local highlightStyle, hc, ha, barW, topPadding, bottomPadding = ApplyHighlightStyle(entry, questData)
+
+    -- Re-apply icon-mode title offset because ApplyHighlightStyle resets the anchor.
+    ApplyIconModeTitleOffset()
 
     if showItemBtn then
         entry.itemLink = questData.itemLink
