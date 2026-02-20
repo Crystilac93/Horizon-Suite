@@ -424,7 +424,7 @@ local function ApplyDimensions(widthOverride)
     local leftOffset = addon.GetContentLeftOffset and addon.GetContentLeftOffset() or (addon.PADDING + addon.ICON_COLUMN_WIDTH)
     for i = 1, addon.POOL_SIZE do
         local e = pool[i]
-        local contentW = w - addon.PADDING - leftOffset
+        local contentW = w - addon.PADDING - leftOffset - (addon.CONTENT_RIGHT_PADDING or 0)
         local textW = contentW
         e:SetSize(contentW, 20)
         e.titleShadow:SetWidth(textW)
@@ -437,7 +437,7 @@ local function ApplyDimensions(widthOverride)
         end
     end
     for i = 1, addon.SECTION_POOL_SIZE do
-        sectionPool[i]:SetSize(w - addon.PADDING - leftOffset, addon.SECTION_SIZE + 4)
+        sectionPool[i]:SetSize(w - addon.PADDING - leftOffset - (addon.CONTENT_RIGHT_PADDING or 0), addon.SECTION_SIZE + 4)
     end
     if addon.UpdateMplusBlock then addon.UpdateMplusBlock() end
 end

@@ -424,7 +424,7 @@ local function PopulateEntry(entry, questData, groupKey)
     local isOffMapWorld = (questData.category == "WORLD") and questData.isTracked and not questData.isNearby
 
     local leftOffset = addon.GetContentLeftOffset and addon.GetContentLeftOffset() or (addon.PADDING + addon.ICON_COLUMN_WIDTH)
-    local textWidth = addon.GetPanelWidth() - addon.PADDING - leftOffset
+    local textWidth = addon.GetPanelWidth() - addon.PADDING - leftOffset - (addon.CONTENT_RIGHT_PADDING or 0)
     local titleLeftOffset = 0
 
     -- Extra spacing between icon column and title when icons are enabled.
