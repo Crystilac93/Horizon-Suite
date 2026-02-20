@@ -42,27 +42,59 @@ panel:EnableMouse(true)
 panel:RegisterForDrag("LeftButton")
 panel:Hide()
 
-panel.__hsCloseReason = nil
-panel:HookScript("OnShow", function(self)
-    self.__hsCloseReason = nil
-end)
-panel:HookScript("OnHide", function(self)
-    if self.__hsCloseReason == "ESC" and addon and addon._CloseAnyOpenDropdown then
-        addon._CloseAnyOpenDropdown()
+-- ESC handling: first ESC closes any open dropdown, second ESC closes the panel.
+-- When a dropdown opens, we remove the panel from UISpecialFrames so ESC only closes the dropdown.
+-- When the dropdown closes, we add the panel back so the next ESC closes the panel.
+addon._OpenDropdowns = addon._OpenDropdowns or {}
+addon._CloseAnyOpenDropdown = function()
+    local toClose = {}
+    for closeFunc in next, addon._OpenDropdowns do
+        toClose[#toClose + 1] = closeFunc
     end
-    self.__hsCloseReason = nil
+    addon._OpenDropdowns = {}
+    for _, f in ipairs(toClose) do f() end
+    return #toClose > 0
+end
+
+local panelName = nil
+addon._OnDropdownOpened = function(closeFunc)
+    addon._OpenDropdowns[closeFunc] = true
+    if _G.UISpecialFrames and panelName then
+        for i = #_G.UISpecialFrames, 1, -1 do
+            if _G.UISpecialFrames[i] == panelName then
+                table.remove(_G.UISpecialFrames, i)
+                break
+            end
+        end
+    end
+end
+addon._OnDropdownClosed = function(closeFunc)
+    addon._OpenDropdowns[closeFunc] = nil
+    if _G.UISpecialFrames and panelName then
+        local exists = false
+        for i = 1, #_G.UISpecialFrames do
+            if _G.UISpecialFrames[i] == panelName then exists = true break end
+        end
+        if not exists then
+            tinsert(_G.UISpecialFrames, 1, panelName)
+        end
+    end
+end
+
+panel:HookScript("OnHide", function()
+    if addon._CloseAnyOpenDropdown then addon._CloseAnyOpenDropdown() end
 end)
 
 do
     -- Ensure panel is in UISpecialFrames exactly once.
     if _G.UISpecialFrames then
-        local n = panel:GetName()
+        panelName = panel:GetName()
         local exists = false
         for i = 1, #_G.UISpecialFrames do
-            if _G.UISpecialFrames[i] == n then exists = true break end
+            if _G.UISpecialFrames[i] == panelName then exists = true break end
         end
         if not exists then
-            tinsert(_G.UISpecialFrames, 1, n)
+            tinsert(_G.UISpecialFrames, 1, panelName)
         end
     end
 end
@@ -1290,7 +1322,8 @@ for _, mk in ipairs(groupOrder) do
         btn:SetSize(SIDEBAR_WIDTH, TAB_ROW_HEIGHT)
         if not lastSidebarRow then btn:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 0, -SIDEBAR_TOP_PAD)
         else btn:SetPoint("TOPLEFT", lastSidebarRow, "BOTTOMLEFT", 0, 0) end
-        lastSidebarRow = btn        btn.categoryIndex = catIdx
+        lastSidebarRow = btn
+        btn.categoryIndex = catIdx
         btn.label = btn:CreateFontString(nil, "OVERLAY")
         btn.label:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", Def.LabelSize or 13, "OUTLINE")
         btn.label:SetPoint("LEFT", btn, "LEFT", 12, 0)

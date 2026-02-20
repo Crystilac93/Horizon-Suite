@@ -367,13 +367,17 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
     end
 
     local function closeList()
+        if addon._OnDropdownClosed then addon._OnDropdownClosed(closeList) end
         list:Hide()
         catch:Hide()
     end
     catch:SetScript("OnClick", closeList)
     catch:SetScript("OnHide", function()
         -- Keep list in sync if the catch is hidden via ESC.
-        if list:IsShown() then list:Hide() end
+        if list:IsShown() then
+            if addon._OnDropdownClosed then addon._OnDropdownClosed(closeList) end
+            list:Hide()
+        end
     end)
 
     local function setValue(value, display)
@@ -463,6 +467,7 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
             optionButtons[i]:Hide()
         end
 
+        if addon._OnDropdownOpened then addon._OnDropdownOpened(closeList) end
         list:Show()
         catch:Show()
     end
