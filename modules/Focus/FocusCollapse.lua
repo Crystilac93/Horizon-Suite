@@ -317,7 +317,9 @@ local function RefreshContentInCombat()
                 local displayTitle = questData.title or ""
                 if (addon.GetDB("showCompletedCount", false) or questData.isAchievement or questData.isEndeavor) then
                     local done, total
-                    if questData.criteriaDone and questData.criteriaTotal and type(questData.criteriaDone) == "number" and type(questData.criteriaTotal) == "number" and questData.criteriaTotal > 0 then
+                    if questData.numericQuantity ~= nil and questData.numericRequired and type(questData.numericRequired) == "number" and questData.numericRequired > 1 then
+                        done, total = questData.numericQuantity, questData.numericRequired
+                    elseif questData.criteriaDone and questData.criteriaTotal and type(questData.criteriaDone) == "number" and type(questData.criteriaTotal) == "number" and questData.criteriaTotal > 0 then
                         done, total = questData.criteriaDone, questData.criteriaTotal
                     elseif questData.objectivesDoneCount and questData.objectivesTotalCount then
                         done, total = questData.objectivesDoneCount, questData.objectivesTotalCount
@@ -392,7 +394,10 @@ local function RefreshContentInCombat()
                     if oData and oData.text then
                         local objText = oData.text or ""
                         local nf, nr = oData.numFulfilled, oData.numRequired
-                        if nf ~= nil and nr ~= nil and type(nf) == "number" and type(nr) == "number" and nr > 1 then
+                        -- Skip appending (X/Y) when the title already shows it (single-criterion numeric achievement).
+                        local titleShowsNumeric = questData.numericQuantity ~= nil and questData.numericRequired and type(questData.numericRequired) == "number" and questData.numericRequired > 1
+                        local singleObjective = #objectives == 1
+                        if nf ~= nil and nr ~= nil and type(nf) == "number" and type(nr) == "number" and nr > 1 and not (titleShowsNumeric and singleObjective) then
                             local pattern = tostring(nf) .. "/" .. tostring(nr)
                             if not objText:find(pattern, 1, true) then
                                 objText = objText .. (" (%d/%d)"):format(nf, nr)

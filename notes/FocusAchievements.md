@@ -18,9 +18,9 @@ This helper turns one achievement's criteria (e.g. "Kill 10 wolves") into the li
 
 5. **Include logic** – Count this criteria as total, and as done if completedCrit is true/1. We only include it in the objectives list if the user wants "all" or if it's not finished (when "only missing" is on).
 
-6. **Build row** – If the criteria has quantity/reqQuantity (e.g. 3/10), compute a percentage for the UI. Append one objective row: text, finished flag, and optional percent.
+6. **Build row** – If the criteria has quantity/reqQuantity (e.g. 3/10), compute a percentage for the UI. Also store `numFulfilled` and `numRequired` on each objective so the renderer can show "(50/300)" per criterion. Append one objective row: text, finished flag, optional percent, and optional numFulfilled/numRequired.
 
-7. **Return** – Return the built objectives table and the two counts so the caller can show "2/5" style progress.
+7. **Return** – Return the built objectives table and the two counts so the caller can show "2/5" style progress (or "50/300" for single-criterion numeric achievements).
 
 ---
 
@@ -40,6 +40,6 @@ This is the only function the rest of the Focus module calls for achievements. F
 
 6. **Guard: show completed** – Respect the "show completed achievements" option. If this achievement is complete and the user has that option off, we skip adding it (guard clause: only add when we're allowed to show it).
 
-7. **Build entry** – Resolve icon (number or string texture) and get the criteria list + counts from GetAchievementCriteria. Build one entry table in the shape the tracker expects: entryKey (unique), achievementID, title, objectives, color, category, and all the standard flags (isComplete, isTracked, etc.). zoneName and isNearby are always nil/false for achievements.
+7. **Build entry** – Resolve icon (number or string texture) and get the criteria list + counts from GetAchievementCriteria. When exactly one criterion has numeric progress (quantity/reqQuantity with reqQuantity > 1), add `numericQuantity` and `numericRequired` to the entry so the title shows e.g. "Collect 300 decors (50/300)" instead of "(0/1)". Build one entry table in the shape the tracker expects: entryKey (unique), achievementID, title, objectives, color, category, and all the standard flags (isComplete, isTracked, etc.). zoneName and isNearby are always nil/false for achievements.
 
 8. **Return** – Return the full array. FullLayout will iterate this and call PopulateEntry for each.

@@ -117,7 +117,10 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
         if oData then
             local objText = oData.text or ""
             local nf, nr = oData.numFulfilled, oData.numRequired
-            if nf ~= nil and nr ~= nil and type(nf) == "number" and type(nr) == "number" and nr > 1 then
+            -- Skip appending (X/Y) to objectives when the title already shows it (single-criterion numeric achievement).
+            local titleShowsNumeric = questData.numericQuantity ~= nil and questData.numericRequired and type(questData.numericRequired) == "number" and questData.numericRequired > 1
+            local singleObjective = questData.objectives and #questData.objectives == 1
+            if nf ~= nil and nr ~= nil and type(nf) == "number" and type(nr) == "number" and nr > 1 and not (titleShowsNumeric and singleObjective) then
                 local pattern = tostring(nf) .. "/" .. tostring(nr)
                 if not objText:find(pattern, 1, true) then
                     objText = objText .. (" (%d/%d)"):format(nf, nr)
@@ -495,7 +498,9 @@ local function PopulateEntry(entry, questData, groupKey)
     local displayTitle = questData.title
     if (addon.GetDB("showCompletedCount", false) or questData.isAchievement or questData.isEndeavor) then
         local done, total
-        if questData.criteriaDone and questData.criteriaTotal and type(questData.criteriaDone) == "number" and type(questData.criteriaTotal) == "number" and questData.criteriaTotal > 0 then
+        if questData.numericQuantity ~= nil and questData.numericRequired and type(questData.numericRequired) == "number" and questData.numericRequired > 1 then
+            done, total = questData.numericQuantity, questData.numericRequired
+        elseif questData.criteriaDone and questData.criteriaTotal and type(questData.criteriaDone) == "number" and type(questData.criteriaTotal) == "number" and questData.criteriaTotal > 0 then
             done, total = questData.criteriaDone, questData.criteriaTotal
         elseif questData.objectivesDoneCount and questData.objectivesTotalCount then
             done, total = questData.objectivesDoneCount, questData.objectivesTotalCount

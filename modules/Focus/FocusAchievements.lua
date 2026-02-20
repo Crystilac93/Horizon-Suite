@@ -36,10 +36,19 @@ local function GetAchievementCriteria(achievementID)
             local include = not onlyMissing or not finished
             if include then
                 local percent = nil
+                local numFulfilled, numRequired = nil, nil
                 if quantity and reqQuantity and reqQuantity > 0 then
                     percent = math.floor(100 * math.min(quantity, reqQuantity) / reqQuantity)
+                    numFulfilled = quantity
+                    numRequired = reqQuantity
                 end
-                objectives[#objectives + 1] = { text = criteriaString, finished = finished, percent = percent }
+                objectives[#objectives + 1] = {
+                    text = criteriaString,
+                    finished = finished,
+                    percent = percent,
+                    numFulfilled = numFulfilled,
+                    numRequired = numRequired,
+                }
             end
         end
     end
@@ -90,6 +99,14 @@ local function ReadTrackedAchievements()
             if not (isComplete and not showCompleted) then
                 local achievementIcon = (icon and (type(icon) == "number" or (type(icon) == "string" and icon ~= ""))) and icon or nil
                 local objectives, criteriaDone, criteriaTotal = GetAchievementCriteria(achievementID)
+                local numericQuantity, numericRequired = nil, nil
+                if #objectives == 1 then
+                    local o = objectives[1]
+                    if o.numFulfilled ~= nil and o.numRequired ~= nil and type(o.numRequired) == "number" and o.numRequired > 1 then
+                        numericQuantity = o.numFulfilled
+                        numericRequired = o.numRequired
+                    end
+                end
                 out[#out + 1] = {
                     entryKey        = "ach:" .. tostring(achievementID),
                     achievementID   = achievementID,
@@ -98,6 +115,8 @@ local function ReadTrackedAchievements()
                     objectives      = objectives,
                     criteriaDone    = criteriaTotal > 0 and criteriaDone or nil,
                     criteriaTotal   = criteriaTotal > 0 and criteriaTotal or nil,
+                    numericQuantity = numericQuantity,
+                    numericRequired = numericRequired,
                     color           = achievementColor,
                     category        = "ACHIEVEMENT",
                     isComplete      = isComplete,
