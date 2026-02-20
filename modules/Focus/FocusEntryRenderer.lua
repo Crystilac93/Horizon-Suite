@@ -399,12 +399,14 @@ local function ApplyShadowColors(entry, questData, highlightStyle, hc, ha)
     if questData.isSuperTracked and highlightStyle == "glow" then
         entry.titleShadow:SetTextColor(hc[1], hc[2], hc[3], glowAlpha)
         entry.zoneShadow:SetTextColor(hc[1], hc[2], hc[3], glowAlpha)
+        if entry.affixShadow then entry.affixShadow:SetTextColor(hc[1], hc[2], hc[3], glowAlpha) end
         for j = 1, addon.MAX_OBJECTIVES do
             entry.objectives[j].shadow:SetTextColor(hc[1], hc[2], hc[3], glowAlpha)
         end
     else
         entry.titleShadow:SetTextColor(0, 0, 0, shadowA)
         entry.zoneShadow:SetTextColor(0, 0, 0, shadowA)
+        if entry.affixShadow then entry.affixShadow:SetTextColor(0, 0, 0, shadowA) end
         for j = 1, addon.MAX_OBJECTIVES do
             entry.objectives[j].shadow:SetTextColor(0, 0, 0, shadowA)
         end
@@ -470,6 +472,7 @@ local function PopulateEntry(entry, questData, groupKey)
     if addon.GetDB("showQuestLevel", false) and questData.level then
         displayTitle = ("%s [L%d]"):format(displayTitle, questData.level)
     end
+    -- Tier in title
     if questData.category == "DELVES" and type(questData.delveTier) == "number" then
         displayTitle = displayTitle .. (" (Tier %d)"):format(questData.delveTier)
     end
@@ -558,6 +561,51 @@ local function PopulateEntry(entry, questData, groupKey)
     else
         entry.zoneText:Hide()
         entry.zoneShadow:Hide()
+    end
+
+    -- Delve affixes: show on first Delve entry or scenario main.
+    local showAffixesInEntry = questData.category == "DELVES"
+        and (questData.categoryIndex == 1 or questData.isScenarioMain)
+        and addon.GetDB("showDelveAffixes", true)
+        and addon.GetDelvesAffixes
+    local affixStr = ""
+    if showAffixesInEntry and addon.GetDelvesAffixes then
+        local affixes, tierSpellID = addon.GetDelvesAffixes()
+        entry.tierSpellID = tierSpellID
+        if affixes and #affixes > 0 then
+            local parts = {}
+            for _, a in ipairs(affixes) do
+                if a.name and a.name ~= "" then parts[#parts + 1] = a.name end
+            end
+            if #parts > 0 then
+                affixStr = table.concat(parts, "  ·  ")
+                entry.affixData = affixes
+            end
+        end
+    end
+    if affixStr ~= "" and entry.affixText then
+        local fontPath = addon.GetDB("fontPath", (addon.GetDefaultFontPath and addon.GetDefaultFontPath()) or "Fonts\\FRIZQT__.TTF")
+        local fontOutline = addon.GetDB("fontOutline", "OUTLINE")
+        local affixSize = math.max(10, math.min(16, tonumber(addon.GetDB("mplusAffixSize", 12)) or 12))
+        entry.affixText:SetWidth(textWidth)
+        entry.affixText:SetFont(fontPath, affixSize, fontOutline)
+        entry.affixText:SetText(affixStr)
+        entry.affixText:SetTextColor(0.78, 0.85, 0.88, 1)
+        entry.affixText:ClearAllPoints()
+        entry.affixText:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", 0, -titleToContentSpacing)
+        entry.affixText:Show()
+        if entry.affixShadow then
+            entry.affixShadow:SetWidth(textWidth)
+            entry.affixShadow:Show()
+        end
+        local affixH = entry.affixText:GetStringHeight()
+        if not affixH or affixH < 1 then affixH = addon.ZONE_SIZE + 2 end
+        totalH = totalH + titleToContentSpacing + affixH
+        prevAnchor = entry.affixText
+    else
+        entry.affixText:Hide()
+        entry.affixShadow:Hide()
+        entry.affixData = nil
     end
 
     totalH, prevAnchor = ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, c, effectiveCat)

@@ -20,6 +20,10 @@ Map of Focus module Blizzard API usage to [Blizzard_APIDocumentationGenerated](h
 | **C_HousingCatalog** | GetCatalogEntryInfoByRecordID | HousingCatalogUIDocumentation.lua | [HousingCatalogUIDocumentation.lua](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/HousingCatalogUIDocumentation.lua) |
 | **C_NeighborhoodInitiative** | RemoveTrackedInitiativeTask, GetInitiativeTaskInfo | NeighborhoodInitiativeDocumentation.lua | [NeighborhoodInitiativeDocumentation.lua](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/NeighborhoodInitiativeDocumentation.lua) |
 | **C_QuestLine** | RequestQuestLinesForMap, GetAvailableQuestLines, GetForceVisibleQuests | QuestLineInfoDocumentation.lua | [QuestLineInfoDocumentation.lua](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/QuestLineInfoDocumentation.lua) |
+| **C_PartyInfo** | IsDelveInProgress, IsDelveComplete | PartyInfoDocumentation.lua | [PartyInfoDocumentation.lua](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/PartyInfoDocumentation.lua) |
+| **C_DelvesUI** | HasActiveDelve, GetDelvesAffixSpellsForSeason, GetCurrentDelvesSeasonNumber, GetTieredEntrancePDEID, GetDelvesFactionForSeason, GetDelvesMinRequiredLevel | DelvesUIDocumentation.lua | [DelvesUIDocumentation.lua](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/DelvesUIDocumentation.lua) |
+| **C_UIWidgetManager** | GetAllWidgetsBySetID, GetScenarioHeaderDelvesWidgetVisualizationInfo, GetObjectiveTrackerWidgetSetID (fallback). Affix data: use widgetSetID from C_Scenario.GetStepInfo first; ObjectiveTracker set may be empty when tracker is hidden. | UIWidgetManagerDocumentation.lua | [UIWidgetManagerDocumentation.lua](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/UIWidgetManagerDocumentation.lua) |
+| **C_GossipInfo** | GetActiveDelveGossip, GetGossipDelveMapID | GossipInfoDocumentation.lua | [GossipInfoDocumentation.lua](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/GossipInfoDocumentation.lua) |
 
 ---
 
@@ -43,13 +47,15 @@ These APIs are called by Focus but have **no dedicated generated docs file** in 
 
 | Namespace / API | Used in Focus | Notes |
 |-----------------|---------------|-------|
-| **C_Scenario** | FocusScenario, FocusMplusBlock | IsInScenario, GetInfo, GetStepInfo, GetBonusSteps, GetBonusStepRewardQuestID; FocusMplusBlock also uses GetScenarioStepInfo, GetScenarioInfo (different names). No ScenarioDocumentation.lua in TOC. Likely older or internal API; may coexist with C_ScenarioInfo. |
+| **C_Scenario** | FocusScenario, FocusMplusBlock, FocusDelvesBlock | IsInScenario, GetInfo, GetStepInfo, GetBonusSteps, GetBonusStepRewardQuestID; FocusMplusBlock also uses GetScenarioStepInfo, GetScenarioInfo (different names). No ScenarioDocumentation.lua in TOC. Likely older or internal API; may coexist with C_ScenarioInfo. |
 | **C_Endeavors** | FocusInteractions, FocusSlash, FocusEndeavors | StopTracking, GetTrackedIDs, GetEndeavorInfo, GetInfo. No Endeavors/EndeavorInfo docs file in TOC. Neighborhood Endeavors feature; API may change. |
 | **GetQuestLogTitle** (global) | FocusAggregator, FocusCategories | Legacy API; used as fallback for quest level and frequency. pcall-wrapped. Prefer C_QuestLog.GetInfo when available. |
 | **GetQuestLogSpecialItemInfo** (global) | FocusAggregator | Legacy API for quest item link/texture; takes logIndex. Guard with existence check. |
 | **GetInstanceInfo** (global) | FocusCollapse, FocusSlash, FocusDungeons | Standard WoW API; not C_* namespace. Documented elsewhere. |
 | **QuestUtils_IsQuestWorldQuest** (global) | FocusCategories | Blizzard internal; fallback before C_QuestLog.IsWorldQuest. |
 | **ShowQuestComplete** (global) | FocusInteractions | Blizzard function; used for click-to-complete on auto-complete quests. Guard with existence check. |
+| **GetFactionInfoByID** (global) | FocusDelvesBlock | Standard WoW API; returns faction name from factionID. Used for delve season faction in tooltip. |
+| **GetCVarTableValue** (global) | FocusDelves | Table CVar access; used for lastSelectedTieredEntranceTier (per-delve tier). May not exist in older clients; guard with existence check. |
 
 ---
 

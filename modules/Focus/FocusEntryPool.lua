@@ -147,6 +147,19 @@ local function CreateQuestEntry(parent, index)
     e.zoneText:Hide()
     e.zoneShadow:Hide()
 
+    e.affixShadow = e:CreateFontString(nil, "BORDER")
+    e.affixShadow:SetFontObject(addon.ZoneFont)
+    e.affixShadow:SetTextColor(0, 0, 0, addon.SHADOW_A)
+    e.affixShadow:SetJustifyH("LEFT")
+
+    e.affixText = e:CreateFontString(nil, "OVERLAY")
+    e.affixText:SetFontObject(addon.ZoneFont)
+    e.affixText:SetTextColor(0.78, 0.85, 0.88, 1)
+    e.affixText:SetJustifyH("LEFT")
+    e.affixShadow:SetPoint("CENTER", e.affixText, "CENTER", addon.SHADOW_OX, addon.SHADOW_OY)
+    e.affixText:Hide()
+    e.affixShadow:Hide()
+
     e.objectives = {}
     for j = 1, addon.MAX_OBJECTIVES do
         local objShadow = e:CreateFontString(nil, "BORDER")
@@ -396,6 +409,8 @@ local function ApplyTypography()
         e.titleShadow:SetPoint("CENTER", e.titleText, "CENTER", shadowOx, shadowOy)
         e.zoneShadow:SetTextColor(0, 0, 0, shadowA)
         e.zoneShadow:SetPoint("CENTER", e.zoneText, "CENTER", shadowOx, shadowOy)
+        e.affixShadow:SetTextColor(0, 0, 0, shadowA)
+        e.affixShadow:SetPoint("CENTER", e.affixText, "CENTER", shadowOx, shadowOy)
         for j = 1, addon.MAX_OBJECTIVES do
             local obj = e.objectives[j]
             obj.shadow:SetTextColor(0, 0, 0, shadowA)
@@ -429,6 +444,8 @@ local function ApplyDimensions(widthOverride)
         e:SetSize(contentW, 20)
         e.titleShadow:SetWidth(textW)
         e.titleText:SetWidth(textW)
+        e.affixShadow:SetWidth(textW)
+        e.affixText:SetWidth(textW)
         for j = 1, addon.MAX_OBJECTIVES do
             local obj = e.objectives[j]
             local objIndent = addon.GetObjIndent and addon.GetObjIndent() or addon.OBJ_INDENT
@@ -450,6 +467,8 @@ local function ClearEntry(entry, full)
     entry.achievementID = nil
     entry.endeavorID = nil
     entry.decorID    = nil
+    entry.affixData  = nil
+    entry.tierSpellID = nil
     entry.itemLink   = nil
     entry.animState  = "idle"
     entry.groupKey   = nil
@@ -459,6 +478,8 @@ local function ClearEntry(entry, full)
         entry:SetHitRectInsets(0, 0, 0, 0)
         if entry.itemBtn then entry.itemBtn:Hide() end
         if entry.trackBar then entry.trackBar:Hide() end
+        if entry.affixText then entry.affixText:Hide() end
+        if entry.affixShadow then entry.affixShadow:Hide() end
         if entry.wqTimerText then entry.wqTimerText:Hide() end
         if entry.wqProgressBg then entry.wqProgressBg:Hide() end
         if entry.wqProgressFill then entry.wqProgressFill:Hide() end

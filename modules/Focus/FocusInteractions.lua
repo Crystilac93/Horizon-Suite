@@ -67,6 +67,51 @@ StaticPopupDialogs["HORIZONSUITE_ABANDON_QUEST"] = StaticPopupDialogs["HORIZONSU
     hideOnEscape = true,
 }
 
+local function AppendDelveTooltipData(self, tooltip)
+    if self.tierSpellID and addon.GetDB("showDelveAffixes", true) then
+        local tierName, tierIcon
+        if GetSpellInfo and type(GetSpellInfo) == "function" then
+            tierName, _, tierIcon = GetSpellInfo(self.tierSpellID)
+        elseif C_Spell and C_Spell.GetSpellInfo then
+            local ok, info = pcall(C_Spell.GetSpellInfo, self.tierSpellID)
+            if ok and info then tierName, tierIcon = info.name, info.iconID end
+        end
+        local tierDesc
+        if C_Spell and C_Spell.GetSpellDescription then
+            local ok, d = pcall(C_Spell.GetSpellDescription, self.tierSpellID)
+            if ok and d and d ~= "" then tierDesc = d end
+        end
+        if tierName or tierDesc then
+            tooltip:AddLine(" ")
+            if tierName then
+                local title = tierName
+                if tierIcon and type(tierIcon) == "number" then
+                    title = "|T" .. tierIcon .. ":20:20:0:0|t " .. title
+                end
+                tooltip:AddLine(title, 1, 0.82, 0)
+            end
+            if tierDesc then
+                tooltip:AddLine(tierDesc, 0.8, 0.8, 0.8, true)
+            end
+        end
+    end
+
+    if self.affixData and #self.affixData > 0 and addon.GetDB("showDelveAffixes", true) then
+        tooltip:AddLine(" ")
+        tooltip:AddLine(_G.SEASON_AFFIXES or "Season Affixes:", 0.7, 0.7, 0.7)
+        for _, a in ipairs(self.affixData) do
+            local title = a.name
+            if a.icon and type(a.icon) == "number" then
+                title = "|T" .. a.icon .. ":20:20:0:0|t " .. title
+            end
+            tooltip:AddLine(title, 1, 1, 1)
+            if a.desc and a.desc ~= "" then
+                tooltip:AddLine(a.desc, 0.8, 0.8, 0.8, true)
+            end
+        end
+    end
+end
+
 for i = 1, addon.POOL_SIZE do
     local e = pool[i]
     e:EnableMouse(true)
@@ -473,10 +518,12 @@ for i = 1, addon.POOL_SIZE do
             pcall(GameTooltip.SetHyperlink, GameTooltip, "quest:" .. self.questID)
             addon.AddQuestRewardsToTooltip(GameTooltip, self.questID)
             addon.AddQuestPartyProgressToTooltip(GameTooltip, self.questID)
+            AppendDelveTooltipData(self, GameTooltip)
             GameTooltip:Show()
         elseif self.entryKey then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:SetText(self.titleText:GetText() or "")
+            AppendDelveTooltipData(self, GameTooltip)
             GameTooltip:Show()
         end
     end)

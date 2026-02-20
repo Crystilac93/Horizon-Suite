@@ -66,6 +66,9 @@ local function AcquireSectionHeader(groupKey, focusedGroupKey)
         end
     end
 
+    s:SetScript("OnEnter", nil)
+    s:SetScript("OnLeave", nil)
+
     s:SetScript("OnClick", function(self)
         local key = self.groupKey
         if not key then return end

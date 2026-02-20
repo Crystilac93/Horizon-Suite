@@ -466,8 +466,19 @@ resizeHandle:SetScript("OnDragStop", function(self)
     HorizonDB.panelWidth = HS:GetWidth()
     local h = HS:GetHeight()
     local headerArea = addon.PADDING + addon.GetHeaderHeight() + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap()
-    local contentH = math.max(RESIZE_CONTENT_HEIGHT_MIN, math.min(RESIZE_CONTENT_HEIGHT_MAX, h - headerArea - addon.PADDING))
+    local contentH = h - headerArea - addon.PADDING
+    -- M+ block at top: subtract its height so we persist only the scroll area.
+    local mplus = addon.mplusBlock
+    local hasMplus = mplus and mplus:IsShown()
+    if hasMplus and addon.GetMplusBlockHeight then
+        local gap = 4
+        contentH = contentH - (addon.GetMplusBlockHeight() + gap * 2)
+    end
+    contentH = math.max(RESIZE_CONTENT_HEIGHT_MIN, math.min(RESIZE_CONTENT_HEIGHT_MAX, contentH))
     HorizonDB.maxContentHeight = contentH
+    if not (addon.IsInMythicDungeon and addon.IsInMythicDungeon()) then
+        HorizonDB.maxContentHeightOverworld = contentH
+    end
     if addon.ApplyDimensions then addon.ApplyDimensions() end
     if addon.FullLayout and not InCombatLockdown() then addon.FullLayout() end
 end)

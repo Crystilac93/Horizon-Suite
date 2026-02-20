@@ -75,5 +75,8 @@ addon.focus = {
 
     -- Objective signature cache for reliable quest-update flash (FocusEvents)
     lastQuestObjectiveSignature       = {},
+
+    -- M+ size restore: track when we were in M+ so we can restore overworld height on zone-out
+    wasInMplusDungeon                 = false,
 }
 

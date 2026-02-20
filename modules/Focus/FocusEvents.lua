@@ -42,6 +42,8 @@ eventFrame:RegisterEvent("CRITERIA_UPDATE")
 eventFrame:RegisterEvent("ACHIEVEMENT_EARNED")
 eventFrame:RegisterEvent("CONTENT_TRACKING_UPDATE")
 pcall(function() eventFrame:RegisterEvent("ACTIVE_DELVE_DATA_UPDATE") end)
+pcall(function() eventFrame:RegisterEvent("WALK_IN_DATA_UPDATE") end)
+pcall(function() eventFrame:RegisterEvent("UPDATE_UI_WIDGET") end)
 pcall(function() eventFrame:RegisterEvent("INITIATIVE_TASKS_TRACKED_UPDATED") end)
 pcall(function() eventFrame:RegisterEvent("INITIATIVE_TASKS_TRACKED_LIST_CHANGED") end)
 pcall(function() eventFrame:RegisterEvent("TRACKING_TARGET_INFO_UPDATE") end)
@@ -223,7 +225,7 @@ local function StartInstanceStatePoll()
             C_Timer.After(0.5, poll)
         end
     end
-    C_Timer.After(0.5, poll)
+    C_Timer.After(0.2, poll)
 end
 
 local function OnPlayerLoginOrEnteringWorld()
@@ -326,10 +328,31 @@ local function OnQuestWatchListChanged(questID, added)
     ScheduleRefresh()
 end
 
+--- Handles M+ dungeon enter/exit: snapshot overworld height on enter, restore on exit.
+local function RunMplusHeightTransitionCheck()
+    if not HorizonDB or not addon.IsInMythicDungeon then return end
+    local inMplus = addon.IsInMythicDungeon()
+    if addon.focus.wasInMplusDungeon and not inMplus then
+        addon.focus.wasInMplusDungeon = false
+        if HorizonDB.maxContentHeightOverworld and type(HorizonDB.maxContentHeightOverworld) == "number" then
+            HorizonDB.maxContentHeight = HorizonDB.maxContentHeightOverworld
+        end
+    elseif inMplus then
+        addon.focus.wasInMplusDungeon = true
+        local cur = HorizonDB.maxContentHeight
+        if cur and type(cur) == "number" then
+            HorizonDB.maxContentHeightOverworld = cur
+        end
+    else
+        addon.focus.wasInMplusDungeon = false
+    end
+end
+
 local function OnZoneChanged(event)
     addon.focus.zoneJustChanged = true
     addon.focus.lastPlayerMapID = nil
     addon.focus.lastZoneMapID = nil
+    RunMplusHeightTransitionCheck()
     -- Only clear right-click suppression on major area change (return to main zone), not on subzone change—unless option is "suppress until reload".
     if event == "ZONE_CHANGED_NEW_AREA" then
         if not addon.GetDB("suppressUntrackedUntilReload", false) then
@@ -341,6 +364,7 @@ local function OnZoneChanged(event)
     ScheduleRefresh()
     C_Timer.After(0.4, function()
         if not addon.focus.enabled then return end
+        RunMplusHeightTransitionCheck()
         if addon.FullLayout then
             addon.FullLayout()
         else
@@ -385,6 +409,8 @@ local eventHandlers = {
         end
     end,
     ACTIVE_DELVE_DATA_UPDATE = function() ScheduleRefresh() end,
+    WALK_IN_DATA_UPDATE      = function() ScheduleRefresh() end,
+    UPDATE_UI_WIDGET         = function() if addon.IsDelveActive and addon.IsDelveActive() then ScheduleRefresh() end end,
     INITIATIVE_TASKS_TRACKED_UPDATED = function() ScheduleRefresh() end,
     INITIATIVE_TASKS_TRACKED_LIST_CHANGED = function() ScheduleRefresh() end,
     TRACKING_TARGET_INFO_UPDATE = function() ScheduleRefresh() end,

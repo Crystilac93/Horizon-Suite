@@ -381,14 +381,73 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
         else
             HSPrint("IsDelveInProgress: not available")
         end
+        -- Primary: table CVar per-delve (Blizzard_DelvesDifficultyPicker)
+        if GetCVarTableValue and C_DelvesUI and C_DelvesUI.GetTieredEntrancePDEID then
+            local ok, pdeID = pcall(C_DelvesUI.GetTieredEntrancePDEID)
+            if ok and pdeID then
+                local vOk, tier = pcall(GetCVarTableValue, "lastSelectedTieredEntranceTier", pdeID, 0)
+                HSPrint("GetCVarTableValue(lastSelectedTieredEntranceTier, pdeID=" .. tostring(pdeID) .. "): " .. (vOk and tostring(tier) or ("error: " .. tostring(tier))))
+            end
+        end
+        -- Fallback: legacy simple CVar (may not exist; GetCVarNumberOrDefault can error if CVar unknown)
         if GetCVarNumberOrDefault then
-            local ok, cvarTier = pcall(GetCVarNumberOrDefault, "lastSelectedDelvesTier")
-            HSPrint("CVar lastSelectedDelvesTier: " .. (ok and tostring(cvarTier) or ("error: " .. tostring(cvarTier))))
+            local ok, cvarTier = pcall(GetCVarNumberOrDefault, "lastSelectedDelvesTier", 1)
+            HSPrint("GetCVarNumberOrDefault(lastSelectedDelvesTier, 1): " .. (ok and tostring(cvarTier) or ("error: " .. tostring(cvarTier))))
         end
         if GetInstanceInfo then
             local ok, name, instType, diffID, diffName = pcall(GetInstanceInfo)
             if ok then
                 HSPrint("GetInstanceInfo: name=" .. tostring(name) .. " type=" .. tostring(instType) .. " diffID=" .. tostring(diffID) .. " diffName=" .. tostring(diffName))
+            end
+        end
+        -- Affix debug (for quest-block affix display)
+        if addon.GetDelvesAffixes then
+            local affixes = addon.GetDelvesAffixes()
+            if affixes and #affixes > 0 then
+                local names = {}
+                for _, a in ipairs(affixes) do names[#names + 1] = a.name or "(nil)" end
+                HSPrint("GetDelvesAffixes: " .. table.concat(names, ", "))
+            else
+                HSPrint("GetDelvesAffixes: nil or empty")
+                -- Debug: show both widget set sources (scenario step vs objective tracker)
+                if C_UIWidgetManager and C_UIWidgetManager.GetAllWidgetsBySetID and C_UIWidgetManager.GetScenarioHeaderDelvesWidgetVisualizationInfo then
+                    local stepSetID, objSetID
+                    if C_Scenario and C_Scenario.GetStepInfo then
+                        local ok, t = pcall(function() return { C_Scenario.GetStepInfo() } end)
+                        if ok and t and type(t) == "table" and #t >= 12 then
+                            local ws = t[12]
+                            if type(ws) == "number" and ws ~= 0 then stepSetID = ws end
+                        end
+                    end
+                    if C_UIWidgetManager.GetObjectiveTrackerWidgetSetID then
+                        local ok, s = pcall(C_UIWidgetManager.GetObjectiveTrackerWidgetSetID)
+                        if ok and s and type(s) == "number" then objSetID = s end
+                    end
+                    HSPrint(("  widgetSetID: GetStepInfo=%s GetObjectiveTracker=%s"):format(
+                        stepSetID and tostring(stepSetID) or "nil",
+                        objSetID and tostring(objSetID) or "nil"))
+                    local setID = stepSetID or objSetID
+                    if setID then
+                        local wOk, widgets = pcall(C_UIWidgetManager.GetAllWidgetsBySetID, setID)
+                        if wOk and widgets and type(widgets) == "table" then
+                            local n = 0
+                            for _ in pairs(widgets) do n = n + 1 end
+                            local WIDGET_DELVES = (Enum and Enum.UIWidgetVisualizationType and Enum.UIWidgetVisualizationType.ScenarioHeaderDelves) or 29
+                            HSPrint("  widgets: " .. tostring(n))
+                            for k, v in pairs(widgets) do
+                                local testID = (v and type(v) == "table" and v.widgetID) or (type(v) == "number" and v) or nil
+                                if testID and type(testID) == "number" then
+                                    local wType = (v and type(v) == "table") and v.widgetType
+                                    local isDelves = (wType == WIDGET_DELVES) and " [ScenarioHeaderDelves]" or ""
+                                    local dOk, wi = pcall(C_UIWidgetManager.GetScenarioHeaderDelvesWidgetVisualizationInfo, testID)
+                                    local spells = (dOk and wi and wi.spells) and #wi.spells or 0
+                                    HSPrint(("  widget k=%s id=%s type=%s%s -> %d spells"):format(
+                                        tostring(k), tostring(testID), tostring(wType or "?"), isDelves, spells))
+                                end
+                            end
+                        end
+                    end
+                end
             end
         end
 

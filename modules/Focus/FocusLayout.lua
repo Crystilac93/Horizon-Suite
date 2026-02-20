@@ -197,14 +197,14 @@ local function FullLayout()
     if not addon.ShouldShowInInstance() then
         addon.HS:Hide()
         addon.UpdateFloatingQuestItem(nil)
-        addon.UpdateMplusBlock()
+        if addon.UpdateMplusBlock then addon.UpdateMplusBlock() end
         return
     end
 
     if addon.ShouldHideInCombat() then
         addon.HS:Hide()
         addon.UpdateFloatingQuestItem(nil)
-        addon.UpdateMplusBlock()
+        if addon.UpdateMplusBlock then addon.UpdateMplusBlock() end
         return
     end
 
@@ -284,7 +284,7 @@ local function FullLayout()
 
     local contentTop = addon.GetContentTop()
 
-    -- Update the Mythic+ banner first so we can anchor the scrollFrame around it.
+    -- Update the Mythic+ block so we can anchor the scrollFrame around it.
     if addon.UpdateMplusBlock then
         addon.UpdateMplusBlock()
     end
@@ -295,16 +295,16 @@ local function FullLayout()
     local mplusPos = addon.GetDB("mplusBlockPosition", "top") or "top"
     local gap = 4
 
-    if hasMplus and mplusPos == "top" then
-        -- Banner sits directly under header; list starts just below the banner.
-        scrollFrame:SetPoint("TOPLEFT", mplus, "BOTTOMLEFT", 0, -gap)
+    local blockFrame = hasMplus and mplus or nil
+    local blockPos = hasMplus and mplusPos or "top"
+
+    if blockFrame and blockPos == "top" then
+        scrollFrame:SetPoint("TOPLEFT", blockFrame, "BOTTOMLEFT", 0, -gap)
         scrollFrame:SetPoint("BOTTOMRIGHT", addon.HS, "BOTTOMRIGHT", 0, addon.PADDING)
-    elseif hasMplus and mplusPos == "bottom" then
-        -- List runs from header down to just above the banner.
+    elseif blockFrame and blockPos == "bottom" then
         scrollFrame:SetPoint("TOPLEFT", addon.HS, "TOPLEFT", 0, contentTop)
-        scrollFrame:SetPoint("BOTTOMRIGHT", mplus, "TOPRIGHT", 0, gap)
+        scrollFrame:SetPoint("BOTTOMRIGHT", blockFrame, "TOPRIGHT", 0, gap)
     else
-        -- No Mythic+ banner: use the full content area.
         scrollFrame:SetPoint("TOPLEFT", addon.HS, "TOPLEFT", 0, contentTop)
         scrollFrame:SetPoint("BOTTOMRIGHT", addon.HS, "BOTTOMRIGHT", 0, addon.PADDING)
     end
@@ -387,8 +387,8 @@ local function FullLayout()
                 addon.focus.layout.scrollOffset = 0
                 local headerArea = addon.PADDING + addon.GetHeaderHeight() + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap()
                 local visibleH = math.min(totalContentH, addon.GetMaxContentHeight())
-                local mplusHeight = (hasMplus and addon.GetMplusBlockHeight and (addon.GetMplusBlockHeight() + gap * 2)) or 0
-                addon.focus.layout.targetHeight = math.max(addon.MIN_HEIGHT, headerArea + visibleH + addon.PADDING + mplusHeight)
+                local blockHeight = (hasMplus and addon.GetMplusBlockHeight and (addon.GetMplusBlockHeight() + gap * 2)) or 0
+                addon.focus.layout.targetHeight = math.max(addon.MIN_HEIGHT, headerArea + visibleH + addon.PADDING + blockHeight)
             else
                 scrollFrame:Hide()
                 addon.focus.layout.targetHeight = addon.GetCollapsedHeight()
@@ -432,16 +432,26 @@ local function FullLayout()
         return
     end
 
+    -- Source of truth: use filtered grouped output so hideOtherCategoriesInDelve
+    -- correctly clears stale entries when transitioning into Delve/dungeon.
     local currentIDs = {}
-    for _, q in ipairs(quests) do
-        currentIDs[q.entryKey or q.questID] = true
+    for _, grp in ipairs(grouped) do
+        for _, qData in ipairs(grp.quests) do
+            local key = qData.entryKey or qData.questID
+            if key then currentIDs[key] = true end
+        end
     end
 
+    -- Align with SortAndGroupQuests hideOtherCategoriesInDelve: when filter returns
+    -- only DELVES or DUNGEON, clear stale entries immediately (no fade animation).
     local onlyDelveShown = (#grouped == 1 and grouped[1] and grouped[1].key == "DELVES")
         and (addon.IsDelveActive and addon.IsDelveActive())
+    local onlyDungeonShown = (#grouped == 1 and grouped[1] and grouped[1].key == "DUNGEON")
+        and (addon.IsInPartyDungeon and addon.IsInPartyDungeon())
+    local onlyInstanceGroupShown = onlyDelveShown or onlyDungeonShown
     local useWQCollapse = addon.focus.collapse.pendingWQCollapse
         and addon.GetDB("animations", true)
-        and not onlyDelveShown
+        and not onlyInstanceGroupShown
     local useWQExpand = addon.focus.collapse.pendingWQExpand
         and addon.GetDB("animations", true)
     if useWQExpand then
@@ -469,7 +479,7 @@ local function FullLayout()
     local toRemove = {}
     for key, entry in pairs(activeMap) do
         if not currentIDs[key] then
-            if onlyDelveShown and addon.ClearEntry then
+            if onlyInstanceGroupShown and addon.ClearEntry then
                 addon.ClearEntry(entry)
             elseif useWQCollapse and entry.animState ~= "completing" and entry.animState ~= "fadeout" then
                 toRemove[#toRemove + 1] = { key = key, entry = entry }
@@ -493,7 +503,7 @@ local function FullLayout()
     if addon.focus.collapse.pendingWQCollapse then
         addon.focus.collapse.pendingWQCollapse = false
     end
-    if onlyDelveShown and addon.ClearEntry then
+    if onlyInstanceGroupShown and addon.ClearEntry then
         for i = 1, addon.POOL_SIZE do
             local e = pool[i]
             if e and (e.questID or e.entryKey) then
@@ -738,8 +748,8 @@ local function FullLayout()
 
     local headerArea    = addon.PADDING + addon.GetHeaderHeight() + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap()
     local visibleH      = math.min(totalContentH, addon.GetMaxContentHeight())
-    local mplusHeight   = (hasMplus and addon.GetMplusBlockHeight and (addon.GetMplusBlockHeight() + gap * 2)) or 0
-    addon.focus.layout.targetHeight  = math.max(addon.MIN_HEIGHT, headerArea + visibleH + addon.PADDING + mplusHeight)
+    local blockHeight   = (hasMplus and addon.GetMplusBlockHeight and (addon.GetMplusBlockHeight() + gap * 2)) or 0
+    addon.focus.layout.targetHeight  = math.max(addon.MIN_HEIGHT, headerArea + visibleH + addon.PADDING + blockHeight)
 
     if #quests > 0 then
         if addon.focus.combat.fadeState == "in" then addon.HS:SetAlpha(0) end
