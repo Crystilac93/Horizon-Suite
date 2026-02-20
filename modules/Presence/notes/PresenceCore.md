@@ -3,8 +3,8 @@
 ## QueueOrPlay
 
 1. Ensure Init() if frame not yet created.
-2. Guard: unknown typeName, combat (pri < 4).
-3. If active: higher/equal pri → interrupt current, PlayCinematic; lower pri → queue (dedup by type+title).
+2. Guard: unknown typeName.
+3. If active: higher/equal pri and different type → interrupt current, PlayCinematic; same type or lower pri → queue (dedup by type+title).
 4. Else: PlayCinematic directly.
 
 ## PlayCinematic
@@ -26,3 +26,8 @@
 
 1. Clear OnUpdate, reset layers, F:Hide().
 2. If queue non-empty: pick highest-priority entry, remove, PlayCinematic.
+
+## Debug
+
+- **`/horizon presence debug`** — One-shot dump of state (frame, anim, active, queue, options) to chat.
+- **`/horizon presence debuglive`** — Toggle live debug panel. When on, logs QueueOrPlay, Play, Complete, Queued as they happen to a scrollable panel for review. Each line shows full title/subtitle and `opts.source` (event name, e.g. QUEST_WATCH_UPDATE, QUEST_LOG_UPDATE, UI_INFO_MESSAGE, ZONE_CHANGED_NEW_AREA) when provided. Interrupts log what was replaced and what replaced it.

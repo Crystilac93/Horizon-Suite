@@ -9,13 +9,20 @@ if not addon or not addon.Presence then return end
 local HSPrint = addon.HSPrint or function(msg) print("|cFF00CCFFHorizon Suite:|r " .. tostring(msg or "")) end
 
 --- Handle /horizon presence [cmd] subcommands. Returns true if handled, false to pass to parent handler.
---- @param msg string Subcommand (zone, subzone, discover, level, boss, ach, quest, wq, wqaccept, accept, update, scenario, all, help)
+--- @param msg string Subcommand (zone, subzone, discover, level, boss, ach, quest, wq, wqaccept, accept, update, scenario, all, debug, debuglive, help)
 --- @return boolean
 local function HandlePresenceSlash(msg)
     local cmd = strtrim(msg or ""):lower()
 
-    if InCombatLockdown() then
-        HSPrint("|cFFFF0000Presence: Cannot run tests during combat.|r")
+    -- Debug is read-only; allow during combat
+    if cmd == "debug" then
+        if addon.Presence.DumpDebug then addon.Presence.DumpDebug() end
+        return true
+    end
+
+    if cmd == "debuglive" then
+        local on = addon.Presence.ToggleDebugLive and addon.Presence.ToggleDebugLive()
+        HSPrint("Presence live debug: " .. (on and "on" or "off"))
         return true
     end
 
@@ -87,6 +94,8 @@ local function HandlePresenceSlash(msg)
         HSPrint("  /horizon presence wq       - Test World Quest")
         HSPrint("  /horizon presence update   - Test Quest Update")
         HSPrint("  /horizon presence all      - Demo reel (all types)")
+        HSPrint("  /horizon presence debug    - Dump state to chat")
+        HSPrint("  /horizon presence debuglive - Toggle live debug panel (log as events happen)")
         addon.Presence.QueueOrPlay("ZONE_CHANGE", GetZoneText() or "Unknown Zone", GetSubZoneText() or "")
     else
         return false

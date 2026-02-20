@@ -1,7 +1,7 @@
 --[[
     Horizon Suite - Presence - Event Dispatch
     Zone changes, level up, boss emotes, achievements, quest events.
-    APIs: C_QuestLog, C_SuperTrack, C_Timer, GetZoneText, GetSubZoneText, GetAchievementInfo.
+    APIs: C_QuestLog, C_ScenarioInfo, C_SuperTrack, C_Timer, GetZoneText, GetSubZoneText, GetAchievementInfo.
     Step-by-step flow notes: notes/PresenceEvents.md
 ]]
 
@@ -27,6 +27,23 @@ local function StripPresenceMarkup(s)
     s = s:gsub("|c%x%x%x%x%x%x%x%x", "")
     s = s:gsub("|r", "")
     return strtrim(s)
+end
+
+--- Normalize quest update text to "X/Y Objective" format.
+--- @param s string Raw text (e.g. "Burn Deepsflayer Nests: 3/6", "Objective (3/5)")
+--- @return string
+local function NormalizeQuestUpdateText(s)
+    if not s or s == "" then return s or "" end
+    s = strtrim(s)
+    -- Already "X/Y ..." at start
+    if s:match("^%d+/%d+%s") then return s end
+    -- "Text: X/Y" -> "X/Y Text"
+    local text, x, y = s:match("^(.+):%s*(%d+)/(%d+)$")
+    if text and x and y then return ("%s/%s %s"):format(x, y, strtrim(text)) end
+    -- "Text (X/Y)" -> "X/Y Text"
+    local text2, x2, y2 = s:match("^(.+)%s*%((%d+)/(%d+)%)$")
+    if text2 and x2 and y2 then return ("%s/%s %s"):format(x2, y2, strtrim(text2)) end
+    return s
 end
 
 -- ============================================================================
@@ -142,7 +159,10 @@ local bufferedUpdates = {}           -- questID -> timerObject
 local UPDATE_BUFFER_TIME = 0.35      -- Time to wait for data to settle (fix for 55/100 vs 71/100)
 
 -- Process debounced quest objective update; shows QUEST_UPDATE or skips if unchanged/blind.
-local function ExecuteQuestUpdate(questID, isBlindUpdate)
+--- @param questID number
+--- @param isBlindUpdate boolean
+--- @param source string|nil Event name for debug (e.g. QUEST_WATCH_UPDATE, QUEST_LOG_UPDATE, UI_INFO_MESSAGE)
+local function ExecuteQuestUpdate(questID, isBlindUpdate, source)
     bufferedUpdates[questID] = nil -- Clear the timer ref
 
     if not questID or questID <= 0 then return end
@@ -197,23 +217,28 @@ local function ExecuteQuestUpdate(questID, isBlindUpdate)
     
     if not msg or msg == "" then msg = "Objective updated" end
 
-    -- 6. Trigger notification
-    addon.Presence.QueueOrPlay("QUEST_UPDATE", "QUEST UPDATE", StripPresenceMarkup(msg), { questID = questID })
+    -- 6. Normalize to "X/Y Objective" and trigger notification
+    local stripped = StripPresenceMarkup(msg)
+    local normalized = NormalizeQuestUpdateText(stripped)
+    addon.Presence.QueueOrPlay("QUEST_UPDATE", "QUEST UPDATE", normalized, { questID = questID, source = source })
     DbgWQ("ExecuteQuestUpdate: Shown", questID, msg)
 end
 
 -- Entry point for requesting an update. Resets the timer to ensure we only process the *final* state.
-local function RequestQuestUpdate(questID, isBlindUpdate)
+--- @param questID number
+--- @param isBlindUpdate boolean
+--- @param source string|nil Event name for debug (e.g. QUEST_WATCH_UPDATE, QUEST_LOG_UPDATE, UI_INFO_MESSAGE)
+local function RequestQuestUpdate(questID, isBlindUpdate, source)
     if not questID then return end
-    
+
     -- Cancel existing timer for this quest (debounce)
     if bufferedUpdates[questID] then
         bufferedUpdates[questID]:Cancel()
     end
-    
+
     -- Schedule new timer
     bufferedUpdates[questID] = C_Timer.After(UPDATE_BUFFER_TIME, function()
-        ExecuteQuestUpdate(questID, isBlindUpdate)
+        ExecuteQuestUpdate(questID, isBlindUpdate, source)
     end)
 end
 
@@ -224,7 +249,7 @@ end
 
 local function OnQuestWatchUpdate(_, questID)
     -- Direct update from the game for a specific quest. Not blind.
-    RequestQuestUpdate(questID, false)
+    RequestQuestUpdate(questID, false, "QUEST_WATCH_UPDATE")
 end
 
 -- Guess active WQ ID for blind QUEST_LOG_UPDATE/UI_INFO_MESSAGE (super-tracked or nearby).
@@ -250,12 +275,12 @@ end
 
 local function OnQuestLogUpdate()
     if addon.Presence._suppressQuestUpdateOnReload then return end
-    
+
     -- Blind scan: we don't know exactly which quest changed, so we guess the active WQ.
     local questID = GetWorldQuestIDForObjectiveUpdate()
     if questID then
         -- Pass true for isBlindUpdate to suppress popup if we've never seen this quest before
-        RequestQuestUpdate(questID, true)
+        RequestQuestUpdate(questID, true, "QUEST_LOG_UPDATE")
     end
 end
 
@@ -269,13 +294,23 @@ local function OnUIInfoMessage(_, msgType, msg)
         
         if questID then
             -- If we have an ID, use the standard update path (it handles debounce/cache)
-            RequestQuestUpdate(questID, true)
+            RequestQuestUpdate(questID, true, "UI_INFO_MESSAGE")
         else
             -- Fallback for non-mapped messages (standard throttle)
+            -- Suppress when debounced path has pending update (prefer QUEST_WATCH_UPDATE)
+            local hasPendingUpdate = false
+            for _, t in pairs(bufferedUpdates) do
+                if t then hasPendingUpdate = true break end
+            end
+            if hasPendingUpdate then return end
+
             local now = GetTime()
             if lastUIInfoMsg == msg and (now - lastUIInfoTime) < UI_MSG_THROTTLE then return end
             lastUIInfoMsg, lastUIInfoTime = msg, now
-            addon.Presence.QueueOrPlay("QUEST_UPDATE", "QUEST UPDATE", StripPresenceMarkup(msg or ""), {})
+
+            local stripped = StripPresenceMarkup(msg or "")
+            local normalized = NormalizeQuestUpdateText(stripped)
+            addon.Presence.QueueOrPlay("QUEST_UPDATE", "QUEST UPDATE", normalized, { source = "UI_INFO_MESSAGE" })
         end
     end
 end
@@ -288,10 +323,191 @@ local wasInScenario = false
 local scenarioCheckPending = false
 local SCENARIO_DEBOUNCE = 0.4
 
+-- Scenario criteria update (delve/scenario objective progress toasts)
+local lastScenarioCriteriaCache = nil
+local lastScenarioObjectives = nil
+local scenarioCriteriaUpdateTimer = nil
+local SCENARIO_UPDATE_BUFFER_TIME = 0.35
+
+--- Fetch main-step criteria from C_ScenarioInfo; build state key and objectives list.
+--- Per Blizzard ScenarioInfoDocumentation: description, completed, quantity, totalQuantity, quantityString, criteriaID.
+--- @return string|nil stateKey, table objectives
+local function GetMainStepCriteria()
+    if not C_Scenario or not C_Scenario.GetStepInfo then return nil, {} end
+    local t = { pcall(C_Scenario.GetStepInfo) }
+    if not t[1] or not t[2] then return nil, {} end
+    local numCriteria = t[4] or t[3] or t[5]
+    local maxIdx = math.max((numCriteria or 0), 1) + 3
+    local parts = {}
+    local objectives = {}
+    for criteriaIndex = 0, maxIdx do
+        local cOk, criteriaInfo = false, nil
+        if C_ScenarioInfo and C_ScenarioInfo.GetCriteriaInfo then
+            cOk, criteriaInfo = pcall(C_ScenarioInfo.GetCriteriaInfo, criteriaIndex)
+        end
+        if (not cOk or not criteriaInfo) and C_ScenarioInfo and C_ScenarioInfo.GetCriteriaInfoByStep then
+            cOk, criteriaInfo = pcall(C_ScenarioInfo.GetCriteriaInfoByStep, 1, criteriaIndex)
+        end
+        if cOk and criteriaInfo then
+            local text = (criteriaInfo.description and criteriaInfo.description ~= "") and criteriaInfo.description
+                or (criteriaInfo.quantityString and criteriaInfo.quantityString ~= "") and criteriaInfo.quantityString or ""
+            local finished = criteriaInfo.complete or criteriaInfo.completed or false
+            local qty = criteriaInfo.quantity
+            local total = criteriaInfo.totalQuantity
+            local hasQty = qty ~= nil and total ~= nil and type(qty) == "number" and type(total) == "number" and total > 0
+            local criteriaID = (criteriaInfo.criteriaID ~= nil) and criteriaInfo.criteriaID or criteriaIndex
+            parts[#parts + 1] = (text or "") .. "|" .. (finished and "1" or "0") .. "|" .. (hasQty and qty or "") .. "|" .. (hasQty and total or "")
+            objectives[#objectives + 1] = {
+                criteriaID = criteriaID,
+                text = text ~= "" and text or nil,
+                quantityString = (criteriaInfo.quantityString and criteriaInfo.quantityString ~= "") and criteriaInfo.quantityString or nil,
+                finished = finished,
+                numFulfilled = hasQty and qty or nil,
+                numRequired = hasQty and total or nil,
+            }
+        end
+    end
+    return table.concat(parts, ";"), objectives
+end
+
+--- Build display string for an objective. Prefers Blizzard quantityString when present (completed).
+local function formatObjectiveMsg(o)
+    if not o then return nil end
+    if o.quantityString and o.quantityString ~= "" then
+        return o.quantityString
+    end
+    if o.text and o.text ~= "" then
+        if o.numFulfilled ~= nil and o.numRequired ~= nil and o.numRequired > 0 then
+            return ("%s (%d/%d)"):format(o.text, o.numFulfilled, o.numRequired)
+        end
+        return o.text
+    end
+    if o.numFulfilled ~= nil and o.numRequired ~= nil and o.numRequired > 0 then
+        return ("%d/%d"):format(o.numFulfilled, o.numRequired)
+    end
+    return nil
+end
+
+--- Process debounced scenario criteria update; shows SCENARIO_UPDATE or skips if unchanged.
+local function ExecuteScenarioCriteriaUpdate()
+    scenarioCriteriaUpdateTimer = nil
+    if not addon.IsScenarioActive or not addon.IsScenarioActive() then return end
+    if addon.GetDB and not addon.GetDB("showScenarioEvents", true) then return end
+    if not addon.GetScenarioDisplayInfo then return end
+
+    local stateKey, objectives = GetMainStepCriteria()
+    if not stateKey or stateKey == "" then return end
+
+    if lastScenarioCriteriaCache == stateKey then return end
+
+    local oldObjectives = lastScenarioObjectives
+    lastScenarioCriteriaCache = stateKey
+    lastScenarioObjectives = objectives
+
+    local msg = nil
+    -- Match by criteriaID (per Blizzard API) so we correctly identify which objective completed when list order changes.
+    if oldObjectives and #oldObjectives > 0 then
+        local oldByID = {}
+        local newByID = {}
+        for _, o in ipairs(oldObjectives) do
+            if o.criteriaID ~= nil then oldByID[o.criteriaID] = o end
+        end
+        for _, o in ipairs(objectives) do
+            if o.criteriaID ~= nil then newByID[o.criteriaID] = o end
+        end
+
+        -- Completed: old not finished, new finished (same criteriaID)
+        for id, newO in pairs(newByID) do
+            local oldO = oldByID[id]
+            if oldO and not oldO.finished and newO.finished then
+                msg = formatObjectiveMsg(newO)
+                break
+            end
+        end
+        -- Progressed: numFulfilled changed
+        if not msg then
+            for id, newO in pairs(newByID) do
+                local oldO = oldByID[id]
+                if oldO and oldO.numFulfilled ~= newO.numFulfilled then
+                    msg = formatObjectiveMsg(newO)
+                    break
+                end
+            end
+        end
+        -- Removed as completed: old existed, not finished, no longer in new
+        if not msg then
+            for id, oldO in pairs(oldByID) do
+                if not oldO.finished and not newByID[id] then
+                    msg = formatObjectiveMsg(oldO)
+                    break
+                end
+            end
+        end
+        -- New: added (no old with same ID)
+        if not msg then
+            for id, newO in pairs(newByID) do
+                if not oldByID[id] then
+                    msg = formatObjectiveMsg(newO)
+                    break
+                end
+            end
+        end
+    end
+    -- Fallback: index-based (when no oldObjectives or criteriaID matching found nothing)
+    if not msg and oldObjectives then
+        for i = 1, #objectives do
+            local oldO = oldObjectives[i]
+            local newO = objectives[i]
+            if oldO and newO then
+                local progressed = (oldO.numFulfilled ~= newO.numFulfilled)
+                local finished = (not oldO.finished and newO.finished)
+                local textChanged = (oldO.text ~= newO.text)
+                if finished or progressed then
+                    msg = formatObjectiveMsg(newO)
+                    break
+                elseif textChanged and not oldO.finished then
+                    msg = formatObjectiveMsg(oldO) or formatObjectiveMsg(newO)
+                    break
+                end
+            elseif not oldO and newO then
+                msg = formatObjectiveMsg(newO)
+                break
+            end
+        end
+    end
+    -- Fallback: first unfinished objective (first run, structure change, or no diff).
+    if not msg then
+        for i = 1, #objectives do
+            local o = objectives[i]
+            if o and not o.finished then
+                msg = formatObjectiveMsg(o)
+                if msg then break end
+            end
+        end
+    end
+    if not msg and #objectives > 0 then
+        msg = formatObjectiveMsg(objectives[1])
+    end
+    if not msg or msg == "" then msg = "Objective updated" end
+
+    local title, _, category = addon.GetScenarioDisplayInfo()
+    addon.Presence.QueueOrPlay("SCENARIO_UPDATE", StripPresenceMarkup(title or "Scenario"), StripPresenceMarkup(msg), { category = category or "SCENARIO", source = "SCENARIO_CRITERIA_UPDATE" })
+end
+
+--- Request a scenario criteria update; debounced.
+local function RequestScenarioCriteriaUpdate()
+    if scenarioCriteriaUpdateTimer then
+        scenarioCriteriaUpdateTimer:Cancel()
+    end
+    scenarioCriteriaUpdateTimer = C_Timer.After(SCENARIO_UPDATE_BUFFER_TIME, ExecuteScenarioCriteriaUpdate)
+end
+
 local function TryShowScenarioStart()
     if scenarioCheckPending then return end
     if not addon.IsScenarioActive or not addon.IsScenarioActive() then return end
     if wasInScenario then return end
+    -- Delve objective update feature disabled for now; zone entry already shows ZONE_CHANGE
+    if addon.IsDelveActive and addon.IsDelveActive() then return end
     if addon.GetDB and not addon.GetDB("showScenarioEvents", true) then return end
     if not addon.GetScenarioDisplayInfo then return end
 
@@ -307,20 +523,46 @@ local function TryShowScenarioStart()
         if not title or title == "" then return end
 
         wasInScenario = true
-        addon.Presence.QueueOrPlay("SCENARIO_START", StripPresenceMarkup(title), StripPresenceMarkup(subtitle or ""), { category = category })
+        -- Seed scenario criteria cache so first update has a baseline to diff against
+        local seedKey, seedObjs = GetMainStepCriteria()
+        if seedKey then
+            lastScenarioCriteriaCache = seedKey
+            lastScenarioObjectives = seedObjs
+        end
+        addon.Presence.QueueOrPlay("SCENARIO_START", StripPresenceMarkup(title), StripPresenceMarkup(subtitle or ""), { category = category, source = "SCENARIO_UPDATE" })
     end)
 end
 
 local function OnPlayerEnteringWorld()
     if not addon.Presence._scenarioInitDone then
         addon.Presence._scenarioInitDone = true
-        wasInScenario = addon.IsScenarioActive and addon.IsScenarioActive()
+        -- Delve objective update disabled; don't treat delve as scenario for this flow
+        local inScenario = addon.IsScenarioActive and addon.IsScenarioActive()
+        if inScenario and addon.IsDelveActive and addon.IsDelveActive() then inScenario = false end
+        wasInScenario = inScenario
     end
 end
 
 local function OnScenarioUpdate() TryShowScenarioStart() end
-local function OnScenarioCriteriaUpdate() TryShowScenarioStart() end
-local function OnScenarioCompleted() wasInScenario = false end
+
+local function OnScenarioCriteriaUpdate()
+    -- Delve objective update feature disabled; skip when in a delve
+    if addon.IsDelveActive and addon.IsDelveActive() then return end
+    TryShowScenarioStart()
+    if wasInScenario then
+        RequestScenarioCriteriaUpdate()
+    end
+end
+
+local function OnScenarioCompleted()
+    wasInScenario = false
+    lastScenarioCriteriaCache = nil
+    lastScenarioObjectives = nil
+    if scenarioCriteriaUpdateTimer then
+        scenarioCriteriaUpdateTimer:Cancel()
+        scenarioCriteriaUpdateTimer = nil
+    end
+end
 
 local function OnZoneChangedNewArea()
     local zone = GetZoneText() or "Unknown Zone"
@@ -332,13 +574,28 @@ local function OnZoneChangedNewArea()
         local activeTitle = addon.Presence.activeTitle and addon.Presence.activeTitle()
         local phase = addon.Presence.animPhase and addon.Presence.animPhase()
         if active and activeTitle == zone and (phase == "hold" or phase == "entrance") then
-            addon.Presence.SoftUpdateSubtitle(sub)
+            local updateSub = sub
+            if addon.IsDelveActive and addon.IsDelveActive() then
+                local tier = addon.GetActiveDelveTier and addon.GetActiveDelveTier()
+                if tier then updateSub = "Tier " .. tier end
+            end
+            addon.Presence.SoftUpdateSubtitle(updateSub)
             if addon.Presence.pendingDiscovery then
                 addon.Presence.ShowDiscoveryLine()
                 addon.Presence.pendingDiscovery = nil
             end
         else
-            addon.Presence.QueueOrPlay("ZONE_CHANGE", StripPresenceMarkup(zone), StripPresenceMarkup(sub))
+            local opts = {}
+            local displaySub = sub
+            if addon.IsDelveActive and addon.IsDelveActive() then
+                opts.category = "DELVES"
+                local tier = addon.GetActiveDelveTier and addon.GetActiveDelveTier()
+                if tier then displaySub = "Tier " .. tier end
+            elseif addon.IsInPartyDungeon and addon.IsInPartyDungeon() then
+                opts.category = "DUNGEON"
+            end
+            opts.source = "ZONE_CHANGED_NEW_AREA"
+            addon.Presence.QueueOrPlay("ZONE_CHANGE", StripPresenceMarkup(zone), StripPresenceMarkup(displaySub), opts)
         end
     end)
 end
@@ -354,13 +611,28 @@ local function OnZoneChanged()
             local activeTitle = addon.Presence.activeTitle and addon.Presence.activeTitle()
             local phase = addon.Presence.animPhase and addon.Presence.animPhase()
             if active and activeTitle == zone and (phase == "hold" or phase == "entrance") then
-                addon.Presence.SoftUpdateSubtitle(sub)
+                local updateSub = sub
+                if addon.IsDelveActive and addon.IsDelveActive() then
+                    local tier = addon.GetActiveDelveTier and addon.GetActiveDelveTier()
+                    if tier then updateSub = "Tier " .. tier end
+                end
+                addon.Presence.SoftUpdateSubtitle(updateSub)
                 if addon.Presence.pendingDiscovery then
                     addon.Presence.ShowDiscoveryLine()
                     addon.Presence.pendingDiscovery = nil
                 end
             else
-                addon.Presence.QueueOrPlay("SUBZONE_CHANGE", StripPresenceMarkup(zone), StripPresenceMarkup(sub))
+                -- In Delves, ZONE_CHANGE already showed delve+tier; suppress SUBZONE_CHANGE
+                -- to avoid duplicate or inverted toast (parent/delve swap from GetZoneText/GetSubZoneText).
+                if addon.IsDelveActive and addon.IsDelveActive() then return end
+
+                local opts = {}
+                local displaySub = sub
+                if addon.IsInPartyDungeon and addon.IsInPartyDungeon() then
+                    opts.category = "DUNGEON"
+                end
+                opts.source = "ZONE_CHANGED"
+                addon.Presence.QueueOrPlay("SUBZONE_CHANGE", StripPresenceMarkup(zone), StripPresenceMarkup(displaySub), opts)
             end
         end)
     end
@@ -419,7 +691,8 @@ end
 -- Exports
 -- ============================================================================
 
-addon.Presence.EnableEvents  = EnableEvents
-addon.Presence.DisableEvents = DisableEvents
-addon.Presence.IsQuestText   = IsQuestText
-addon.Presence.eventFrame    = eventFrame
+addon.Presence.EnableEvents           = EnableEvents
+addon.Presence.DisableEvents         = DisableEvents
+addon.Presence.IsQuestText           = IsQuestText
+addon.Presence.NormalizeQuestUpdateText = NormalizeQuestUpdateText
+addon.Presence.eventFrame            = eventFrame

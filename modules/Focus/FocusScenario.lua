@@ -1,6 +1,6 @@
 --[[
     Horizon Suite - Focus - Scenario Events
-    C_Scenario / C_ScenarioInfo data provider for main and bonus steps.
+    C_Scenario / C_ScenarioInfo / C_UIWidgetManager data provider for main and bonus steps.
 ]]
 
 local addon = _G.HorizonSuite
@@ -85,6 +85,65 @@ local function IsScenarioActive()
     return false
 end
 
+-- Resolve delve name using same sources as zone-entry flow; order per Blizzard API docs.
+--- @return string|nil Delve name or nil
+local function GetDelveNameFromAPIs()
+    if not addon.IsDelveActive or not addon.IsDelveActive() then return nil end
+
+    -- 1. C_ScenarioInfo.GetScenarioInfo() returns ScenarioInformation with name, area
+    if C_ScenarioInfo and C_ScenarioInfo.GetScenarioInfo then
+        local ok, info = pcall(C_ScenarioInfo.GetScenarioInfo)
+        if ok and info and type(info) == "table" then
+            if info.name and info.name ~= "" then return info.name end
+            if info.area and info.area ~= "" then return info.area end
+        end
+    end
+
+    -- 2. C_UIWidgetManager.GetScenarioHeaderDelvesWidgetVisualizationInfo (Blizzard delve header)
+    if C_UIWidgetManager and C_UIWidgetManager.GetAllWidgetsBySetID and C_UIWidgetManager.GetScenarioHeaderDelvesWidgetVisualizationInfo then
+        local setID
+        if C_Scenario and C_Scenario.GetStepInfo then
+            local sOk, t = pcall(function() return { C_Scenario.GetStepInfo() } end)
+            if sOk and t and type(t) == "table" and #t >= 12 then
+                local ws = t[12]
+                if type(ws) == "number" and ws ~= 0 then setID = ws end
+            end
+        end
+        if not setID and C_UIWidgetManager.GetObjectiveTrackerWidgetSetID then
+            local oOk, objSet = pcall(C_UIWidgetManager.GetObjectiveTrackerWidgetSetID)
+            if oOk and objSet and type(objSet) == "number" then setID = objSet end
+        end
+        if setID then
+            local wOk, widgets = pcall(C_UIWidgetManager.GetAllWidgetsBySetID, setID)
+            if wOk and widgets and type(widgets) == "table" then
+                local WIDGET_DELVES = (Enum and Enum.UIWidgetVisualizationType and Enum.UIWidgetVisualizationType.ScenarioHeaderDelves) or 29
+                for _, wInfo in pairs(widgets) do
+                    local widgetID = (wInfo and type(wInfo) == "table" and type(wInfo.widgetID) == "number") and wInfo.widgetID
+                        or (type(wInfo) == "number" and wInfo > 0) and wInfo
+                    local wType = (wInfo and type(wInfo) == "table") and wInfo.widgetType
+                    if widgetID and (not wType or wType == WIDGET_DELVES) then
+                        local dOk, widgetInfo = pcall(C_UIWidgetManager.GetScenarioHeaderDelvesWidgetVisualizationInfo, widgetID)
+                        if dOk and widgetInfo and type(widgetInfo) == "table" and widgetInfo.headerText and widgetInfo.headerText ~= "" then
+                            return widgetInfo.headerText
+                        end
+                        break
+                    end
+                end
+            end
+        end
+    end
+
+    -- 3. GetZoneText / GetSubZoneText (prefer non-"Delves" when parent/delve swap)
+    local zone = (GetZoneText and GetZoneText()) or ""
+    local sub = (GetSubZoneText and GetSubZoneText()) or ""
+    if zone and zone ~= "" and zone ~= "Delves" then return zone end
+    if sub and sub ~= "" and sub ~= "Delves" then return sub end
+    if zone and zone ~= "" then return zone end
+    if sub and sub ~= "" then return sub end
+
+    return nil
+end
+
 --- Get display info for Presence scenario-start toast. Returns nil if not in scenario.
 --- @return title, subtitle, category or nil, nil, nil
 local function GetScenarioDisplayInfo()
@@ -108,8 +167,14 @@ local function GetScenarioDisplayInfo()
     local title = scenarioName
     if not title or title == "" then
         if isDelve then
+            -- Same system as zone-entry: C_ScenarioInfo, widget headerText, zone/subzone, then fallback
+            title = GetDelveNameFromAPIs()
             local tier = addon.GetActiveDelveTier and addon.GetActiveDelveTier()
-            title = tier and ("Delves (Tier " .. tier .. ")") or "Delves"
+            if title and title ~= "" then
+                if tier then title = title .. " (Tier " .. tier .. ")" end
+            else
+                title = tier and ("Delves (Tier " .. tier .. ")") or "Delves"
+            end
         elseif inPartyDungeon then
             title = "Dungeon"
         else

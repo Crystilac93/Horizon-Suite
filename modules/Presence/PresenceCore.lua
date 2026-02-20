@@ -55,9 +55,10 @@ local TYPES = {
     ZONE_CHANGE    = { pri = 2, category = "DEFAULT",   subCategory = "CAMPAIGN", sz = 48, dur = 4.0 },
     QUEST_ACCEPT       = { pri = 1, category = "DEFAULT",   subCategory = "DEFAULT", sz = 36, dur = 3.0 },  -- overridden by opts.questID
     WORLD_QUEST_ACCEPT = { pri = 1, category = "WORLD",     subCategory = "DEFAULT", sz = 36, dur = 3.0 },
-    QUEST_UPDATE       = { pri = 1, category = "NEARBY",   subCategory = "DEFAULT", sz = 20, dur = 2.5 },
+    QUEST_UPDATE       = { pri = 1, category = "DEFAULT",   subCategory = "DEFAULT", sz = 20, dur = 2.5 },
     SUBZONE_CHANGE     = { pri = 1, category = "DEFAULT",   subCategory = "CAMPAIGN", sz = 36, dur = 3.0 },
     SCENARIO_START     = { pri = 2, category = "SCENARIO", subCategory = "DEFAULT", sz = 36, dur = 3.5 },  -- category overridden by opts.category (DELVES|DUNGEON|SCENARIO)
+    SCENARIO_UPDATE     = { pri = 1, category = "SCENARIO", subCategory = "DEFAULT", sz = 36, dur = 2.5 },  -- category overridden by opts.category (DELVES|DUNGEON|SCENARIO); sz=36 matches SCENARIO_START
 }
 
 local function getCategoryColor(cat, default)
@@ -77,13 +78,15 @@ local function resolveColors(typeName, cfg, opts)
         return c, sc
     end
     local cat = cfg.category
-    if opts.category and typeName == "SCENARIO_START" then
+    if opts.category and (typeName == "SCENARIO_START" or typeName == "SCENARIO_UPDATE" or typeName == "ZONE_CHANGE" or typeName == "SUBZONE_CHANGE") then
         cat = opts.category
     elseif opts.questID then
         if typeName == "QUEST_COMPLETE" and addon.GetQuestBaseCategory then
-            cat = addon.GetQuestBaseCategory(opts.questID) or cat
-        elseif typeName == "QUEST_ACCEPT" and addon.GetQuestCategory then
-            cat = addon.GetQuestCategory(opts.questID) or cat
+            local ok, res = pcall(addon.GetQuestBaseCategory, opts.questID)
+            cat = (ok and res) or cat
+        elseif (typeName == "QUEST_ACCEPT" or typeName == "QUEST_UPDATE") and addon.GetQuestCategory then
+            local ok, res = pcall(addon.GetQuestCategory, opts.questID)
+            cat = (ok and res) or cat
         end
     end
     local c = getCategoryColor(cat, { 0.9, 0.9, 0.9 })
@@ -161,6 +164,139 @@ local anim
 local active, activeTitle, activeTypeName
 local queue, crossfadeStartAlpha
 local PlayCinematic
+
+local QUEST_UPDATE_DEDUPE_TIME = 1.5
+local lastQuestUpdateNorm, lastQuestUpdateTime
+
+-- ============================================================================
+-- LIVE DEBUG LOG
+-- ============================================================================
+
+local DEBUG_LOG_MAX = 500
+local debugLogBuffer = {}
+local debugLogFrame
+
+local function IsDebugLive()
+    return addon.GetDB and addon.GetDB("presenceDebugLive", false)
+end
+
+local function PresenceDebugLog(msg)
+    if not IsDebugLive() then return end
+    local ts = ("%.1f"):format(GetTime() or 0)
+    local line = "[" .. ts .. "] " .. tostring(msg or "")
+    debugLogBuffer[#debugLogBuffer + 1] = line
+    while #debugLogBuffer > DEBUG_LOG_MAX do
+        table.remove(debugLogBuffer, 1)
+    end
+
+    if debugLogFrame and debugLogFrame.msg then
+        debugLogFrame.msg:AddMessage(line, 0.7, 0.9, 1, 1)
+    end
+end
+
+local function CreateDebugPanel()
+    if debugLogFrame then return end
+
+    local panel = CreateFrame("Frame", "HorizonSuitePresenceDebugFrame", UIParent)
+    panel:SetSize(420, 320)
+    panel:SetPoint("CENTER", 0, 0)
+    panel:SetFrameStrata("DIALOG")
+    panel:SetClampedToScreen(true)
+    panel:SetMovable(true)
+    panel:EnableMouse(true)
+    panel:RegisterForDrag("LeftButton")
+    panel:Hide()
+
+    local bg = panel:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints(panel)
+    bg:SetColorTexture(0.05, 0.05, 0.08, 0.95)
+
+    local border = CreateFrame("Frame", nil, panel)
+    border:SetPoint("TOPLEFT", -1, 1)
+    border:SetPoint("BOTTOMRIGHT", 1, -1)
+    if addon.CreateBorder then addon.CreateBorder(border, { 0.2, 0.2, 0.25, 1 }) end
+
+    local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("TOPLEFT", 10, -10)
+    title:SetText("Presence Live Debug")
+    title:SetTextColor(0.7, 0.9, 1)
+
+    local closeBtn = CreateFrame("Button", nil, panel)
+    closeBtn:SetSize(24, 24)
+    closeBtn:SetPoint("TOPRIGHT", -8, -8)
+    closeBtn:SetScript("OnClick", function()
+        if addon.Presence.SetDebugLive then addon.Presence.SetDebugLive(false) end
+        panel:Hide()
+    end)
+    local closeTex = closeBtn:CreateTexture(nil, "OVERLAY")
+    closeTex:SetAllPoints(closeBtn)
+    closeTex:SetColorTexture(0.5, 0.2, 0.2, 0.8)
+
+    local clearBtn = CreateFrame("Button", nil, panel)
+    clearBtn:SetSize(60, 22)
+    clearBtn:SetPoint("TOPRIGHT", -40, -10)
+    clearBtn:SetScript("OnClick", function()
+        debugLogBuffer = {}
+        if debugLogFrame and debugLogFrame.msg then
+            debugLogFrame.msg:SetMaxLines(DEBUG_LOG_MAX)
+        end
+    end)
+    local clearTex = clearBtn:CreateTexture(nil, "BACKGROUND")
+    clearTex:SetAllPoints(clearBtn)
+    clearTex:SetColorTexture(0.2, 0.2, 0.25, 0.9)
+    local clearLabel = clearBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    clearLabel:SetPoint("CENTER", 0, 0)
+    clearLabel:SetText("Clear")
+
+    local msg = CreateFrame("ScrollingMessageFrame", nil, panel)
+    msg:SetPoint("TOPLEFT", 8, -36)
+    msg:SetPoint("BOTTOMRIGHT", -8, 8)
+    msg:SetFontObject(GameFontNormalSmall)
+    msg:SetFading(false)
+    msg:SetMaxLines(DEBUG_LOG_MAX)
+    msg:EnableMouseWheel(true)
+    msg:SetScript("OnMouseWheel", function(_, delta)
+        local scroll = msg:GetScrollOffset()
+        msg:SetScrollOffset(scroll - delta)
+    end)
+
+    panel:SetScript("OnDragStart", function() panel:StartMoving() end)
+    panel:SetScript("OnDragStop", function() panel:StopMovingOrSizing() end)
+
+    debugLogFrame = panel
+    debugLogFrame.msg = msg
+end
+
+local function ShowDebugPanel()
+    CreateDebugPanel()
+    if debugLogFrame then
+        debugLogFrame.msg:SetMaxLines(DEBUG_LOG_MAX)
+        for _, line in ipairs(debugLogBuffer) do
+            debugLogFrame.msg:AddMessage(line, 0.7, 0.9, 1, 1)
+        end
+        debugLogFrame:Show()
+    end
+end
+
+local function HideDebugPanel()
+    if debugLogFrame then debugLogFrame:Hide() end
+end
+
+local function SetDebugLive(v)
+    if addon.SetDB then addon.SetDB("presenceDebugLive", v) end
+    if v then
+        ShowDebugPanel()
+        PresenceDebugLog("Live debug enabled")
+    else
+        HideDebugPanel()
+    end
+end
+
+local function ToggleDebugLive()
+    local next = not IsDebugLive()
+    SetDebugLive(next)
+    return next
+end
 
 -- ============================================================================
 -- EASING & ANIMATION HELPERS
@@ -310,6 +446,10 @@ local function PresenceOnUpdate(_, dt)
 end
 
 onComplete = function()
+    local doneTitle = activeTitle
+    local doneType = activeTypeName
+    local doneSub = (curLayer and curLayer.subText and curLayer.subText:GetText()) or ""
+
     F:SetScript("OnUpdate", nil)
     anim.phase      = "idle"
     active          = nil
@@ -318,6 +458,8 @@ onComplete = function()
     resetLayer(curLayer)
     resetLayer(oldLayer)
     F:Hide()
+
+    PresenceDebugLog(("Complete %s \"%s\" | \"%s\"; queue=%d"):format(tostring(doneType or "?"), tostring(doneTitle or ""):gsub('"', "'"), tostring(doneSub):gsub('"', "'"), #queue))
 
     if #queue > 0 then
         local best = 1
@@ -370,6 +512,11 @@ PlayCinematic = function(typeName, title, subtitle, opts)
     if not cfg then return end
 
     opts = opts or {}
+
+    if typeName == "QUEST_UPDATE" and subtitle and addon.Presence.NormalizeQuestUpdateText then
+        lastQuestUpdateNorm = addon.Presence.NormalizeQuestUpdateText(subtitle)
+        lastQuestUpdateTime = GetTime()
+    end
     local L = curLayer
     local c, sc = resolveColors(typeName, cfg, opts)
     local mainSz = cfg.sz
@@ -449,6 +596,9 @@ PlayCinematic = function(typeName, title, subtitle, opts)
         anim.phase = "entrance"
     end
 
+    local src = (opts.source and (" via %s"):format(opts.source)) or ""
+    PresenceDebugLog(("Play %s \"%s\" | \"%s\" phase=%s%s"):format(typeName, tostring(title or ""):gsub('"', "'"), tostring(subtitle or ""):gsub('"', "'"), anim.phase, src))
+
     F:SetScript("OnUpdate", PresenceOnUpdate)
     F:SetAlpha(1)
     F:Show()
@@ -500,7 +650,7 @@ end
 --- @param typeName string LEVEL_UP, BOSS_EMOTE, ACHIEVEMENT, QUEST_COMPLETE, etc.
 --- @param title string Heading text (first line)
 --- @param subtitle string Second line text
---- @param opts table|nil Optional; opts.questID for colour/icon, opts.category for SCENARIO_START
+--- @param opts table|nil Optional; opts.questID for colour/icon, opts.category for SCENARIO_START, opts.source for debug (event name)
 --- @return nil
 local function QueueOrPlay(typeName, title, subtitle, opts)
     if not F then Init() end
@@ -509,10 +659,26 @@ local function QueueOrPlay(typeName, title, subtitle, opts)
 
     opts = opts or {}
 
-    if InCombatLockdown() and cfg.pri < 4 then return end
+    -- Dedupe: skip QUEST_UPDATE if same normalized text shown recently
+    if typeName == "QUEST_UPDATE" and subtitle and addon.Presence.NormalizeQuestUpdateText then
+        local norm = addon.Presence.NormalizeQuestUpdateText(subtitle)
+        if norm and norm ~= "" and lastQuestUpdateNorm == norm and (GetTime() - (lastQuestUpdateTime or 0)) < QUEST_UPDATE_DEDUPE_TIME then
+            return
+        end
+    end
 
     if active then
-        if cfg.pri >= active.pri then
+        local sameType = (typeName == activeTypeName)
+        local higherOrEqualPri = (cfg.pri >= active.pri)
+        -- Same-type notifications queue so the user sees each one; different-type or higher-priority interrupts.
+        local shouldInterrupt = higherOrEqualPri and not sameType
+
+        if shouldInterrupt then
+            local curSub = (curLayer and curLayer.subText and curLayer.subText:GetText()) or ""
+            local src = (opts.source and (" via %s"):format(opts.source)) or ""
+            PresenceDebugLog(("QueueOrPlay: interrupt %s \"%s\" | \"%s\" -> play %s \"%s\" | \"%s\"%s"):format(
+                activeTypeName or "?", tostring(activeTitle or ""), tostring(curSub):gsub('"', "'"),
+                typeName, tostring(title or ""), tostring(subtitle or ""):gsub('"', "'"), src))
             interruptCurrent()
             PlayCinematic(typeName, title, subtitle, opts)
         else
@@ -520,10 +686,14 @@ local function QueueOrPlay(typeName, title, subtitle, opts)
                 -- Dedup: skip if same type and title already showing (e.g. duplicate zone change)
                 if not (activeTitle == title and activeTypeName == typeName) then
                     queue[#queue + 1] = { typeName, title, subtitle, opts }
+                    local src = (opts.source and (" via %s"):format(opts.source)) or ""
+                    PresenceDebugLog(("Queued %s | \"%s\" | \"%s\" (q=%d)%s"):format(typeName, tostring(title):gsub('"', "'"), tostring(subtitle or ""):gsub('"', "'"), #queue, src))
                 end
             end
         end
     else
+        local src = (opts.source and (" via %s"):format(opts.source)) or ""
+        PresenceDebugLog(("QueueOrPlay: play %s | \"%s\" | \"%s\"%s"):format(typeName, tostring(title or ""):gsub('"', "'"), tostring(subtitle or ""):gsub('"', "'"), src))
         PlayCinematic(typeName, title, subtitle, opts)
     end
 end
@@ -544,6 +714,48 @@ local function HideAndClear()
     F:Hide()
 end
 
+--- Dump Presence internal state to chat for debugging.
+--- @return nil
+local function DumpDebug()
+    if not F then Init() end
+    local p = addon.HSPrint or function(msg) print("|cFF00CCFFHorizon Suite:|r " .. tostring(msg or "")) end
+
+    p("|cFF00CCFF--- Presence debug ---|r")
+    p("Frame: created, visible=" .. tostring(F and F:IsVisible()))
+    p("Module enabled: " .. tostring(addon.IsModuleEnabled and addon:IsModuleEnabled("presence") or "?"))
+
+    if InCombatLockdown then
+        p("In combat: " .. tostring(InCombatLockdown()))
+    end
+
+    if anim then
+        p("Anim phase: " .. tostring(anim.phase) .. ", elapsed: " .. tostring(anim.elapsed) .. ", holdDur: " .. tostring(anim.holdDur))
+    end
+
+    if active then
+        local sub = (curLayer and curLayer.subText and curLayer.subText:GetText()) or ""
+        p("Active: typeName=\"" .. tostring(activeTypeName) .. "\" title=\"" .. tostring(activeTitle) .. "\" subtitle=\"" .. tostring(sub):gsub('"', '\\"') .. "\" pri=" .. tostring(active.pri))
+    else
+        p("Active: (none)")
+    end
+
+    p("Pending discovery: " .. tostring(addon.Presence.pendingDiscovery or false))
+    p("Queue: " .. tostring(#queue) .. " entries")
+    for i, e in ipairs(queue) do
+        p("  [" .. tostring(i) .. "] " .. tostring(e[1]) .. " | \"" .. tostring(e[2]):gsub('"', '\\"') .. "\" | \"" .. tostring(e[3]):gsub('"', '\\"') .. "\"")
+    end
+
+    if addon.GetDB then
+        p("Options: showPresenceDiscovery=" .. tostring(addon.GetDB("showPresenceDiscovery", true)) .. ", showQuestTypeIcons=" .. tostring(addon.GetDB("showQuestTypeIcons", false)) .. ", presenceIconSize=" .. tostring(addon.GetDB("presenceIconSize", 24)))
+    end
+
+    if GetZoneText then
+        p("Current zone: " .. tostring(GetZoneText()) .. " / " .. tostring(GetSubZoneText()))
+    end
+
+    p("|cFF00CCFF--- End Presence debug ---|r")
+end
+
 -- ============================================================================
 -- Exports
 -- ============================================================================
@@ -554,4 +766,10 @@ addon.Presence.SoftUpdateSubtitle = SoftUpdateSubtitle
 addon.Presence.ShowDiscoveryLine  = ShowDiscoveryLine
 addon.Presence.SetPendingDiscovery = SetPendingDiscovery
 addon.Presence.HideAndClear       = HideAndClear
+addon.Presence.DumpDebug          = DumpDebug
+addon.Presence.IsDebugLive        = IsDebugLive
+addon.Presence.SetDebugLive       = SetDebugLive
+addon.Presence.ToggleDebugLive    = ToggleDebugLive
+addon.Presence.ShowDebugPanel     = ShowDebugPanel
+addon.Presence.HideDebugPanel     = HideDebugPanel
 addon.Presence.DISCOVERY_WAIT     = 0.15
