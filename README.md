@@ -22,7 +22,7 @@
 - **Combat-ready** – Hide in combat, show or hide in dungeons/raids/BGs, compact or super-minimal layouts.
 - **Mythic+ and Delves** – Banner for keystone info, timer, and affixes. Delve objectives in the standard layout.
 
-## 🎬 Presence (Zone Text & Notifications)
+## 🎬 Presence (Zone Text & Notifications) - BETA
 
 ![Presence - Zone Text & Notifications](https://raw.githubusercontent.com/Crystilac93/Horizon-Suite/main/docs/Presence.png)
 
