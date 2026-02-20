@@ -42,6 +42,31 @@ panel:EnableMouse(true)
 panel:RegisterForDrag("LeftButton")
 panel:Hide()
 
+panel.__hsCloseReason = nil
+panel:HookScript("OnShow", function(self)
+    self.__hsCloseReason = nil
+end)
+panel:HookScript("OnHide", function(self)
+    if self.__hsCloseReason == "ESC" and addon and addon._CloseAnyOpenDropdown then
+        addon._CloseAnyOpenDropdown()
+    end
+    self.__hsCloseReason = nil
+end)
+
+do
+    -- Ensure panel is in UISpecialFrames exactly once.
+    if _G.UISpecialFrames then
+        local n = panel:GetName()
+        local exists = false
+        for i = 1, #_G.UISpecialFrames do
+            if _G.UISpecialFrames[i] == n then exists = true break end
+        end
+        if not exists then
+            tinsert(_G.UISpecialFrames, 1, n)
+        end
+    end
+end
+
 local bg = panel:CreateTexture(nil, "BACKGROUND")
 bg:SetAllPoints(panel)
 local sb = Def.SectionCardBg or { 0.09, 0.09, 0.11, 0.96 }
@@ -1265,8 +1290,7 @@ for _, mk in ipairs(groupOrder) do
         btn:SetSize(SIDEBAR_WIDTH, TAB_ROW_HEIGHT)
         if not lastSidebarRow then btn:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 0, -SIDEBAR_TOP_PAD)
         else btn:SetPoint("TOPLEFT", lastSidebarRow, "BOTTOMLEFT", 0, 0) end
-        lastSidebarRow = btn
-        btn.categoryIndex = catIdx
+        lastSidebarRow = btn        btn.categoryIndex = catIdx
         btn.label = btn:CreateFontString(nil, "OVERLAY")
         btn.label:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", Def.LabelSize or 13, "OUTLINE")
         btn.label:SetPoint("LEFT", btn, "LEFT", 12, 0)

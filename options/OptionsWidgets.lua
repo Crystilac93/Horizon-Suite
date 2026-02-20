@@ -349,16 +349,32 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
     -- Keep our own list of option buttons; GetNumChildren()/GetChildren() is unreliable.
     local optionButtons = {}
 
-    local catch = CreateFrame("Button", nil, UIParent)
+    local catch = CreateFrame("Button", "HorizonSuite_DropdownCatch" .. tostring(row):gsub("table: ", ""), UIParent)
     catch:SetFrameStrata("TOOLTIP")
     catch:SetAllPoints(UIParent)
     catch:Hide()
+
+    -- Allow ESC to close an open dropdown.
+    -- WoW's CloseSpecialWindows() hides frames listed in UISpecialFrames.
+    catch.__horizonDropdownCatch = true
+    if _G.UISpecialFrames then
+        local n = catch:GetName()
+        local exists = false
+        for i = 1, #_G.UISpecialFrames do
+            if _G.UISpecialFrames[i] == n then exists = true break end
+        end
+        if not exists then tinsert(_G.UISpecialFrames, n) end
+    end
 
     local function closeList()
         list:Hide()
         catch:Hide()
     end
     catch:SetScript("OnClick", closeList)
+    catch:SetScript("OnHide", function()
+        -- Keep list in sync if the catch is hidden via ESC.
+        if list:IsShown() then list:Hide() end
+    end)
 
     local function setValue(value, display)
         set(value)
