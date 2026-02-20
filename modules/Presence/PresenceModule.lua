@@ -19,6 +19,9 @@ addon:RegisterModule("presence", {
 
     OnEnable = function()
         if addon.Presence then
+            if addon.Presence.IsDebugLive and addon.Presence.IsDebugLive() and addon.Presence.ShowDebugPanel then
+                addon.Presence.ShowDebugPanel()
+            end
             if addon.Presence.EnableEvents then addon.Presence.EnableEvents() end
             if addon.Presence.SuppressBlizzard then addon.Presence.SuppressBlizzard() end
             if addon.Presence.MuteAlerts then addon.Presence.MuteAlerts() end

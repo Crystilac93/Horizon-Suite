@@ -48,7 +48,8 @@ Baseline coverage matrix, gap analysis, and implementation plan for release read
 | QUEST_WATCH_UPDATE | OnQuestWatchUpdate | QUEST_UPDATE | C_QuestLog.GetQuestObjectives |
 | QUEST_LOG_UPDATE | OnQuestLogUpdate | QUEST_UPDATE (blind WQ) | GetWorldQuestIDForObjectiveUpdate |
 | UI_INFO_MESSAGE | OnUIInfoMessage | QUEST_UPDATE (fallback) | msg text |
-| SCENARIO_UPDATE / SCENARIO_CRITERIA_UPDATE | TryShowScenarioStart | SCENARIO_START | addon.GetScenarioDisplayInfo |
+| SCENARIO_UPDATE | TryShowScenarioStart | SCENARIO_START | addon.GetScenarioDisplayInfo |
+| SCENARIO_CRITERIA_UPDATE | TryShowScenarioStart + RequestScenarioCriteriaUpdate (when wasInScenario) | SCENARIO_UPDATE | C_ScenarioInfo.GetCriteriaInfo |
 
 ### 1.4 KillBlizzardFrame Mechanism (PresenceBlizzard.lua)
 
