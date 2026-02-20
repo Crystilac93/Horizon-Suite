@@ -85,6 +85,26 @@ local function StopMapCheckTicker()
     end
 end
 
+-- When "Show in-zone world quests" is off, run a 1s ticker to refresh proximity (Blizzard default:
+-- WQs appear when you enter their quest area). Skips instances/delves where WQ proximity is irrelevant.
+local function StartProximityCheckTicker()
+    if addon._proximityCheckTicker then return end
+    addon._proximityCheckTicker = C_Timer.NewTicker(1, function()
+        if not addon.focus.enabled or addon.focus.collapsed then return end
+        if addon.GetDB("showWorldQuests", true) then return end
+        if addon.IsInPartyDungeon and addon.IsInPartyDungeon() then return end
+        if addon.IsDelveActive and addon.IsDelveActive() then return end
+        if addon.ScheduleRefresh then addon.ScheduleRefresh() end
+    end)
+end
+
+local function StopProximityCheckTicker()
+    if addon._proximityCheckTicker then
+        addon._proximityCheckTicker:Cancel()
+        addon._proximityCheckTicker = nil
+    end
+end
+
 -- Called when Blizzard_WorldMap loads; reset visibility state so next ticker run resyncs.
 local function tryHookWorldMap()
     addon._worldMapWasShown = nil
@@ -129,6 +149,7 @@ addon:RegisterModule("focus", {
         StartScenarioTimerHeartbeat()
         StartScenarioBarTicker()
         StartMapCheckTicker()
+        StartProximityCheckTicker()
         if addon.EnsureFocusUpdateRunning then addon.EnsureFocusUpdateRunning() end
         C_Timer.After(0.5, tryHookWorldMap)
         for attempt = 1, 5 do
@@ -144,6 +165,7 @@ addon:RegisterModule("focus", {
         StopScenarioTimerHeartbeat()
         StopScenarioBarTicker()
         StopMapCheckTicker()
+        StopProximityCheckTicker()
         if addon.HS then addon.HS:SetScript("OnUpdate", nil) end
         if addon.RestoreTracker then addon.RestoreTracker() end
         if not InCombatLockdown() then

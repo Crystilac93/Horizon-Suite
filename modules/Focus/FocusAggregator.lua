@@ -30,8 +30,9 @@ local CATEGORY_SORT_ORDER = {
 
 local function CompareEntriesBySortMode(a, b)
     if a.category == "WORLD" or a.category == "CALLING" then
-        local pa = ((a.isTracked or a.isAccepted) and 1) or 0
-        local pb = ((b.isTracked or b.isAccepted) and 1) or 0
+        -- Priority: tracked/accepted (2) > proximity/in-quest-area (1) > zone-only (0)
+        local pa = ((a.isTracked or a.isAccepted) and 2) or ((a.isInQuestArea and 1) or 0)
+        local pb = ((b.isTracked or b.isAccepted) and 2) or ((b.isInQuestArea and 1) or 0)
         if pa ~= pb then return pa > pb end
     elseif a.category == "WEEKLY" or a.category == "DAILY" then
         local pa = (a.isAccepted and 1) or 0
@@ -255,6 +256,7 @@ local function ReadTrackedQuests()
         local isDungeonQuest = opts.isDungeonQuest or (addon.IsInPartyDungeon and addon.IsInPartyDungeon() and isNearby)
         local isTracked = opts.isTracked ~= false
         local isAutoAdded = opts.isAutoAdded and true or false
+        local isInQuestArea = opts.isInQuestArea and true or false
 
         local itemLink, itemTexture
         if logIndex and GetQuestLogSpecialItemInfo then
@@ -290,6 +292,7 @@ local function ReadTrackedQuests()
             questTypeAtlas = questTypeAtlas, isDungeonQuest = isDungeonQuest, isTracked = isTracked, level = questLevel,
             isAutoComplete = isAutoComplete,
             isAutoAdded = isAutoAdded,
+            isInQuestArea = isInQuestArea,
         }
         if objectivesDoneCount and objectivesTotalCount then
             entry.objectivesDoneCount = objectivesDoneCount
@@ -329,8 +332,11 @@ local function ReadTrackedQuests()
         local isCompleted = C_QuestLog.IsQuestFlaggedCompleted and C_QuestLog.IsQuestFlaggedCompleted(e.questID)
 
         -- If the toggle is OFF: only keep WORLD/CALLING items that are explicitly tracked
-        -- (manual watch list, WQT's tracked set), or the current supertracked quest.
-        local explicitlyKept = (opts.isTracked == true) or (opts.isAutoAdded == false) or (superTracked and e.questID == superTracked)
+        -- (manual watch list, WQT's tracked set), the current supertracked quest,
+        -- or in quest-area proximity (Blizzard default).
+        local explicitlyKept = (opts.isTracked == true) or (opts.isAutoAdded == false)
+            or (superTracked and e.questID == superTracked)
+            or (opts.isInQuestArea == true)
 
         if not seen[e.questID]
             and not isBlacklisted
