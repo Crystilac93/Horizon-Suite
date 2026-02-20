@@ -36,6 +36,7 @@ local ENTRANCE_DUR  = 0.7
 local EXIT_DUR      = 0.8
 local CROSSFADE_DUR = 0.4
 local ELEMENT_DUR   = 0.4
+local SUBTITLE_TRANSITION_DUR = 0.12
 
 local DISCOVERY_SIZE  = 16
 local QUEST_ICON_SIZE = 24  -- quest-type icon in toasts; larger than Focus (16) to match heading scale
@@ -163,6 +164,7 @@ local F, layerA, layerB, curLayer, oldLayer
 local anim
 local active, activeTitle, activeTypeName
 local queue, crossfadeStartAlpha
+local subtitleTransition  -- { phase = "fadeOut"|"fadeIn", elapsed = 0, newText = string }
 local PlayCinematic
 
 local QUEST_UPDATE_DEDUPE_TIME = 1.5
@@ -369,7 +371,8 @@ end
 
 local function updateExit()
     local L   = curLayer
-    local e   = easeIn(math.min(anim.elapsed / EXIT_DUR, 1))
+    -- Linear fade for smoother exit; easeIn (t^2) was abrupt in the final 20%
+    local e   = math.min(anim.elapsed / EXIT_DUR, 1)
     local inv = 1 - e
 
     L.titleText:SetAlpha(inv)
@@ -389,6 +392,35 @@ local function updateExit()
     if (L.discoveryText:GetText() or "") ~= "" then
         L.discoveryText:SetAlpha(inv)
         L.discoveryShadow:SetAlpha(inv * 0.8)
+    end
+end
+
+local function updateSubtitleTransition(dt)
+    if not subtitleTransition or not curLayer then return end
+    local st = subtitleTransition
+    st.elapsed = st.elapsed + dt
+    local L = curLayer
+    if st.phase == "fadeOut" then
+        local t = math.min(st.elapsed / SUBTITLE_TRANSITION_DUR, 1)
+        local alpha = 1 - t
+        L.subText:SetAlpha(alpha)
+        L.subShadow:SetAlpha(alpha * 0.8)
+        if st.elapsed >= SUBTITLE_TRANSITION_DUR then
+            L.subText:SetText(st.newText or "")
+            L.subShadow:SetText(st.newText or "")
+            st.phase = "fadeIn"
+            st.elapsed = 0
+        end
+    else
+        local t = math.min(st.elapsed / SUBTITLE_TRANSITION_DUR, 1)
+        local alpha = t
+        L.subText:SetAlpha(alpha)
+        L.subShadow:SetAlpha(alpha * 0.8)
+        if st.elapsed >= SUBTITLE_TRANSITION_DUR then
+            L.subText:SetAlpha(1)
+            L.subShadow:SetAlpha(0.8)
+            subtitleTransition = nil
+        end
     end
 end
 
@@ -416,6 +448,10 @@ local onComplete
 local function PresenceOnUpdate(_, dt)
     if anim.phase == "idle" then return end
     anim.elapsed = anim.elapsed + dt
+
+    if subtitleTransition then
+        updateSubtitleTransition(dt)
+    end
 
     if anim.phase == "entrance" then
         updateEntrance()
@@ -450,6 +486,7 @@ onComplete = function()
     local doneType = activeTypeName
     local doneSub = (curLayer and curLayer.subText and curLayer.subText:GetText()) or ""
 
+    subtitleTransition = nil
     F:SetScript("OnUpdate", nil)
     anim.phase      = "idle"
     active          = nil
@@ -469,7 +506,8 @@ onComplete = function()
             end
         end
         local nxt = table.remove(queue, best)
-        PlayCinematic(nxt[1], nxt[2], nxt[3], nxt[4])
+        -- Defer to next frame to avoid visible flicker when advancing queue (Hide then Show in same frame)
+        C_Timer.After(0, function() PlayCinematic(nxt[1], nxt[2], nxt[3], nxt[4]) end)
     end
 end
 
@@ -498,6 +536,7 @@ local function Init()
     activeTypeName = nil
     queue = {}
     crossfadeStartAlpha = 1
+    subtitleTransition = nil
     addon.Presence.pendingDiscovery = nil
 
     addon.Presence.frame = F
@@ -605,12 +644,18 @@ PlayCinematic = function(typeName, title, subtitle, opts)
 end
 
 --- Update the subtitle text of the currently displayed cinematic (e.g. subzone soft-update).
+--- Uses a quick fade-out/fade-in transition instead of instant swap.
 --- @param newSub string New subtitle text
 --- @return nil
 local function SoftUpdateSubtitle(newSub)
     if not curLayer then return end
-    curLayer.subText:SetText(newSub or "")
-    curLayer.subShadow:SetText(newSub or "")
+    local txt = newSub or ""
+    if (curLayer.subText:GetText() or "") == txt then return end
+    if subtitleTransition then
+        subtitleTransition.newText = txt
+    else
+        subtitleTransition = { phase = "fadeOut", elapsed = 0, newText = txt }
+    end
     if anim.phase == "hold" then
         anim.elapsed = 0
     end
@@ -668,27 +713,14 @@ local function QueueOrPlay(typeName, title, subtitle, opts)
     end
 
     if active then
-        local sameType = (typeName == activeTypeName)
-        local higherOrEqualPri = (cfg.pri >= active.pri)
-        -- Same-type notifications queue so the user sees each one; different-type or higher-priority interrupts.
-        local shouldInterrupt = higherOrEqualPri and not sameType
-
-        if shouldInterrupt then
-            local curSub = (curLayer and curLayer.subText and curLayer.subText:GetText()) or ""
-            local src = (opts.source and (" via %s"):format(opts.source)) or ""
-            PresenceDebugLog(("QueueOrPlay: interrupt %s \"%s\" | \"%s\" -> play %s \"%s\" | \"%s\"%s"):format(
-                activeTypeName or "?", tostring(activeTitle or ""), tostring(curSub):gsub('"', "'"),
-                typeName, tostring(title or ""), tostring(subtitle or ""):gsub('"', "'"), src))
-            interruptCurrent()
-            PlayCinematic(typeName, title, subtitle, opts)
-        else
-            if #queue < MAX_QUEUE then
-                -- Dedup: skip if same type and title already showing (e.g. duplicate zone change)
-                if not (activeTitle == title and activeTypeName == typeName) then
-                    queue[#queue + 1] = { typeName, title, subtitle, opts }
-                    local src = (opts.source and (" via %s"):format(opts.source)) or ""
-                    PresenceDebugLog(("Queued %s | \"%s\" | \"%s\" (q=%d)%s"):format(typeName, tostring(title):gsub('"', "'"), tostring(subtitle or ""):gsub('"', "'"), #queue, src))
-                end
+        -- Always queue when something is showing; no interrupting. Subzone-only changes
+        -- bypass QueueOrPlay and use SoftUpdateSubtitle (PresenceEvents).
+        if #queue < MAX_QUEUE then
+            -- Dedup: skip if same type and title already showing (e.g. duplicate zone change)
+            if not (activeTitle == title and activeTypeName == typeName) then
+                queue[#queue + 1] = { typeName, title, subtitle, opts }
+                local src = (opts.source and (" via %s"):format(opts.source)) or ""
+                PresenceDebugLog(("Queued %s | \"%s\" | \"%s\" (q=%d)%s"):format(typeName, tostring(title):gsub('"', "'"), tostring(subtitle or ""):gsub('"', "'"), #queue, src))
             end
         end
     else
@@ -708,6 +740,7 @@ local function HideAndClear()
     activeTitle     = nil
     activeTypeName  = nil
     queue = {}
+    subtitleTransition = nil
     addon.Presence.pendingDiscovery = nil
     resetLayer(curLayer)
     resetLayer(oldLayer)
