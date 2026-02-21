@@ -157,6 +157,123 @@ local function UpdatePanelHeight(dt)
     end
 end
 
+local function GetFadeOnMouseoverAlpha()
+    local pct = tonumber(addon.GetDB("fadeOnMouseoverOpacity", 10)) or 10
+    return math.max(0, math.min(100, pct)) / 100
+end
+
+--- Returns true if the mouse is over the frame or any of its descendants.
+--- Needed because child frames (quest entries, etc.) have their own mouse handling,
+--- so the parent HS receives OnLeave when the cursor moves onto a child.
+local function IsMouseOverFrameOrDescendants(frame)
+    if not frame or not frame.IsMouseOver then return false end
+    if frame:IsMouseOver() then return true end
+    if not frame.GetChildren then return false end
+    local children = { frame:GetChildren() }
+    for i = 1, #children do
+        if children[i] and IsMouseOverFrameOrDescendants(children[i]) then return true end
+    end
+    return false
+end
+
+--- Returns true if the mouse is over the main tracker, M+ block, or floating quest item.
+--- Unified hover boundary so fade-out does not trigger when moving between related UI.
+function addon.IsFocusHoverActive()
+    if IsMouseOverFrameOrDescendants(HS) then return true end
+    local mplus = addon.mplusBlock
+    if mplus and mplus:IsShown() then
+        local over = mplus:IsMouseOver()
+        if over then return true end
+    end
+    local floatingBtn = _G.HSFloatingQuestItem
+    if floatingBtn and floatingBtn:IsShown() then
+        local over = floatingBtn:IsMouseOver()
+        if over then return true end
+    end
+    return false
+end
+
+addon.IsMouseOverTracker = addon.IsFocusHoverActive
+
+local function UpdateHoverFade(dt, useAnim)
+    if not addon.GetDB("showOnMouseoverOnly", false) then
+        if addon.focus.hoverFade.fadeState then
+            addon.focus.hoverFade.fadeState = nil
+            addon.focus.hoverFade.fadeTime = 0
+        end
+        if HS:IsShown() then
+            HS:SetAlpha(1)
+            local floatingBtn = _G.HSFloatingQuestItem
+            if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(1) end
+        end
+        return
+    end
+    if addon.focus.combat.fadeState then return end
+    if not HS:IsShown() then
+        if addon.focus.hoverFade.fadeState then
+            addon.focus.hoverFade.fadeState = nil
+            addon.focus.hoverFade.fadeTime = 0
+            addon.focus.hoverFade.startAlpha = nil
+        end
+        return
+    end
+
+    local mouseOver = addon.IsFocusHoverActive()
+    local fadeAlpha = GetFadeOnMouseoverAlpha()
+    local targetAlpha = mouseOver and 1 or fadeAlpha
+    local currentAlpha = HS:GetAlpha()
+    local dur = anim.dur
+    local hf = addon.focus.hoverFade
+
+    if hf.fadeState == nil then
+        if math.abs(currentAlpha - targetAlpha) < 0.01 then
+            HS:SetAlpha(targetAlpha)
+            local floatingBtn = _G.HSFloatingQuestItem
+            if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(targetAlpha) end
+            return
+        end
+        hf.fadeState = mouseOver and "in" or "out"
+        hf.fadeTime = 0
+        hf.startAlpha = currentAlpha
+    else
+        -- Re-check hover each tick; retarget immediately if it changed mid-transition
+        local prevTarget = (hf.fadeState == "in") and 1 or fadeAlpha
+        if math.abs(targetAlpha - prevTarget) >= 0.01 then
+            hf.fadeState = mouseOver and "in" or "out"
+            hf.fadeTime = 0
+            hf.startAlpha = currentAlpha
+        end
+    end
+
+    hf.fadeTime = hf.fadeTime + dt
+    local p = GetProgress(hf.fadeTime, 0, dur)
+    local ep = p  -- linear: same perceived speed for fade in and out
+    local startAlpha = hf.startAlpha or currentAlpha
+    local newAlpha = startAlpha + (targetAlpha - startAlpha) * ep
+
+    if not useAnim then
+        HS:SetAlpha(targetAlpha)
+        local floatingBtn = _G.HSFloatingQuestItem
+        if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(targetAlpha) end
+        hf.fadeState = nil
+        hf.fadeTime = 0
+        hf.startAlpha = nil
+        return
+    end
+
+    HS:SetAlpha(newAlpha)
+    local floatingBtn = _G.HSFloatingQuestItem
+    if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(newAlpha) end
+
+    if p >= 1 then
+        HS:SetAlpha(targetAlpha)
+        if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(targetAlpha) end
+        hf.fadeState = nil
+        hf.fadeTime = 0
+        hf.startAlpha = nil
+    end
+end
+
 local function UpdateCombatFade(dt, useAnim)
     local combatState = addon.focus.combat.fadeState
     if not combatState then return end
@@ -210,6 +327,13 @@ local function UpdateCombatFade(dt, useAnim)
                 if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(1) end
                 addon.focus.combat.fadeState = nil
                 addon.focus.combat.fadeTime = 0
+                -- Restore hover fade state if show-on-mouseover is on and mouse is not over
+                if addon.GetDB("showOnMouseoverOnly", false) and not addon.IsFocusHoverActive() then
+                    local fadeAlpha = GetFadeOnMouseoverAlpha()
+                    addon.focus.hoverFade.fadeState = "out"
+                    addon.focus.hoverFade.fadeTime = 0
+                    addon.focus.hoverFade.startAlpha = 1
+                end
             end
         end
     end
@@ -756,6 +880,7 @@ function addon.EnsureFocusUpdateRunning()
         local useAnim = addon.GetDB("animations", true)
         UpdatePanelHeight(dt)
         UpdateCombatFade(dt, useAnim)
+        UpdateHoverFade(dt, useAnim)
         local anyEntryAnimating = UpdateEntryAnimations(dt, useAnim)
         UpdateSectionHeaderFadeOut(dt, useAnim)
         UpdateCollapseAnimations(dt)
@@ -771,10 +896,20 @@ function addon.EnsureFocusUpdateRunning()
                 break
             end
         end
+        local hoverFadeNeedsUpdate = false
+        if addon.focus.hoverFade and addon.GetDB("showOnMouseoverOnly", false) and HS:IsShown() and not addon.focus.combat.fadeState then
+            local mouseOver = addon.IsFocusHoverActive()
+            local fadeAlpha = GetFadeOnMouseoverAlpha()
+            local targetAlpha = mouseOver and 1 or fadeAlpha
+            local currentAlpha = HS:GetAlpha()
+            hoverFadeNeedsUpdate = (addon.focus.hoverFade.fadeState ~= nil) or (math.abs(currentAlpha - targetAlpha) >= 0.01)
+        end
+
         local stillAnimating = anyEntryAnimating
             or anySectionSliding
             or addon.focus.collapse.animating
             or (addon.focus.combat and addon.focus.combat.fadeState ~= nil)
+            or hoverFadeNeedsUpdate
             or (addon.focus.collapse.groups and next(addon.focus.collapse.groups) ~= nil)
             or (addon.focus.collapse.optionCollapseKeys and next(addon.focus.collapse.optionCollapseKeys) ~= nil)
             or addon.focus.collapse.sectionHeadersFadingOut

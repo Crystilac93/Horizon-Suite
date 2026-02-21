@@ -6,13 +6,11 @@
 
 **Horizon Suite** is a core addon with pluggable modules: **Focus** (objective tracker), **Presence** (zone text & notifications), and **Yield** (loot toasts). Designed for the Midnight era—clean, cinematic, player-in-control. It replaces static, cluttered lists with a fluid interface that grants you total agency over your goals. Additional suites will appear as modules in the same options panel.
 
-
-
 ---
 
 ## 🎯 Focus (Objective Tracker)
 
-![Focus - Objective Tracker](https://raw.githubusercontent.com/Crystilac93/Horizon-Suite/main/docs/Focus.png)
+Focus - Objective Tracker
 
 - **Smart zone tracking** – Nearby quests float to the top; list updates as you move. Delves, scenarios, and world events get their own sections with progress bars and timers.
 - **Track what matters** – Achievements, Endeavors (housing), and Decor appear in the tracker. One-click to open achievement panel, housing dashboard, or decor catalog.
@@ -20,11 +18,12 @@
 - **Live quest sync** – World quests, dailies, and weeklies update dynamically. Quests auto-track when you accept them.
 - **All The Things integration** – Collection data appears directly in your objectives.
 - **Combat-ready** – Hide in combat, show or hide in dungeons/raids/BGs, compact or super-minimal layouts.
+- **Show only on mouseover** – Fade the tracker when not hovering; move the mouse over it to reveal.
 - **Mythic+ and Delves** – Banner for keystone info, timer, and affixes. Delve objectives in the standard layout.
 
 ## 🎬 Presence (Zone Text & Notifications) - BETA
 
-![Presence - Zone Text & Notifications](https://raw.githubusercontent.com/Crystilac93/Horizon-Suite/main/docs/Presence.png)
+Presence - Zone Text & Notifications
 
 - **Cinematic notifications** – Zone text, subzone changes, "Discovered" lines. Level-up, boss emotes, achievements, quest accept/complete, scenario start, and objective progress in delves/scenarios appear as styled toasts with smooth animations.
 
@@ -45,17 +44,17 @@
 ## ⌨️ Basic Commands
 
 
-| Command             | Action                                        |
-| ------------------- | --------------------------------------------- |
-| `/horizon options`  | Open the options panel (search bar included). |
-| `/horizon toggle`   | Toggle the tracker on or off.                 |
-| `/horizon collapse` | Collapse or expand the tracker.               |
-| `/horizon nearby`   | Toggle the Nearby (Current Zone) grouping.    |
-| `/horizon test`     | Preview your styling with sample data.        |
-| `/horizon reset`    | Clear test data.                              |
-| `/horizon resetpos` | Reset the tracker position.                   |
-| `/horizon yield`    | Show Yield (loot toast) help and test commands.|
-| `/horizon yield all`| Demo reel of all loot toast types.            |
+| Command              | Action                                          |
+| -------------------- | ----------------------------------------------- |
+| `/horizon options`   | Open the options panel (search bar included).   |
+| `/horizon toggle`    | Toggle the tracker on or off.                   |
+| `/horizon collapse`  | Collapse or expand the tracker.                 |
+| `/horizon nearby`    | Toggle the Nearby (Current Zone) grouping.      |
+| `/horizon test`      | Preview your styling with sample data.          |
+| `/horizon reset`     | Clear test data.                                |
+| `/horizon resetpos`  | Reset the tracker position.                     |
+| `/horizon yield`     | Show Yield (loot toast) help and test commands. |
+| `/horizon yield all` | Demo reel of all loot toast types.              |
 
 
 **Mouse:** Left-click to focus a quest (and complete auto-complete quests). Right-click to untrack. Shift+left-click for quest log and map. Shift+right-click to abandon. Drag the corner grip to resize.
@@ -94,6 +93,17 @@
 Thanks to everyone who has contributed to Horizon Suite:
 
 - **feanor21#2847** — Panoramuxa (Tarren Mill -EU)
+
+---
+
+## 🌐 Localizations
+
+The options panel is localized for:
+
+- **French (frFR)** — `options/frFR.lua`
+- **Korean (koKR)** — `options/koKR.lua`
+
+Contributions for additional locales are welcome via discord request.
 
 ---
 

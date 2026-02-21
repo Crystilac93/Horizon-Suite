@@ -153,6 +153,11 @@ L["Show in arena"]                                      = "투기장에서 표�
 L["Show tracker in arenas."]                            = "투기장에서 추적기를 표시합니다."
 L["Hide in combat"]                                     = "전투 중 숨기기"
 L["Hide tracker and floating quest item in combat."]    = "전투 중 추적기와 퀘스트 아이템 버튼을 숨깁니다."
+L["Mouseover"]                                          = "마우스 오버"
+L["Show only on mouseover"]                             = "마우스 오버 시에만 표시"
+L["Fade tracker when not hovering; move mouse over it to show."] = "마우스를 올리지 않으면 추적기를 흐리게 표시합니다. 마우스를 올리면 표시됩니다."
+L["Faded opacity"]                                      = "흐림 투명도"
+L["How visible the tracker is when faded (0 = invisible)."] = "흐릿할 때 추적기의 표시 정도 (0 = 완전 투명)."
 L["Only show quests in current zone"]                   = "현재 지역 퀘스트만 표시"
 L["Hide quests outside your current zone."]             = "현재 지역 밖의 퀘스트를 숨깁니다."
 

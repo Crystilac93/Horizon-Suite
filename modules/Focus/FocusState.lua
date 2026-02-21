@@ -44,6 +44,12 @@ addon.focus = {
         fadeTime  = 0,
     },
 
+    hoverFade = {
+        mouseOver = false,
+        fadeState = nil,  -- "in" | "out" | nil
+        fadeTime  = 0,
+    },
+
     layout = (existing and existing.layout) or {
         targetHeight  = addon.MIN_HEIGHT,
         currentHeight = addon.MIN_HEIGHT,

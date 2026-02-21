@@ -431,6 +431,22 @@ HS:SetScript("OnDragStop", function(self)
     SavePanelPosition()
 end)
 
+-- Hover fade: track mouse over for show-on-mouseover mode
+addon.focus = addon.focus or {}
+addon.focus.hoverFade = addon.focus.hoverFade or { mouseOver = false, fadeState = nil, fadeTime = 0 }
+HS:SetScript("OnEnter", function()
+    addon.focus.hoverFade.mouseOver = true
+    if addon.GetDB("showOnMouseoverOnly", false) and addon.EnsureFocusUpdateRunning then
+        addon.EnsureFocusUpdateRunning()
+    end
+end)
+HS:SetScript("OnLeave", function()
+    addon.focus.hoverFade.mouseOver = false
+    if addon.GetDB("showOnMouseoverOnly", false) and addon.EnsureFocusUpdateRunning then
+        addon.EnsureFocusUpdateRunning()
+    end
+end)
+
 -- Resize handle: drag bottom-right corner to change panel width and height
 local RESIZE_MIN, RESIZE_MAX = 180, 800
 local RESIZE_HEIGHT_MIN = addon.MIN_HEIGHT

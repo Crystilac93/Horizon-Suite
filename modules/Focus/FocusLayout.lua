@@ -89,6 +89,19 @@ local function AcquireEntry()
     return nil
 end
 
+--- Set initial alpha when showing the tracker. Combat fade "in" overrides; otherwise apply hover-fade state.
+local function ApplyShowAlpha()
+    if addon.focus.combat.fadeState == "in" then
+        addon.HS:SetAlpha(0)
+        return
+    end
+    if addon.GetDB("showOnMouseoverOnly", false) then
+        local pct = tonumber(addon.GetDB("fadeOnMouseoverOpacity", 10)) or 10
+        local fadeAlpha = math.max(0, math.min(100, pct)) / 100
+        addon.HS:SetAlpha(addon.IsFocusHoverActive and addon.IsFocusHoverActive() and 1 or fadeAlpha)
+    end
+end
+
 -- Safety: if load order is disrupted (or a hot-reload partially loads files),
 -- layout can run before FocusAnimation defines addon.SetEntryFadeIn.
 -- Fall back to a no-animation init so we never hard-crash.
@@ -351,7 +364,7 @@ local function FullLayout()
         -- stay visible; UpdateCollapseAnimations will call FullLayout when done.
         if addon.focus.collapse.animating then
             if #quests > 0 then
-                if addon.focus.combat.fadeState == "in" then addon.HS:SetAlpha(0) end
+                ApplyShowAlpha()
                 addon.HS:Show()
             end
             return
@@ -399,7 +412,7 @@ local function FullLayout()
         end
 
         if #quests > 0 then
-            if addon.focus.combat.fadeState == "in" then addon.HS:SetAlpha(0) end
+            ApplyShowAlpha()
             addon.HS:Show()
         end
         return
@@ -794,7 +807,7 @@ local function FullLayout()
     addon.focus.layout.targetHeight  = math.max(addon.MIN_HEIGHT, headerArea + visibleH + addon.PADDING + blockHeight)
 
     if #quests > 0 then
-        if addon.focus.combat.fadeState == "in" then addon.HS:SetAlpha(0) end
+        ApplyShowAlpha()
         addon.HS:Show()
     end
 
