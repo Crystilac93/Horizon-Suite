@@ -1364,7 +1364,7 @@ function addon.DebugHeaderCount()
         local getQidForIdx = C_QuestLog.GetQuestIDForLogIndex
         if getQidForIdx then
             for i = 1, numEntries do
-                local qid = getQidForLogIdx(i)
+                local qid = getQidForIdx(i)
                 if qid and (not isWQ or not isWQ(qid)) and isOnQuest(qid) then countByLogIndex = countByLogIndex + 1 end
             end
         end

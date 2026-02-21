@@ -12,11 +12,12 @@
 
 ![Focus - Objective Tracker](https://raw.githubusercontent.com/Crystilac93/Horizon-Suite/main/docs/Focus.png)
 
-- **Smart zone tracking** – Nearby quests float to the top; list updates as you move. Delves, scenarios, and world events get their own sections with progress bars and timers.
+- **Smart zone tracking** – Nearby quests float to the top; list updates as you move. Delves, scenarios, raids, and world events get their own sections with progress bars and timers.
 - **Track what matters** – Achievements, Endeavors (housing), and Decor appear in the tracker. One-click to open achievement panel, housing dashboard, or decor catalog.
 - **Rare boss alerts** – Super-track nearby rares with one click and optional audio alerts.
-- **Live quest sync** – World quests, dailies, and weeklies update dynamically. Quests auto-track when you accept them.
+- **Live quest sync** – World quests, dailies, and weeklies update dynamically. Quests auto-track when you accept them. Choose a radar icon for auto-tracked in-zone entries.
 - **All The Things integration** – Collection data appears directly in your objectives.
+- **Profiles** – Create, switch, copy, and delete named profiles. Per-character, per-specialization, or global (account-wide) modes. Import and export profiles as shareable text strings.
 - **Combat-ready** – Show, fade, or hide in combat; show or hide in dungeons/raids/BGs; compact or super-minimal layouts.
 - **Show only on mouseover** – Fade the tracker when not hovering; move the mouse over it to reveal.
 - **Mythic+ and Delves** – Banner for keystone info, timer, and affixes. Delve objectives in the standard layout.
@@ -35,7 +36,7 @@
 ## 🎨 Visuals & UI Design
 
 - **High-fidelity icons** – Distinct icons for Campaign, Legendary, and World Quests.
-- **Customizable colours** – Per-category colour control (title, objective, zone, section).
+- **Customizable colours** – Per-category colour control (title, objective, zone, section). Panel backdrop colour and opacity.
 - **Typography and spacing** – Fonts, sizes, outlines, and spacing sliders. Optional LibSharedMedia support for fonts from addon packs. Turn-in highlights and progress counts (e.g. 15/18) at a glance.
 - **Fluid motion** – Smooth entry/exit animations and a subtle pulse on objective completion.
 
@@ -95,6 +96,7 @@ Thanks to everyone who has contributed to Horizon Suite:
 - **feanor21#2847 — Panoramuxa (Tarren Mill -EU)** — Development
 - **Aishuu** — French localization (frFR)
 - **아즈샤라-두녘** — Korean localization (koKR)
+- **Linho-Gallywix** — Brazilian Portuguese localization (ptBR)
 
 ---
 
