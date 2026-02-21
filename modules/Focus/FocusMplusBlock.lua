@@ -255,6 +255,7 @@ local function GetBlockContentWidth()
 end
 
 local function PositionMplusBlock(pos)
+    if InCombatLockdown() then return end
     local panelWidth = GetBlockContentWidth()
     mplusBlock:SetWidth(panelWidth)
     mplusBlock:ClearAllPoints()
@@ -404,14 +405,18 @@ local function UpdateMplusBlockDisplay(data)
         else
             progressBarFill:SetColorTexture(barNormR, barNormG, barNormB, 0.90)
         end
-        mplusProgressBar:SetHeight(math.max(PROGRESS_BAR_HEIGHT, progressSize + 6))
-        mplusProgressBar:Show()
+        if not InCombatLockdown() then
+            mplusProgressBar:SetHeight(math.max(PROGRESS_BAR_HEIGHT, progressSize + 6))
+            mplusProgressBar:Show()
+        end
     else
         progressPercentLabel:SetText("")
         progressPercentShadow:SetText("")
         progressCountLabel:SetText("")
         progressCountShadow:SetText("")
-        mplusProgressBar:Hide()
+        if not InCombatLockdown() then
+            mplusProgressBar:Hide()
+        end
     end
 
     -- Line 4: Affixes (one per line)
@@ -457,66 +462,72 @@ local function UpdateMplusBlockDisplay(data)
     -- ----------------------------------------------------------------
     -- Block width matches panel so resize works both ways. Content wraps
     -- within that; progress bar stays stable. Use live HS width during drag.
+    -- Protected ops (SetWidth, SetHeight, ClearAllPoints, SetPoint, SetSize)
+    -- must not run during combat; defer via mplusLayoutPendingAfterCombat.
     -- ----------------------------------------------------------------
-    local heroLeft = 4          -- small inset from block edge (no icon column needed)
-    local sidePadding = heroLeft + 4  -- left + right inset
+    if not InCombatLockdown() then
+        local heroLeft = 4          -- small inset from block edge (no icon column needed)
+        local sidePadding = heroLeft + 4  -- left + right inset
 
-    local panelWidth = GetBlockContentWidth()
-    mplusBlock:SetWidth(panelWidth)
+        local panelWidth = GetBlockContentWidth()
+        mplusBlock:SetWidth(panelWidth)
 
-    -- ----------------------------------------------------------------
-    -- Position every element explicitly from the top.  No anchor
-    -- chains through hidden frames, no RIGHT-anchor wobble.
-    -- ----------------------------------------------------------------
-    local barWidth = math.max(1, panelWidth - sidePadding)
-    local barH = math.max(PROGRESS_BAR_HEIGHT, progressSize + 6)
-    local y = -4
+        -- ----------------------------------------------------------------
+        -- Position every element explicitly from the top.  No anchor
+        -- chains through hidden frames, no RIGHT-anchor wobble.
+        -- ----------------------------------------------------------------
+        local barWidth = math.max(1, panelWidth - sidePadding)
+        local barH = math.max(PROGRESS_BAR_HEIGHT, progressSize + 6)
+        local y = -4
 
-    mplusHeroText:ClearAllPoints()
-    mplusHeroText:SetPoint("TOPLEFT", mplusBlock, "TOPLEFT", heroLeft, y)
-    mplusHeroText:SetWidth(barWidth)
-    mplusHeroShadow:SetWidth(barWidth)
-    mplusHeroShadow:SetWordWrap(true)
-    local heroH = mplusHeroText:GetStringHeight() or dungeonSize
-    y = y - heroH - 6
+        mplusHeroText:ClearAllPoints()
+        mplusHeroText:SetPoint("TOPLEFT", mplusBlock, "TOPLEFT", heroLeft, y)
+        mplusHeroText:SetWidth(barWidth)
+        mplusHeroShadow:SetWidth(barWidth)
+        mplusHeroShadow:SetWordWrap(true)
+        local heroH = mplusHeroText:GetStringHeight() or dungeonSize
+        y = y - heroH - 6
 
-    mplusPillText:ClearAllPoints()
-    mplusPillText:SetPoint("TOPLEFT", mplusBlock, "TOPLEFT", heroLeft, y)
-    local timerH = mplusPillText:GetStringHeight() or timerSize
-    y = y - timerH - 6
+        mplusPillText:ClearAllPoints()
+        mplusPillText:SetPoint("TOPLEFT", mplusBlock, "TOPLEFT", heroLeft, y)
+        local timerH = mplusPillText:GetStringHeight() or timerSize
+        y = y - timerH - 6
 
-    if data.enemyForces.total > 0 then
-        mplusProgressBar:ClearAllPoints()
-        mplusProgressBar:SetPoint("TOPLEFT", mplusBlock, "TOPLEFT", heroLeft, y)
-        mplusProgressBar:SetSize(math.max(1, barWidth), barH)
-        local fillFrac = math.min(1, data.enemyForces.percent / 100)
-        progressBarFill:SetWidth(math.max(1, barWidth * fillFrac))
-        y = y - barH - 6
+        if data.enemyForces.total > 0 then
+            mplusProgressBar:ClearAllPoints()
+            mplusProgressBar:SetPoint("TOPLEFT", mplusBlock, "TOPLEFT", heroLeft, y)
+            mplusProgressBar:SetSize(math.max(1, barWidth), barH)
+            local fillFrac = math.min(1, data.enemyForces.percent / 100)
+            progressBarFill:SetWidth(math.max(1, barWidth * fillFrac))
+            y = y - barH - 6
+        end
+
+        -- Bosses (objectives) above affixes
+        mplusBossesText:ClearAllPoints()
+        mplusBossesText:SetPoint("TOPLEFT", mplusBlock, "TOPLEFT", heroLeft, y)
+        mplusBossesText:SetWidth(barWidth)
+        local bossH = 0
+        if bossStr ~= "" then
+            bossH = mplusBossesText:GetStringHeight() or bossSize
+            y = y - bossH - 6
+        end
+
+        mplusAffixesText:ClearAllPoints()
+        mplusAffixesText:SetPoint("TOPLEFT", mplusBlock, "TOPLEFT", heroLeft, y)
+        mplusAffixesText:SetWidth(barWidth)
+        local affixH = 0
+        if affixStr ~= "" then
+            affixH = mplusAffixesText:GetStringHeight() or affixSize
+            y = y - affixH - 6
+        end
+
+        -- Final block height
+        local heightNeeded = -y + 4  -- y is negative, add bottom padding
+        local finalHeight = math.max(MPLUS_MIN_HEIGHT, heightNeeded)
+        mplusBlock:SetHeight(finalHeight)
+    else
+        addon.focus.mplusLayoutPendingAfterCombat = true
     end
-
-    -- Bosses (objectives) above affixes
-    mplusBossesText:ClearAllPoints()
-    mplusBossesText:SetPoint("TOPLEFT", mplusBlock, "TOPLEFT", heroLeft, y)
-    mplusBossesText:SetWidth(barWidth)
-    local bossH = 0
-    if bossStr ~= "" then
-        bossH = mplusBossesText:GetStringHeight() or bossSize
-        y = y - bossH - 6
-    end
-
-    mplusAffixesText:ClearAllPoints()
-    mplusAffixesText:SetPoint("TOPLEFT", mplusBlock, "TOPLEFT", heroLeft, y)
-    mplusAffixesText:SetWidth(barWidth)
-    local affixH = 0
-    if affixStr ~= "" then
-        affixH = mplusAffixesText:GetStringHeight() or affixSize
-        y = y - affixH - 6
-    end
-
-    -- Final block height
-    local heightNeeded = -y + 4  -- y is negative, add bottom padding
-    local finalHeight = math.max(MPLUS_MIN_HEIGHT, heightNeeded)
-    mplusBlock:SetHeight(finalHeight)
 end
 
 local TOOLTIP_ICON_SIZE = 20

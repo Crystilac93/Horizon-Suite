@@ -17,6 +17,7 @@ addon.focus = {
     layoutPendingAfterCombat     = false,
     pendingDimensionsAfterCombat  = false,
     pendingHideAfterCombat       = false,
+    mplusLayoutPendingAfterCombat = false,
 
     rares = {
         prevKeys     = {},

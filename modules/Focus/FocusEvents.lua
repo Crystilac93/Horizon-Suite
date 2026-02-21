@@ -181,6 +181,7 @@ local function OnPlayerRegenDisabled()
 end
 
 local function OnPlayerRegenEnabled()
+    local hadLayoutPending = addon.focus.layoutPendingAfterCombat
     if addon.focus.pendingDimensionsAfterCombat then
         addon.focus.pendingDimensionsAfterCombat = nil
         if addon.ApplyDimensions then addon.ApplyDimensions() end
@@ -197,7 +198,12 @@ local function OnPlayerRegenEnabled()
         else
             ScheduleRefresh()
         end
-    elseif addon.GetDB("hideInCombat", false) and addon.focus.enabled then
+    end
+    if addon.focus.mplusLayoutPendingAfterCombat then
+        addon.focus.mplusLayoutPendingAfterCombat = nil
+        if addon.UpdateMplusBlock then addon.UpdateMplusBlock() end
+    end
+    if not hadLayoutPending and addon.GetDB("hideInCombat", false) and addon.focus.enabled then
         addon.focus.combat.fadeState = "in"
         addon.focus.combat.fadeTime  = 0
         if addon.EnsureFocusUpdateRunning then addon.EnsureFocusUpdateRunning() end
