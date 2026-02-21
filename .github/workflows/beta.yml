@@ -86,9 +86,9 @@ jobs:
             fi
           done < <(gh api "repos/$GITHUB_REPOSITORY/issues?state=closed&sort=updated&direction=desc&per_page=100" 2>/dev/null | jq -c --arg tagdate "$TAG_DATE" '.[] | select(.pull_request == null) | select(.closed_at != null) | select(.closed_at >= ($tagdate + "T00:00:00Z")) | {number, title, labels}' 2>/dev/null || true)
           SECTIONS=""
-          [ -n "$FEATURES" ] && SECTIONS="${SECTIONS}### New Features"$'\n\n'"$FEATURES"$'\n'
-          [ -n "$IMPROVEMENTS" ] && SECTIONS="${SECTIONS}### Improvements"$'\n\n'"$IMPROVEMENTS"$'\n'
-          [ -n "$FIXES" ] && SECTIONS="${SECTIONS}### Fixes"$'\n\n'"$FIXES"$'\n'
+          [ -n "$FEATURES" ] && SECTIONS="${SECTIONS}### ✨ New Features"$'\n\n'"$FEATURES"$'\n'
+          [ -n "$IMPROVEMENTS" ] && SECTIONS="${SECTIONS}### 🔧 Improvements"$'\n\n'"$IMPROVEMENTS"$'\n'
+          [ -n "$FIXES" ] && SECTIONS="${SECTIONS}### 🐛 Fixes"$'\n\n'"$FIXES"$'\n'
           if [ -n "$SECTIONS" ]; then
             SINCE=""
             [ -n "$LAST_TAG" ] && SINCE=" (since $LAST_TAG)"

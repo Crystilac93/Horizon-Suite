@@ -12,6 +12,7 @@ Thumbs.db
 *.sublime-*
 
 # Local dev notes (not for version control)
+docs/plans/
 
 
 # Local dev tools
