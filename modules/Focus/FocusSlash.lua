@@ -6,6 +6,90 @@
 local addon = _G.HorizonSuite
 if not addon then return end
 local HSPrint = addon.HSPrint or function(msg) print("|cFF00CCFFHorizon Suite - Focus:|r " .. tostring(msg or "")) end
+local colorCheckState = nil
+
+local function DeepCopy(value)
+    if type(value) ~= "table" then return value end
+    local out = {}
+    for k, v in pairs(value) do
+        out[k] = DeepCopy(v)
+    end
+    return out
+end
+
+local function StopColorCheck(announce)
+    if not colorCheckState then return end
+    if colorCheckState.ticker and colorCheckState.ticker.Cancel then
+        colorCheckState.ticker:Cancel()
+    end
+
+    addon.SetDB("colorMatrix", DeepCopy(colorCheckState.restore.colorMatrix))
+    addon.SetDB("highlightColor", DeepCopy(colorCheckState.restore.highlightColor))
+    addon.SetDB("completedObjectiveColor", DeepCopy(colorCheckState.restore.completedObjectiveColor))
+    addon.SetDB("useCompletedObjectiveColor", colorCheckState.restore.useCompletedObjectiveColor)
+
+    if addon.ApplyFocusColors then
+        addon.ApplyFocusColors()
+    elseif addon.FullLayout then
+        addon.FullLayout()
+    end
+
+    colorCheckState = nil
+    if announce then
+        HSPrint("Color check stopped and original colors restored.")
+    end
+end
+
+local function MatrixKey(category)
+    if category == "RARE" then return "RARES" end
+    if category == "ACHIEVEMENT" then return "ACHIEVEMENTS" end
+    if category == "ENDEAVOR" then return "ENDEAVORS" end
+    if category == "DECOR" then return "DECOR" end
+    return category
+end
+
+local function CategoryFromEntry(entry)
+    local category = entry and entry.category
+    if category then return category end
+    local groupKey = entry and entry.groupKey
+    if groupKey == "RARES" then return "RARE" end
+    if groupKey == "ACHIEVEMENTS" then return "ACHIEVEMENT" end
+    if groupKey == "ENDEAVORS" then return "ENDEAVOR" end
+    if groupKey == "DECOR" then return "DECOR" end
+    return nil
+end
+
+local function CollectVisibleColorKeys()
+    local categoryKeys = {}
+    local sectionKeys = {}
+
+    if addon.activeMap then
+        for _, entry in pairs(addon.activeMap) do
+            if entry and (entry.questID or entry.entryKey) then
+                local cat = CategoryFromEntry(entry)
+                if cat then categoryKeys[MatrixKey(cat)] = true end
+            end
+        end
+    end
+    if next(categoryKeys) == nil then
+        categoryKeys.DEFAULT = true
+    end
+
+    local sectionPool = addon.sectionPool
+    if sectionPool then
+        for i = 1, addon.SECTION_POOL_SIZE do
+            local s = sectionPool[i]
+            if s and s.groupKey and s:IsShown() then
+                sectionKeys[s.groupKey] = true
+            end
+        end
+    end
+    if next(sectionKeys) == nil then
+        sectionKeys.DEFAULT = true
+    end
+
+    return categoryKeys, sectionKeys
+end
 
 -- ============================================================================
 -- SLASH COMMANDS
@@ -497,6 +581,83 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
             end
         end
 
+    elseif cmd == "colorcheck" then
+        if colorCheckState then
+            StopColorCheck(true)
+            return
+        end
+
+        local steps = {
+            { name = "Red",   color = { 1.00, 0.25, 0.25 } },
+            { name = "Green", color = { 0.25, 0.95, 0.35 } },
+            { name = "Blue",  color = { 0.35, 0.60, 1.00 } },
+            { name = "Gold",  color = { 1.00, 0.85, 0.25 } },
+        }
+        local categoryKeys, sectionKeys = CollectVisibleColorKeys()
+
+        colorCheckState = {
+            idx = 1,
+            steps = steps,
+            categoryKeys = categoryKeys,
+            sectionKeys = sectionKeys,
+            restore = {
+                colorMatrix = DeepCopy(addon.GetDB("colorMatrix", nil)),
+                highlightColor = DeepCopy(addon.GetDB("highlightColor", nil)),
+                completedObjectiveColor = DeepCopy(addon.GetDB("completedObjectiveColor", nil)),
+                useCompletedObjectiveColor = addon.GetDB("useCompletedObjectiveColor", true),
+            },
+        }
+
+        local function ApplyStep(step)
+            local matrix = DeepCopy(addon.GetDB("colorMatrix", nil))
+            if type(matrix) ~= "table" then matrix = {} end
+            matrix.categories = matrix.categories or {}
+            matrix.overrides = matrix.overrides or {}
+
+            for key in pairs(colorCheckState.categoryKeys) do
+                matrix.categories[key] = matrix.categories[key] or {}
+                matrix.categories[key].title = { step.color[1], step.color[2], step.color[3] }
+                matrix.categories[key].objective = { step.color[1], step.color[2], step.color[3] }
+                matrix.categories[key].zone = { step.color[1], step.color[2], step.color[3] }
+            end
+            for key in pairs(colorCheckState.sectionKeys) do
+                matrix.categories[key] = matrix.categories[key] or {}
+                matrix.categories[key].section = { step.color[1], step.color[2], step.color[3] }
+            end
+
+            addon.SetDB("colorMatrix", matrix)
+            addon.SetDB("highlightColor", { step.color[1], step.color[2], step.color[3] })
+            addon.SetDB("completedObjectiveColor", { step.color[1], step.color[2], step.color[3] })
+            addon.SetDB("useCompletedObjectiveColor", true)
+
+            if addon.ApplyFocusColors then
+                addon.ApplyFocusColors()
+            elseif addon.FullLayout then
+                addon.FullLayout()
+            end
+        end
+
+        local function Advance()
+            if not colorCheckState then return end
+            local step = colorCheckState.steps[colorCheckState.idx]
+            if not step then
+                StopColorCheck(false)
+                HSPrint("Color check complete. Original colors restored.")
+                return
+            end
+            ApplyStep(step)
+            HSPrint(("Color check %d/%d: %s"):format(colorCheckState.idx, #colorCheckState.steps, step.name))
+            colorCheckState.idx = colorCheckState.idx + 1
+        end
+
+        Advance()
+        if C_Timer and C_Timer.NewTicker then
+            colorCheckState.ticker = C_Timer.NewTicker(0.9, Advance, #steps)
+        else
+            StopColorCheck(false)
+            HSPrint("Color check unavailable (C_Timer not found).")
+        end
+
     else
         HSPrint("Commands:")
         HSPrint("  /horizon            - Show this help")
@@ -518,6 +679,7 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
         HSPrint("  /horizon unaccepted      - Show popup of unaccepted quests in current zone with type labels (test)")
         HSPrint("  /horizon clicktodebug    - Debug: list tracked quests and which are eligible for click-to-complete")
         HSPrint("  /horizon profiledebug    - Dump profile routing: char key, effective key, global/perSpec state")
+        HSPrint("  /horizon colorcheck      - Cycle focus colors (title/objective/zone/section/highlight), then restore")
         HSPrint("")
         HSPrint("  Click the header row to collapse / expand.")
         HSPrint("  Scroll with mouse wheel when content overflows.")

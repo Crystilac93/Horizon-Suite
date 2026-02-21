@@ -477,6 +477,11 @@ local function ClearEntry(entry, full)
     entry.itemLink   = nil
     entry.animState  = "idle"
     entry.groupKey   = nil
+    entry.category   = nil
+    entry.baseCategory = nil
+    entry.isComplete = nil
+    entry.isSuperTracked = nil
+    entry.isDungeonQuest = nil
     if full ~= false then
         entry:SetAlpha(0)
         entry:SetHitRectInsets(0, 0, 0, 0)
@@ -500,6 +505,15 @@ local function ClearEntry(entry, full)
             if entry.scenarioTimerBars then
                 for _, bar in ipairs(entry.scenarioTimerBars) do
                     bar:Hide()
+                end
+            end
+            if entry.objectives then
+                for j = 1, addon.MAX_OBJECTIVES do
+                    local obj = entry.objectives[j]
+                    if obj then
+                        obj._hsFinished = nil
+                        obj._hsAlpha = nil
+                    end
                 end
             end
         else

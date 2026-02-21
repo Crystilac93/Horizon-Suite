@@ -822,6 +822,11 @@ end
 --- Used during live color picker drag for responsive feedback.
 function addon.ApplyFocusColors()
     if not addon.focus or not addon.focus.enabled then return end
+    local function ApplyTextureColorKeepAlpha(tex, color)
+        if not tex or not tex.IsShown or not tex:IsShown() or not color then return end
+        local _, _, _, a = tex:GetVertexColor()
+        tex:SetColorTexture(color[1], color[2], color[3], a or 1)
+    end
     local focusedGroupKey = addon.GetFocusedGroupKey and addon.GetFocusedGroupKey()
     for i = 1, addon.SECTION_POOL_SIZE do
         local s = sectionPool[i]
@@ -837,10 +842,70 @@ function addon.ApplyFocusColors()
     end
     for key, entry in pairs(activeMap) do
         if entry and (entry.questID or entry.entryKey) and entry.titleText then
-            local effectiveCat = (addon.GetEffectiveColorCategory and addon.GetEffectiveColorCategory(entry.category, entry.groupKey, nil)) or entry.category
-            local c = (addon.GetTitleColor and addon.GetTitleColor(effectiveCat)) or addon.QUEST_COLORS and addon.QUEST_COLORS.DEFAULT
-            if c and type(c) == "table" and c[1] and c[2] and c[3] then
-                entry.titleText:SetTextColor(c[1], c[2], c[3], 1)
+            local category = entry.category
+            if not category and entry.groupKey == "RARES" then category = "RARE" end
+            if not category and entry.groupKey == "ACHIEVEMENTS" then category = "ACHIEVEMENT" end
+            if not category and entry.groupKey == "ENDEAVORS" then category = "ENDEAVOR" end
+            if not category and entry.groupKey == "DECOR" then category = "DECOR" end
+            local effectiveCat = (addon.GetEffectiveColorCategory and addon.GetEffectiveColorCategory(category, entry.groupKey, entry.baseCategory)) or category
+
+            local titleColor = (addon.GetTitleColor and addon.GetTitleColor(effectiveCat)) or addon.QUEST_COLORS and addon.QUEST_COLORS.DEFAULT
+            if titleColor and type(titleColor) == "table" and titleColor[1] and titleColor[2] and titleColor[3] then
+                if entry.isDungeonQuest and not entry.isTracked then
+                    titleColor = { titleColor[1] * 0.65, titleColor[2] * 0.65, titleColor[3] * 0.65 }
+                elseif addon.GetDB("dimNonSuperTracked", false) and not entry.isSuperTracked then
+                    titleColor = { titleColor[1] * 0.60, titleColor[2] * 0.60, titleColor[3] * 0.60 }
+                end
+                entry.titleText:SetTextColor(titleColor[1], titleColor[2], titleColor[3], 1)
+            end
+
+            if entry.zoneText and entry.zoneText:IsShown() then
+                local zoneColor = (addon.GetZoneColor and addon.GetZoneColor(effectiveCat)) or addon.ZONE_COLOR
+                if zoneColor and type(zoneColor) == "table" and zoneColor[1] and zoneColor[2] and zoneColor[3] then
+                    if addon.GetDB("dimNonSuperTracked", false) and not entry.isSuperTracked then
+                        zoneColor = { zoneColor[1] * 0.60, zoneColor[2] * 0.60, zoneColor[3] * 0.60 }
+                    end
+                    entry.zoneText:SetTextColor(zoneColor[1], zoneColor[2], zoneColor[3], 1)
+                end
+            end
+
+            if entry.objectives then
+                local objColor = (addon.GetObjectiveColor and addon.GetObjectiveColor(effectiveCat))
+                    or addon.OBJ_COLOR or titleColor or { 0.9, 0.9, 0.9 }
+                local doneColor = (addon.GetCompletedObjectiveColor and addon.GetCompletedObjectiveColor(effectiveCat))
+                    or (addon.GetObjectiveColor and addon.GetObjectiveColor(effectiveCat))
+                    or addon.OBJ_DONE_COLOR or objColor
+                if addon.GetDB("dimNonSuperTracked", false) and not entry.isSuperTracked then
+                    objColor = { objColor[1] * 0.60, objColor[2] * 0.60, objColor[3] * 0.60 }
+                    doneColor = { doneColor[1] * 0.60, doneColor[2] * 0.60, doneColor[3] * 0.60 }
+                end
+                for j = 1, addon.MAX_OBJECTIVES do
+                    local obj = entry.objectives[j]
+                    if obj and obj.text and obj.text:IsShown() then
+                        local alpha = (type(obj._hsAlpha) == "number") and obj._hsAlpha or 1
+                        local isFinished = obj._hsFinished == true
+                        local useTick = isFinished and addon.GetDB("useTickForCompletedObjectives", false) and not entry.isComplete
+                        local targetColor = objColor
+                        if isFinished and not useTick then
+                            targetColor = doneColor
+                        end
+                        obj.text:SetTextColor(targetColor[1], targetColor[2], targetColor[3], alpha)
+                    end
+                end
+            end
+
+            if entry.isSuperTracked then
+                local highlightColor = addon.GetDB("highlightColor", nil)
+                if type(highlightColor) ~= "table" or not highlightColor[1] or not highlightColor[2] or not highlightColor[3] then
+                    highlightColor = { 0.40, 0.70, 1.00 }
+                end
+                ApplyTextureColorKeepAlpha(entry.trackBar, highlightColor)
+                ApplyTextureColorKeepAlpha(entry.highlightBg, highlightColor)
+                ApplyTextureColorKeepAlpha(entry.highlightTop, highlightColor)
+                ApplyTextureColorKeepAlpha(entry.highlightBorderT, highlightColor)
+                ApplyTextureColorKeepAlpha(entry.highlightBorderB, highlightColor)
+                ApplyTextureColorKeepAlpha(entry.highlightBorderL, highlightColor)
+                ApplyTextureColorKeepAlpha(entry.highlightBorderR, highlightColor)
             end
         end
     end

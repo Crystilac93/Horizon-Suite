@@ -655,7 +655,8 @@ end
 -- Helper: get effective color from ColorPickerFrame, preferring HexBox if user typed hex (10.2.5+).
 -- Returns r, g, b in 0-1 range. HexBox may contain "ff0000", "#ff0000", or "f00" (3-char shorthand).
 local function GetColorPickerEffectiveRGB()
-    local content = ColorPickerFrame and ColorPickerFrame.Content
+    if not ColorPickerFrame then return 0.5, 0.5, 0.5 end
+    local content = ColorPickerFrame.Content
     local hexBox = content and content.HexBox
     if hexBox and hexBox.GetText then
         local raw = hexBox:GetText()
@@ -779,6 +780,7 @@ function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultT
         tex:SetColorTexture(r, g, b, 1)
     end
     swatch:SetScript("OnClick", function()
+        if not ColorPickerFrame or not ColorPickerFrame.SetupColorPickerAndShow then return end
         local r, g, b = def[1], def[2], def[3]
         if getTbl then
             local result = getTbl()
@@ -797,25 +799,29 @@ function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultT
             r = r, g = g, b = b, hasOpacity = false,
             swatchFunc = function()
                 local nr, ng, nb = GetColorPickerEffectiveRGB()
-                setKeyVal({nr, ng, nb})
+                setKeyVal({ nr, ng, nb })
                 tex:SetColorTexture(nr, ng, nb, 1)
-                -- No notify during drag; finishedFunc/cancelFunc will notify.
             end,
             cancelFunc = function()
                 addon._colorPickerLive = nil
                 _activeColorPickerCallbacks = nil
                 local p = ColorPickerFrame.previousValues
-                if p then
-                    setKeyVal({p.r, p.g, p.b})
-                    swatch:Refresh()
+                if p and type(p.r) == "number" and type(p.g) == "number" and type(p.b) == "number" then
+                    setKeyVal({ p.r, p.g, p.b })
+                elseif getTbl then
+                    local res = getTbl()
+                    if type(res) == "table" and res[1] then
+                        setKeyVal({ res[1], res[2], res[3] })
+                    end
                 end
+                swatch:Refresh()
                 if notify then notify() end
             end,
             finishedFunc = function()
                 addon._colorPickerLive = nil
                 _activeColorPickerCallbacks = nil
                 local nr, ng, nb = GetColorPickerEffectiveRGB()
-                setKeyVal({nr, ng, nb})
+                setKeyVal({ nr, ng, nb })
                 tex:SetColorTexture(nr, ng, nb, 1)
                 if notify then notify() end
             end,
@@ -953,8 +959,11 @@ function OptionsWidgets_CreateSearchInput(parent, onTextChanged, placeholder)
     return row
 end
 
--- Section card: soft cinematic background, subtle border, inset for softer edges
-function OptionsWidgets_CreateSectionCard(parent, anchor)
+local CARD_HEADER_H = 24
+
+-- Section card: soft cinematic background, subtle border, inset for softer edges.
+-- When sectionKey and getCollapsedFn/setCollapsedFn are provided, the card is collapsible.
+function OptionsWidgets_CreateSectionCard(parent, anchor, sectionKey, getCollapsedFn, setCollapsedFn)
     local card = CreateFrame("Frame", nil, parent)
     card:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -Def.SectionGap)
     card:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 0)
@@ -964,11 +973,77 @@ function OptionsWidgets_CreateSectionCard(parent, anchor)
     cardBg:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -inset, inset)
     cardBg:SetColorTexture(Def.SectionCardBg[1], Def.SectionCardBg[2], Def.SectionCardBg[3], Def.SectionCardBg[4])
     addon.CreateBorder(card, Def.SectionCardBorder)
+
+    if sectionKey and getCollapsedFn and setCollapsedFn then
+        local contentContainer = CreateFrame("Frame", nil, card)
+        contentContainer:SetPoint("TOPLEFT", card, "TOPLEFT", Def.CardPadding, -Def.CardPadding - CARD_HEADER_H)
+        contentContainer:SetPoint("RIGHT", card, "RIGHT", -Def.CardPadding, 0)
+        contentContainer:SetHeight(1)
+        contentContainer:SetFrameLevel(card:GetFrameLevel() + 1)
+        card.contentContainer = contentContainer
+        card.contentAnchor = contentContainer
+        card.sectionKey = sectionKey
+        card.getCardCollapsed = getCollapsedFn
+        card.setCardCollapsed = setCollapsedFn
+        card.headerHeight = CARD_HEADER_H + Def.CardPadding
+    end
+
     return card
 end
 
--- Section header: uppercase label, left-aligned, slight accent tint
-function OptionsWidgets_CreateSectionHeader(parent, text)
+-- Section header: uppercase label, left-aligned. When sectionKey and getCollapsedFn/setCollapsedFn are
+-- provided, returns a clickable Button with chevron for collapse; otherwise returns a FontString.
+function OptionsWidgets_CreateSectionHeader(parent, text, sectionKey, getCollapsedFn, setCollapsedFn)
+    local sk = sectionKey or parent.sectionKey
+    local getFn = getCollapsedFn or parent.getCardCollapsed
+    local setFn = setCollapsedFn or parent.setCardCollapsed
+
+    if sk and getFn and setFn then
+        local hdr = CreateFrame("Button", nil, parent)
+        hdr:SetPoint("TOPLEFT", parent, "TOPLEFT", Def.CardPadding, -Def.CardPadding)
+        hdr:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -Def.CardPadding, 0)
+        hdr:SetHeight(CARD_HEADER_H)
+        hdr:EnableMouse(true)
+        hdr:SetFrameLevel(parent:GetFrameLevel() + 2)
+
+        local hdrBg = hdr:CreateTexture(nil, "BACKGROUND")
+        hdrBg:SetAllPoints(hdr)
+        hdrBg:SetColorTexture(0.10, 0.10, 0.12, 0.5)
+
+        local chevron = hdr:CreateFontString(nil, "OVERLAY")
+        chevron:SetFont(Def.FontPath, Def.LabelSize or 13, "OUTLINE")
+        SetTextColor(chevron, Def.TextColorSection)
+        chevron:SetText(getFn(sk) and "+" or "-")
+        chevron:SetPoint("LEFT", hdr, "LEFT", 6, 0)
+        hdr.chevron = chevron
+        parent.header = hdr
+
+        local hdrLabel = hdr:CreateFontString(nil, "OVERLAY")
+        hdrLabel:SetFont(Def.FontPath, Def.SectionSize + 1, "OUTLINE")
+        SetTextColor(hdrLabel, Def.TextColorSection)
+        hdrLabel:SetText(text and text:upper() or "")
+        hdrLabel:SetPoint("LEFT", chevron, "RIGHT", 6, 0)
+        hdrLabel:SetJustifyH("LEFT")
+
+        local hdrHi = hdr:CreateTexture(nil, "HIGHLIGHT")
+        hdrHi:SetAllPoints(hdr)
+        hdrHi:SetColorTexture(1, 1, 1, 0.03)
+
+        hdr:SetScript("OnClick", function()
+            local collapsed = not getFn(sk)
+            setFn(sk, collapsed)
+            chevron:SetText(collapsed and "+" or "-")
+            local cc = parent.contentContainer
+            if cc then
+                cc:SetShown(not collapsed)
+            end
+            local fullH = parent.contentHeight and (parent.contentHeight + Def.CardPadding) or (parent.headerHeight or 0)
+            parent:SetHeight(collapsed and (parent.headerHeight or CARD_HEADER_H + Def.CardPadding) or fullH)
+        end)
+
+        return hdr
+    end
+
     local label = parent:CreateFontString(nil, "OVERLAY")
     label:SetFont(Def.FontPath, Def.SectionSize + 1, "OUTLINE")
     label:SetJustifyH("LEFT")

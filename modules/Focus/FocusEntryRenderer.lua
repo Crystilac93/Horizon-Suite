@@ -147,6 +147,8 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
             if oData.finished and (not questData.isAchievement and not questData.isEndeavor) and addon.GetDB("questCompletedObjectiveDisplay", "off") == "fade" then
                 alpha = 0.4
             end
+            obj._hsFinished = oData.finished and true or false
+            obj._hsAlpha = alpha
             if oData.finished then
                 if useTick then
                     obj.text:SetTextColor(objColor[1], objColor[2], objColor[3], alpha)
@@ -171,6 +173,8 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
             prevAnchor = obj.text
             shownObjs = shownObjs + 1
         else
+            obj._hsFinished = nil
+            obj._hsAlpha = nil
             obj.text:Hide()
             obj.shadow:Hide()
             if obj.tick then obj.tick:Hide() end
@@ -185,6 +189,8 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
             or (addon.GetDB("showObjectiveNumbers", false) and "1. Ready to turn in" or "Ready to turn in")
         obj.text:SetText(firstLineText)
         obj.shadow:SetText(firstLineText)
+        obj._hsFinished = true
+        obj._hsAlpha = 1
         obj.text:SetTextColor(doneColor[1], doneColor[2], doneColor[3], 1)
         obj.text:ClearAllPoints()
         obj.text:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", OBJ_EXTRA_LEFT_PAD, -objSpacing)
@@ -200,6 +206,8 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
             local clickText = _G.QUEST_WATCH_CLICK_TO_COMPLETE or "(click to complete)"
             obj2.text:SetText(clickText)
             obj2.shadow:SetText(clickText)
+            obj2._hsFinished = true
+            obj2._hsAlpha = 1
             obj2.text:SetTextColor(doneColor[1], doneColor[2], doneColor[3], 1)
             obj2.text:ClearAllPoints()
             obj2.text:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", 0, -objSpacing)
@@ -686,10 +694,15 @@ local function PopulateEntry(entry, questData, groupKey)
         end
     end
 
+    entry.baseCategory = questData.baseCategory
+    entry.isComplete = questData.isComplete and true or false
+    entry.isSuperTracked = questData.isSuperTracked and true or false
+    entry.isDungeonQuest = questData.isDungeonQuest and true or false
+
     if questData.isRare then
         entry.questID    = nil
         entry.entryKey   = questData.entryKey
-        entry.category   = nil
+        entry.category   = questData.category
         entry.creatureID = questData.creatureID
         entry.achievementID = nil
         entry.endeavorID = nil
@@ -699,7 +712,7 @@ local function PopulateEntry(entry, questData, groupKey)
     elseif questData.isAchievement or questData.category == "ACHIEVEMENT" then
         entry.questID    = nil
         entry.entryKey   = questData.entryKey
-        entry.category   = nil
+        entry.category   = questData.category
         entry.creatureID = nil
         entry.achievementID = questData.achievementID
         entry.endeavorID = nil
@@ -707,7 +720,7 @@ local function PopulateEntry(entry, questData, groupKey)
     elseif questData.isEndeavor or questData.category == "ENDEAVOR" then
         entry.questID    = nil
         entry.entryKey   = questData.entryKey
-        entry.category   = nil
+        entry.category   = questData.category
         entry.creatureID = nil
         entry.achievementID = nil
         entry.endeavorID = questData.endeavorID
@@ -716,7 +729,7 @@ local function PopulateEntry(entry, questData, groupKey)
     elseif questData.isDecor or questData.category == "DECOR" then
         entry.questID    = nil
         entry.entryKey   = questData.entryKey
-        entry.category   = nil
+        entry.category   = questData.category
         entry.creatureID = nil
         entry.achievementID = nil
         entry.endeavorID = nil
