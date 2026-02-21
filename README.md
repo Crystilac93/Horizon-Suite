@@ -92,7 +92,8 @@
 
 Thanks to everyone who has contributed to Horizon Suite:
 
-- **feanor21#2847** — Panoramuxa (Tarren Mill -EU)
+- **feanor21#2847 — Panoramuxa (Tarren Mill -EU)** — Development
+- **Aishuu** — French localization (frFR)
 - **아즈샤라-두녘** — Korean localization (koKR)
 
 ---
