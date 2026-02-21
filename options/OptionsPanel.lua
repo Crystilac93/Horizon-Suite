@@ -428,7 +428,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
         elseif opt.type == "button" and currentCard then
             local btn = CreateFrame("Button", nil, currentCard)
             btn:SetHeight(22)
-            btn:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", CardPadding, -OptionGap)
+            btn:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -OptionGap)
             btn:SetPoint("RIGHT", currentCard, "RIGHT", -CardPadding, 0)
             local lbl = btn:CreateFontString(nil, "OVERLAY")
             lbl:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", Def.LabelSize or 13, "OUTLINE")
@@ -449,6 +449,88 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             btn:SetScript("OnLeave", function() SetTextColor(lbl, Def.TextColorLabel) end)
             currentCard.contentAnchor = btn
             currentCard.contentHeight = currentCard.contentHeight + OptionGap + 22
+        elseif opt.type == "editbox" and currentCard then
+            local EDITBOX_HEIGHT = opt.height or 60
+            local wrapper = CreateFrame("Frame", nil, currentCard)
+            wrapper:SetHeight(EDITBOX_HEIGHT + (opt.labelText and 16 or 0))
+            wrapper:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -OptionGap)
+            wrapper:SetPoint("RIGHT", currentCard, "RIGHT", -CardPadding, 0)
+            local yOff = 0
+            if opt.labelText then
+                local lbl = wrapper:CreateFontString(nil, "OVERLAY")
+                lbl:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", Def.SectionSize or 10, "OUTLINE")
+                SetTextColor(lbl, Def.TextColorSection)
+                lbl:SetText(opt.labelText)
+                lbl:SetPoint("TOPLEFT", wrapper, "TOPLEFT", 0, 0)
+                yOff = -14
+            end
+            local scrollBg = CreateFrame("Frame", nil, wrapper)
+            scrollBg:SetPoint("TOPLEFT", wrapper, "TOPLEFT", 0, yOff)
+            scrollBg:SetPoint("BOTTOMRIGHT", wrapper, "BOTTOMRIGHT", 0, 0)
+            local bg = scrollBg:CreateTexture(nil, "BACKGROUND")
+            bg:SetAllPoints(scrollBg)
+            bg:SetColorTexture(Def.InputBg[1], Def.InputBg[2], Def.InputBg[3], Def.InputBg[4])
+            local bTop = scrollBg:CreateTexture(nil, "BORDER"); bTop:SetHeight(1); bTop:SetPoint("TOPLEFT"); bTop:SetPoint("TOPRIGHT"); bTop:SetColorTexture(Def.InputBorder[1], Def.InputBorder[2], Def.InputBorder[3], Def.InputBorder[4])
+            local bBot = scrollBg:CreateTexture(nil, "BORDER"); bBot:SetHeight(1); bBot:SetPoint("BOTTOMLEFT"); bBot:SetPoint("BOTTOMRIGHT"); bBot:SetColorTexture(Def.InputBorder[1], Def.InputBorder[2], Def.InputBorder[3], Def.InputBorder[4])
+            local bL = scrollBg:CreateTexture(nil, "BORDER"); bL:SetWidth(1); bL:SetPoint("TOPLEFT"); bL:SetPoint("BOTTOMLEFT"); bL:SetColorTexture(Def.InputBorder[1], Def.InputBorder[2], Def.InputBorder[3], Def.InputBorder[4])
+            local bR = scrollBg:CreateTexture(nil, "BORDER"); bR:SetWidth(1); bR:SetPoint("TOPRIGHT"); bR:SetPoint("BOTTOMRIGHT"); bR:SetColorTexture(Def.InputBorder[1], Def.InputBorder[2], Def.InputBorder[3], Def.InputBorder[4])
+            local sf = CreateFrame("ScrollFrame", nil, scrollBg, "UIPanelScrollFrameTemplate")
+            sf:SetPoint("TOPLEFT", scrollBg, "TOPLEFT", 4, -4)
+            sf:SetPoint("BOTTOMRIGHT", scrollBg, "BOTTOMRIGHT", -22, 4)
+            local edit = CreateFrame("EditBox", nil, scrollBg)
+            edit:SetMultiLine(true)
+            edit:SetAutoFocus(false)
+            edit:EnableMouse(true)
+            edit:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", Def.SectionSize or 10, "OUTLINE")
+            local tc = Def.TextColorLabel; edit:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
+            edit:SetWidth(200)
+            sf:SetScrollChild(edit)
+            sf:SetScript("OnSizeChanged", function(self, w)
+                if w and w > 0 then edit:SetWidth(w) end
+            end)
+            edit:SetScript("OnCursorChanged", function(self, x, y, w, h)
+                local vs = sf:GetVerticalScroll()
+                local sfH = sf:GetHeight()
+                local cursorY = -y
+                if cursorY < vs then
+                    sf:SetVerticalScroll(cursorY)
+                elseif cursorY + h > vs + sfH then
+                    sf:SetVerticalScroll(cursorY + h - sfH)
+                end
+            end)
+            if opt.storeRef then addon[opt.storeRef] = edit end
+            if opt.readonly then
+                edit:SetScript("OnChar", function(self) self:SetText(opt.get and opt.get() or "") end)
+                edit:EnableKeyboard(false)
+                edit:SetScript("OnMouseUp", function(self)
+                    self:HighlightText()
+                    self:EnableKeyboard(true)
+                end)
+                edit:SetScript("OnEditFocusLost", function(self)
+                    self:HighlightText(0, 0)
+                    self:EnableKeyboard(false)
+                end)
+            else
+                edit:EnableKeyboard(true)
+                scrollBg:SetScript("OnMouseDown", function()
+                    edit:SetFocus()
+                end)
+            end
+            if opt.get then edit:SetText(opt.get() or "") end
+            if opt.set then
+                edit:SetScript("OnTextChanged", function(self, isUserInput)
+                    if isUserInput and opt.set then opt.set(self:GetText()) end
+                    if opt.readonly and isUserInput then self:SetText(opt.get and opt.get() or "") end
+                end)
+            end
+            wrapper.Refresh = function(self)
+                if opt.get then edit:SetText(opt.get() or "") end
+            end
+            currentCard.contentAnchor = wrapper
+            currentCard.contentHeight = currentCard.contentHeight + OptionGap + wrapper:GetHeight()
+            local oid = opt.dbKey or (addon.OptionCategories[tabIndex].key .. "_editbox_" .. (opt.labelText or ""):gsub("%s+", "_"))
+            if optionFrames then optionFrames[oid] = { tabIndex = tabIndex, frame = wrapper } end
+            table.insert(refreshers, wrapper)
         elseif opt.type == "colorMatrix" then
             if currentCard then FinalizeCard(currentCard) end
             currentCard = OptionsWidgets_CreateSectionCard(tab, anchor)

@@ -586,6 +586,265 @@ if StaticPopupDialogs then
             addon._profilePopupDeleteKey = nil
         end,
     }
+
+    StaticPopupDialogs["HORIZONSUITE_IMPORT_PROFILE"] = StaticPopupDialogs["HORIZONSUITE_IMPORT_PROFILE"] or {
+        text = "Name for imported profile:",
+        button1 = (_G.OKAY or "Import"),
+        button2 = (_G.CANCEL or "Cancel"),
+        hasEditBox = true,
+        maxLetters = 32,
+        editBoxWidth = 180,
+        timeout = 0,
+        whileDead = true,
+        hideOnEscape = true,
+        preferredIndex = 3,
+        OnShow = function(self)
+            local eb = self.editBox or self.EditBox
+            if eb then
+                eb:SetText("")
+                eb:SetFocus()
+            end
+        end,
+        OnAccept = function(self)
+            local eb = self.editBox or self.EditBox
+            local name = eb and eb:GetText() or ""
+            name = name:trim()
+            if name == "" then
+                if addon.HSPrint then addon.HSPrint("Profile name cannot be empty.") end
+                return
+            end
+            local str = addon._profileImportSourceString
+            if not str or str == "" then
+                if addon.HSPrint then addon.HSPrint("No import data.") end
+                return
+            end
+            local ok, result = addon.ImportProfile(name, str)
+            if not ok then
+                if addon.HSPrint then addon.HSPrint("Import failed: " .. tostring(result)) end
+                return
+            end
+            addon._profileImportSourceString = nil
+            addon._profileImportString = nil
+            addon._profileImportValid = false
+            if addon.HSPrint then addon.HSPrint("Imported profile: " .. tostring(result)) end
+            if addon.OptionsPanel_Refresh then addon.OptionsPanel_Refresh() end
+            if addon.OptionsData_NotifyMainAddon then addon.OptionsData_NotifyMainAddon() end
+        end,
+        EditBoxOnEnterPressed = function(self)
+            local parent = self:GetParent()
+            if parent then
+                local btn = parent.button1 or (parent.Buttons and parent.Buttons[1])
+                if btn then btn:Click() end
+            end
+        end,
+        EditBoxOnEscapePressed = function(self)
+            local parent = self:GetParent()
+            if parent then
+                local btn = parent.button2 or (parent.Buttons and parent.Buttons[2])
+                if btn then btn:Click() end
+            end
+        end,
+    }
+end
+
+-- ==========================================================================
+-- COPY POPUP (reliable Ctrl+C)
+-- ==========================================================================
+
+local copyPopup
+function addon.ShowCopyPopup(text)
+    if not text or text == "" then return end
+    if not copyPopup then
+        copyPopup = CreateFrame("Frame", "HorizonSuiteCopyPopup", UIParent, "BackdropTemplate")
+        copyPopup:SetSize(420, 200)
+        copyPopup:SetPoint("CENTER")
+        copyPopup:SetFrameStrata("DIALOG")
+        copyPopup:SetMovable(true)
+        copyPopup:EnableMouse(true)
+        copyPopup:RegisterForDrag("LeftButton")
+        copyPopup:SetScript("OnDragStart", copyPopup.StartMoving)
+        copyPopup:SetScript("OnDragStop", copyPopup.StopMovingOrSizing)
+        copyPopup:SetBackdrop({ bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background", edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border", tile = true, tileSize = 32, edgeSize = 32, insets = { left = 8, right = 8, top = 8, bottom = 8 } })
+
+        local title = copyPopup:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        title:SetPoint("TOP", 0, -16)
+        title:SetText("Copy profile string")
+
+        local hint = copyPopup:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        hint:SetPoint("TOP", title, "BOTTOM", 0, -4)
+        hint:SetText("Press Ctrl+C to copy, then close this window")
+
+        local sf = CreateFrame("ScrollFrame", nil, copyPopup, "UIPanelScrollFrameTemplate")
+        sf:SetPoint("TOPLEFT", 16, -56)
+        sf:SetPoint("BOTTOMRIGHT", -32, 40)
+
+        local edit = CreateFrame("EditBox", nil, copyPopup)
+        edit:SetMultiLine(true)
+        edit:SetAutoFocus(false)
+        edit:EnableMouse(true)
+        edit:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
+        edit:SetWidth(sf:GetWidth() or 360)
+        sf:SetScrollChild(edit)
+        sf:SetScript("OnSizeChanged", function(_, w) if w and w > 0 then edit:SetWidth(w) end end)
+        copyPopup.edit = edit
+
+        local closeBtn = CreateFrame("Button", nil, copyPopup, "UIPanelCloseButton")
+        closeBtn:SetPoint("TOPRIGHT", -4, -4)
+        closeBtn:SetScript("OnClick", function() copyPopup:Hide() end)
+
+        local closeTextBtn = CreateFrame("Button", nil, copyPopup, "UIPanelButtonTemplate")
+        closeTextBtn:SetSize(80, 22)
+        closeTextBtn:SetPoint("BOTTOM", 0, 12)
+        closeTextBtn:SetText(_G.CLOSE or "Close")
+        closeTextBtn:SetScript("OnClick", function() copyPopup:Hide() end)
+
+        copyPopup:SetScript("OnShow", function(self)
+            self.edit:SetFocus()
+            self.edit:HighlightText()
+        end)
+        copyPopup:SetScript("OnKeyDown", function(self, key)
+            if key == "ESCAPE" then
+                self:SetPropagateKeyboardInput(false)
+                self:Hide()
+            else
+                self:SetPropagateKeyboardInput(true)
+            end
+        end)
+    end
+    copyPopup.edit:SetText(text)
+    copyPopup:Show()
+    copyPopup.edit:SetFocus()
+    copyPopup.edit:HighlightText()
+end
+
+-- ==========================================================================
+-- PROFILE EXPORT / IMPORT
+-- ==========================================================================
+
+local EXPORT_HEADER = "HSP1:"
+
+local function SerializeValue(v)
+    local t = type(v)
+    if t == "string" then
+        return "s" .. v:gsub("\\", "\\\\"):gsub("\n", "\\n"):gsub("|", "\\p"):gsub("~", "\\t")
+    elseif t == "number" then
+        return "n" .. tostring(v)
+    elseif t == "boolean" then
+        return v and "btrue" or "bfalse"
+    elseif t == "table" then
+        local parts = {}
+        for kk, vv in pairs(v) do
+            local sk = SerializeValue(kk)
+            local sv = SerializeValue(vv)
+            if sk and sv then parts[#parts + 1] = sk .. "~" .. sv end
+        end
+        return "T" .. table.concat(parts, "|") .. "E"
+    end
+    return nil
+end
+
+local function DeserializeValue(str, pos)
+    if not str or not pos or pos > #str then return nil, pos end
+    local tag = str:sub(pos, pos)
+    if tag == "s" then
+        local endPos = pos + 1
+        local result = {}
+        while endPos <= #str do
+            local ch = str:sub(endPos, endPos)
+            if ch == "~" or ch == "|" then break end
+            if ch == "E" then break end
+            if ch == "\\" and endPos + 1 <= #str then
+                local next = str:sub(endPos + 1, endPos + 1)
+                if next == "\\" then result[#result + 1] = "\\"
+                elseif next == "n" then result[#result + 1] = "\n"
+                elseif next == "p" then result[#result + 1] = "|"
+                elseif next == "t" then result[#result + 1] = "~"
+                else result[#result + 1] = next end
+                endPos = endPos + 2
+            else
+                result[#result + 1] = ch
+                endPos = endPos + 1
+            end
+        end
+        return table.concat(result), endPos
+    elseif tag == "n" then
+        local endPos = pos + 1
+        while endPos <= #str and str:sub(endPos, endPos) ~= "~" and str:sub(endPos, endPos) ~= "|" and str:sub(endPos, endPos) ~= "E" do
+            endPos = endPos + 1
+        end
+        return tonumber(str:sub(pos + 1, endPos - 1)), endPos
+    elseif tag == "b" then
+        if str:sub(pos + 1, pos + 4) == "true" then return true, pos + 5 end
+        if str:sub(pos + 1, pos + 5) == "false" then return false, pos + 6 end
+        return nil, pos + 1
+    elseif tag == "T" then
+        local tbl = {}
+        local p = pos + 1
+        while p <= #str and str:sub(p, p) ~= "E" do
+            local key, val
+            key, p = DeserializeValue(str, p)
+            if not key then break end
+            if p <= #str and str:sub(p, p) == "~" then p = p + 1 end
+            val, p = DeserializeValue(str, p)
+            if key ~= nil and val ~= nil then tbl[key] = val end
+            if p <= #str and str:sub(p, p) == "|" then p = p + 1 end
+        end
+        if p <= #str and str:sub(p, p) == "E" then p = p + 1 end
+        return tbl, p
+    end
+    return nil, pos + 1
+end
+
+function addon.ExportProfile(key)
+    if type(key) ~= "string" or key == "" then return nil end
+    addon.EnsureDB()
+    EnsureProfilesAndMigrateLegacy()
+    HorizonDB.profiles = HorizonDB.profiles or {}
+    local profile = HorizonDB.profiles[key]
+    if not profile then return nil end
+    local serialized = SerializeValue(profile)
+    if not serialized then return nil end
+    return EXPORT_HEADER .. serialized
+end
+
+function addon.ValidateProfileString(str)
+    if type(str) ~= "string" or str == "" then return false end
+    if str:sub(1, #EXPORT_HEADER) ~= EXPORT_HEADER then return false end
+    local data = str:sub(#EXPORT_HEADER + 1)
+    if data:sub(1, 1) ~= "T" then return false end
+    local tbl = DeserializeValue(data, 1)
+    return type(tbl) == "table"
+end
+
+function addon.ImportProfile(name, dataString)
+    if type(name) ~= "string" or name == "" then return false, "invalid" end
+    if type(dataString) ~= "string" or dataString == "" then return false, "invalid" end
+    if dataString:sub(1, #EXPORT_HEADER) ~= EXPORT_HEADER then return false, "invalid" end
+    local data = dataString:sub(#EXPORT_HEADER + 1)
+    local tbl = DeserializeValue(data, 1)
+    if type(tbl) ~= "table" then return false, "corrupt" end
+
+    addon.EnsureDB()
+    EnsureProfilesAndMigrateLegacy()
+    HorizonDB.profiles = HorizonDB.profiles or {}
+
+    local finalName = name
+    if HorizonDB.profiles[finalName] then
+        local base = finalName
+        local i = 2
+        while HorizonDB.profiles[base .. " " .. i] do i = i + 1 end
+        finalName = base .. " " .. i
+    end
+
+    HorizonDB.profiles[finalName] = tbl
+
+    local charKey = GetCurrentCharacterProfileKey()
+    if charKey and charKey ~= "" then
+        HorizonDB.charProfileKeys = HorizonDB.charProfileKeys or {}
+        HorizonDB.charProfileKeys[charKey] = finalName
+    end
+
+    return true, finalName
 end
 
 -- ==========================================================================

@@ -472,6 +472,110 @@ local OptionCategories = {
                     end,
                 }
 
+                opts[#opts + 1] = { type = "section", name = L["Sharing"] or "Sharing" }
+
+                opts[#opts + 1] = {
+                    type = "dropdown",
+                    name = L["Export profile"] or "Export profile",
+                    desc = L["Select a profile to export."] or "Select a profile to export.",
+                    dbKey = "_profiles_export_select",
+                    options = function()
+                        local list = addon.ListProfiles and addon.ListProfiles() or {}
+                        local out = {}
+                        for _, k in ipairs(list) do
+                            if k ~= "Default" then out[#out + 1] = { k, k } end
+                        end
+                        return out
+                    end,
+                    get = function()
+                        local list = addon.ListProfiles and addon.ListProfiles() or {}
+                        if addon._profileExportKey then
+                            for _, k in ipairs(list) do
+                                if k == addon._profileExportKey and k ~= "Default" then return k end
+                            end
+                        end
+                        local current = addon.GetActiveProfileKey and addon.GetActiveProfileKey() or nil
+                        if current and current ~= "Default" then
+                            addon._profileExportKey = current
+                            return current
+                        end
+                        for _, k in ipairs(list) do
+                            if k ~= "Default" then addon._profileExportKey = k; return k end
+                        end
+                        return ""
+                    end,
+                    set = function(v)
+                        addon._profileExportKey = v
+                        addon._profileExportString = nil
+                        if addon.OptionsPanel_Refresh then addon.OptionsPanel_Refresh() end
+                    end,
+                }
+
+                opts[#opts + 1] = {
+                    type = "editbox",
+                    labelText = L["Export string"] or "Export string",
+                    dbKey = "_profiles_export_box",
+                    height = 60,
+                    readonly = true,
+                    storeRef = "_profileExportEditBox",
+                    get = function()
+                        local key = addon._profileExportKey
+                        if not key or key == "" then return "" end
+                        if not addon._profileExportString then
+                            addon._profileExportString = (addon.ExportProfile and addon.ExportProfile(key)) or ""
+                        end
+                        return addon._profileExportString or ""
+                    end,
+                }
+
+                opts[#opts + 1] = {
+                    type = "button",
+                    name = L["Copy to clipboard"] or "Copy to clipboard",
+                    dbKey = "_profiles_export_copy_btn",
+                    onClick = function()
+                        local key = addon._profileExportKey
+                        if not key or key == "" then return end
+                        local str = (addon.ExportProfile and addon.ExportProfile(key)) or ""
+                        if str == "" then return end
+                        addon.ShowCopyPopup(str)
+                    end,
+                }
+
+                opts[#opts + 1] = {
+                    type = "editbox",
+                    labelText = L["Import string"] or "Import string",
+                    dbKey = "_profiles_import_box",
+                    height = 60,
+                    readonly = false,
+                    get = function() return addon._profileImportString or "" end,
+                    set = function(v)
+                        addon._profileImportString = v
+                        local valid = addon.ValidateProfileString and addon.ValidateProfileString(v) or false
+                        addon._profileImportValid = valid
+                    end,
+                }
+
+                opts[#opts + 1] = {
+                    type = "button",
+                    name = L["Import profile"] or "Import profile",
+                    dbKey = "_profiles_import_btn",
+                    onClick = function()
+                        local str = addon._profileImportString
+                        if not str or str == "" then
+                            if addon.HSPrint then addon.HSPrint("No import string provided.") end
+                            return
+                        end
+                        if not (addon.ValidateProfileString and addon.ValidateProfileString(str)) then
+                            if addon.HSPrint then addon.HSPrint("Invalid profile string.") end
+                            return
+                        end
+                        addon._profileImportSourceString = str
+                        if StaticPopup_Show then
+                            StaticPopup_Show("HORIZONSUITE_IMPORT_PROFILE")
+                        end
+                    end,
+                }
+
                 return opts
         end,
     },
