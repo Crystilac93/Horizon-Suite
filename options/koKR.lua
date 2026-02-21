@@ -60,6 +60,7 @@ L["Reset to default"]                                               = "기본값
 -- OptionsPanel.lua — Search bar placeholder
 -- =====================================================================
 L["Search settings..."]                                             = "설정 검색..."
+L["Search fonts..."]                                                 = "글꼴 검색..."
 
 -- =====================================================================
 -- OptionsPanel.lua — Resize handle tooltip

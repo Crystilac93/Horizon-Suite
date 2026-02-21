@@ -358,7 +358,8 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             if optionFrames then optionFrames[oid] = { tabIndex = tabIndex, frame = w } end
             table.insert(refreshers, w)
         elseif opt.type == "dropdown" and currentCard then
-             local w = OptionsWidgets_CreateCustomDropdown(currentCard, opt.name, opt.desc or opt.tooltip, opt.options or {}, opt.get, opt.set, opt.displayFn)
+             local searchable = (opt.dbKey == "fontPath") or (opt.searchable == true)
+             local w = OptionsWidgets_CreateCustomDropdown(currentCard, opt.name, opt.desc or opt.tooltip, opt.options or {}, opt.get, opt.set, opt.displayFn, searchable)
              w:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -OptionGap)
              w:SetPoint("RIGHT", currentCard, "RIGHT", -CardPadding, 0)
              currentCard.contentAnchor = w

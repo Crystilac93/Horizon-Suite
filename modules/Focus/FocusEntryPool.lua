@@ -333,7 +333,7 @@ local function CreateSectionHeader(parent)
     -- Small chevron indicating expanded/collapsed state for this category.
     -- Keep it inside the header frame so it never renders outside the visible panel.
     s.chevron = s:CreateFontString(nil, "OVERLAY")
-    s.chevron:SetFont(addon.FONT_PATH, addon.SECTION_SIZE, "OUTLINE")
+    s.chevron:SetFontObject(addon.SectionFont)
     s.chevron:SetJustifyH("LEFT")
     s.chevron:SetPoint("BOTTOMLEFT", s, "BOTTOMLEFT", 0, 0)
     s.chevron:SetText("")
@@ -380,6 +380,7 @@ local function UpdateFontObjectsFromDB()
     local zoneSz     = tonumber(addon.GetDB("zoneFontSize", 10)) or 10
     local sectionSz  = tonumber(addon.GetDB("sectionFontSize", 10)) or 10
 
+    addon.FONT_PATH = fontPath
     addon.HeaderFont:SetFont(fontPath, headerSz, outline)
     addon.TitleFont:SetFont(fontPath, titleSz, outline)
     addon.ObjFont:SetFont(fontPath, objSz, outline)

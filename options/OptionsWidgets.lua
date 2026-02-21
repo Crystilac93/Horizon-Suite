@@ -283,7 +283,8 @@ function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, m
 end
 
 -- Custom dropdown: button + popup list (no UIDropDownMenuTemplate)
-function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, options, get, set, displayFn)
+-- When searchable is true, adds an EditBox above the list to filter options by name (e.g. font dropdown).
+function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, options, get, set, displayFn, searchable)
     local row = CreateFrame("Frame", nil, parent)
     row:SetHeight(52)
     local searchText = (labelText or "") .. " " .. (description or "")
@@ -338,8 +339,38 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
     listBg:SetColorTexture(Def.SectionCardBg[1], Def.SectionCardBg[2], Def.SectionCardBg[3], Def.SectionCardBg[4])
     addon.CreateBorder(list, Def.SectionCardBorder)
 
+    local searchEdit
+    if searchable then
+        searchEdit = CreateFrame("EditBox", nil, list)
+        searchEdit:SetHeight(26)
+        searchEdit:SetPoint("TOPLEFT", list, "TOPLEFT", 6, -6)
+        searchEdit:SetPoint("TOPRIGHT", list, "TOPRIGHT", -6, 0)
+        searchEdit:SetAutoFocus(false)
+        searchEdit:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+        searchEdit:SetTextInsets(8, 8, 0, 0)
+        local tc = Def.TextColorLabel
+        searchEdit:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
+        local searchBg = searchEdit:CreateTexture(nil, "BACKGROUND")
+        searchBg:SetAllPoints(searchEdit)
+        searchBg:SetColorTexture(Def.InputBg[1], Def.InputBg[2], Def.InputBg[3], Def.InputBg[4])
+        local ph = searchEdit:CreateFontString(nil, "OVERLAY")
+        ph:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+        SetTextColor(ph, Def.TextColorSection)
+        ph:SetText(L["Search fonts..."] or "Search fonts...")
+        ph:SetPoint("LEFT", searchEdit, "LEFT", 8, 0)
+        ph:SetJustifyH("LEFT")
+        searchEdit.placeholder = ph
+        searchEdit:SetScript("OnEditFocusGained", function() if ph then ph:Hide() end end)
+        searchEdit:SetScript("OnEditFocusLost", function() if ph and searchEdit:GetText() == "" then ph:Show() end end)
+    end
+
     local scrollFrame = CreateFrame("ScrollFrame", nil, list)
-    scrollFrame:SetAllPoints(list)
+    if searchable then
+        scrollFrame:SetPoint("TOPLEFT", searchEdit, "BOTTOMLEFT", 0, -4)
+        scrollFrame:SetPoint("BOTTOMRIGHT", list, "BOTTOMRIGHT", -4, 4)
+    else
+        scrollFrame:SetAllPoints(list)
+    end
 
     local scrollChild = CreateFrame("Frame", nil, scrollFrame)
     scrollFrame:SetScrollChild(scrollChild)
@@ -368,6 +399,9 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
 
     local function closeList()
         if addon._OnDropdownClosed then addon._OnDropdownClosed(closeList) end
+        if searchable and searchEdit and searchEdit:HasFocus() then
+            searchEdit:ClearFocus()
+        end
         list:Hide()
         catch:Hide()
     end
@@ -405,12 +439,29 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
         return out
     end
 
+    local SEARCH_BOX_HEIGHT = searchable and 36 or 0
+
     local function populate()
         list:SetParent(UIParent)
         list:ClearAllPoints()
         list:SetPoint("TOPLEFT", btn, "BOTTOMLEFT", 0, -2)
 
-        local opts = normalizeOptions((type(options) == "function" and options()) or options or {})
+        local fullOpts = normalizeOptions((type(options) == "function" and options()) or options or {})
+        local opts = fullOpts
+        if searchable and searchEdit then
+            local filterText = searchEdit:GetText()
+            if type(filterText) == "string" and filterText ~= "" then
+                local lower = filterText:lower()
+                opts = {}
+                for _, opt in ipairs(fullOpts) do
+                    local name = opt and opt[1] or ""
+                    if name:lower():find(lower, 1, true) then
+                        opts[#opts + 1] = opt
+                    end
+                end
+            end
+        end
+
         local num = #opts
 
         local rowH = 22
@@ -418,10 +469,14 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
         local totalHeight = num * rowH
 
         list:SetWidth(btn:GetWidth())
-        list:SetHeight(math.min(totalHeight, maxHeight))
+        list:SetHeight(SEARCH_BOX_HEIGHT + math.min(totalHeight, maxHeight))
         scrollChild:SetWidth(btn:GetWidth())
         scrollChild:SetHeight(math.max(totalHeight, 1))
         scrollFrame:SetVerticalScroll(0)
+
+        if searchable and searchEdit then
+            searchEdit:Show()
+        end
 
          for i = 1, num do
              local b = optionButtons[i]
@@ -472,12 +527,23 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
         catch:Show()
     end
 
+    if searchable and searchEdit then
+        searchEdit:SetScript("OnTextChanged", function() populate() end)
+    end
+
     btn:SetScript("OnClick", function()
         if list:IsShown() then
             closeList()
             return
         end
+        if searchable and searchEdit then
+            searchEdit:SetText("")
+            if searchEdit.placeholder then searchEdit.placeholder:Show() end
+        end
         populate()
+        if searchable and searchEdit then
+            searchEdit:SetFocus()
+        end
     end)
 
     list:EnableMouseWheel(true)
