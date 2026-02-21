@@ -102,15 +102,17 @@ jobs:
 
       - name: Create or update Beta release
         if: steps.check.outputs.skip != 'true'
-        uses: IsaacShelton/update-existing-release@v1.3.5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          release: Beta
-          tag: beta
-          replace: true
-          prerelease: true
-          body: ${{ steps.extract_changelog.outputs.changelog }}
-          files: .release/HorizonSuite-beta.zip
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHANGELOG: ${{ steps.extract_changelog.outputs.changelog }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f beta
+          git push origin refs/tags/beta --force
+          gh release delete beta -y || true
+          printf '%s' "$CHANGELOG" > /tmp/changelog.md
+          gh release create beta .release/HorizonSuite-beta.zip --title "Beta" --notes-file /tmp/changelog.md --prerelease
 
       - name: Post to Discord
         if: success() && steps.check.outputs.skip != 'true'

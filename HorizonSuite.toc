@@ -59,6 +59,7 @@ modules/Yield/YieldModule.lua
 
 options/koKR.lua
 options/frFR.lua
+options/ptBR.lua
 options/OptionsWidgets.lua
 options/OptionsData.lua
 options/OptionsPanel.lua

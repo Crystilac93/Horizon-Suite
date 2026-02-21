@@ -27,21 +27,28 @@ local function HandlePresenceSlash(msg)
     end
 
     if cmd == "level" then
-        addon.Presence.QueueOrPlay("LEVEL_UP", "LEVEL UP", "You have reached level 80")
+        local L = addon.L or {}
+        addon.Presence.QueueOrPlay("LEVEL_UP", L["LEVEL UP"], L["You have reached level 80"])
     elseif cmd == "boss" then
         addon.Presence.QueueOrPlay("BOSS_EMOTE", "Ragnaros", "BY FIRE BE PURGED!")
     elseif cmd == "ach" then
-        addon.Presence.QueueOrPlay("ACHIEVEMENT", "ACHIEVEMENT EARNED", "Exploring the Midnight Isles")
+        local L = addon.L or {}
+        addon.Presence.QueueOrPlay("ACHIEVEMENT", L["ACHIEVEMENT EARNED"], L["Exploring the Midnight Isles"])
     elseif cmd == "quest" then
-        addon.Presence.QueueOrPlay("QUEST_COMPLETE", "QUEST COMPLETE", "Objective Secured")
+        local L = addon.L or {}
+        addon.Presence.QueueOrPlay("QUEST_COMPLETE", L["QUEST COMPLETE"], L["Objective Secured"])
     elseif cmd == "wq" then
-        addon.Presence.QueueOrPlay("WORLD_QUEST", "WORLD QUEST", "Azerite Mining")
+        local L = addon.L or {}
+        addon.Presence.QueueOrPlay("WORLD_QUEST", L["WORLD QUEST"], L["Azerite Mining"])
     elseif cmd == "wqaccept" then
-        addon.Presence.QueueOrPlay("WORLD_QUEST_ACCEPT", "WORLD QUEST ACCEPTED", "Azerite Mining")
+        local L = addon.L or {}
+        addon.Presence.QueueOrPlay("WORLD_QUEST_ACCEPT", L["WORLD QUEST ACCEPTED"], L["Azerite Mining"])
     elseif cmd == "accept" then
-        addon.Presence.QueueOrPlay("QUEST_ACCEPT", "QUEST ACCEPTED", "The Fate of the Horde")
+        local L = addon.L or {}
+        addon.Presence.QueueOrPlay("QUEST_ACCEPT", L["QUEST ACCEPTED"], L["The Fate of the Horde"])
     elseif cmd == "update" then
-        addon.Presence.QueueOrPlay("QUEST_UPDATE", "QUEST UPDATE", "Boar Pelts: 7/10")
+        local L = addon.L or {}
+        addon.Presence.QueueOrPlay("QUEST_UPDATE", L["QUEST UPDATE"], L["Boar Pelts: 7/10"])
     elseif cmd == "scenario" then
         if addon.GetScenarioDisplayInfo and addon.IsScenarioActive and addon.IsScenarioActive() then
             local title, subtitle, category = addon.GetScenarioDisplayInfo()
@@ -57,20 +64,21 @@ local function HandlePresenceSlash(msg)
         addon.Presence.SetPendingDiscovery()
         addon.Presence.QueueOrPlay("ZONE_CHANGE", "The Waking Shores", "Obsidian Citadel")
     elseif cmd == "all" then
-        HSPrint("Presence: Playing demo reel (all notification types)...")
+        local L = addon.L or {}
+        HSPrint(L["Presence: Playing demo reel (all notification types)..."])
         local demos = {
-            { "ZONE_CHANGE",         "Valdrakken",           "Thaldraszus"               },
-            { "SUBZONE_CHANGE",      "Valdrakken",           "The Seat of Aspects"       },
-            { "ZONE_CHANGE",         "The Waking Shores",    "Obsidian Citadel",  true   },
-            { "QUEST_ACCEPT",        "QUEST ACCEPTED",       "The Fate of the Horde"     },
-            { "WORLD_QUEST_ACCEPT",  "WORLD QUEST ACCEPTED", "Azerite Mining"            },
-            { "QUEST_UPDATE",        "QUEST UPDATE",         "Dragon Glyphs: 3/5"        },
-            { "QUEST_COMPLETE",      "QUEST COMPLETE",       "Aiding the Accord"         },
-            { "WORLD_QUEST",         "WORLD QUEST",          "Azerite Mining"            },
-            { "SCENARIO_START",      "Cinderbrew Meadery",   "Defend the tavern", { category = "SCENARIO" } },
-            { "ACHIEVEMENT",         "ACHIEVEMENT EARNED",   "Exploring Khaz Algar"      },
-            { "BOSS_EMOTE",          "Ragnaros",             "BY FIRE BE PURGED!"        },
-            { "LEVEL_UP",            "LEVEL UP",             "You have reached level 80" },
+            { "ZONE_CHANGE",         GetZoneText() or "Valdrakken",     GetSubZoneText() or "Thaldraszus" },
+            { "SUBZONE_CHANGE",      GetZoneText() or "Valdrakken",     GetSubZoneText() or "The Seat of Aspects" },
+            { "ZONE_CHANGE",         "The Waking Shores",               "Obsidian Citadel",  true   },
+            { "QUEST_ACCEPT",        L["QUEST ACCEPTED"],               L["The Fate of the Horde"] },
+            { "WORLD_QUEST_ACCEPT",  L["WORLD QUEST ACCEPTED"],         L["Azerite Mining"] },
+            { "QUEST_UPDATE",        L["QUEST UPDATE"],                 L["Dragon Glyphs: 3/5"] },
+            { "QUEST_COMPLETE",      L["QUEST COMPLETE"],               L["Aiding the Accord"] },
+            { "WORLD_QUEST",         L["WORLD QUEST"],                  L["Azerite Mining"] },
+            { "SCENARIO_START",      "Cinderbrew Meadery",              "Defend the tavern", { category = "SCENARIO" } },
+            { "ACHIEVEMENT",         L["ACHIEVEMENT EARNED"],           L["Exploring Khaz Algar"] },
+            { "BOSS_EMOTE",          "Ragnaros",                        "BY FIRE BE PURGED!" },
+            { "LEVEL_UP",            L["LEVEL UP"],                     L["You have reached level 80"] },
         }
         for i, d in ipairs(demos) do
             C_Timer.After((i - 1) * 3, function()
@@ -79,23 +87,24 @@ local function HandlePresenceSlash(msg)
             end)
         end
     elseif cmd == "" or cmd == "help" then
-        HSPrint("Presence test commands:")
-        HSPrint("  /horizon presence         - Show help + test current zone")
-        HSPrint("  /horizon presence zone     - Test Zone Change")
-        HSPrint("  /horizon presence subzone  - Test Subzone Change")
-        HSPrint("  /horizon presence discover - Test Zone Discovery")
-        HSPrint("  /horizon presence level    - Test Level Up")
-        HSPrint("  /horizon presence boss     - Test Boss Emote")
-        HSPrint("  /horizon presence ach      - Test Achievement")
-        HSPrint("  /horizon presence accept   - Test Quest Accepted")
-        HSPrint("  /horizon presence wqaccept - Test World Quest Accepted")
-        HSPrint("  /horizon presence scenario - Test Scenario Start")
-        HSPrint("  /horizon presence quest    - Test Quest Complete")
-        HSPrint("  /horizon presence wq       - Test World Quest")
-        HSPrint("  /horizon presence update   - Test Quest Update")
-        HSPrint("  /horizon presence all      - Demo reel (all types)")
-        HSPrint("  /horizon presence debug    - Dump state to chat")
-        HSPrint("  /horizon presence debuglive - Toggle live debug panel (log as events happen)")
+        local L = addon.L or {}
+        HSPrint(L["Presence test commands:"])
+        HSPrint(L["  /horizon presence         - Show help + test current zone"])
+        HSPrint(L["  /horizon presence zone     - Test Zone Change"])
+        HSPrint(L["  /horizon presence subzone  - Test Subzone Change"])
+        HSPrint(L["  /horizon presence discover - Test Zone Discovery"])
+        HSPrint(L["  /horizon presence level    - Test Level Up"])
+        HSPrint(L["  /horizon presence boss     - Test Boss Emote"])
+        HSPrint(L["  /horizon presence ach      - Test Achievement"])
+        HSPrint(L["  /horizon presence accept   - Test Quest Accepted"])
+        HSPrint(L["  /horizon presence wqaccept - Test World Quest Accepted"])
+        HSPrint(L["  /horizon presence scenario - Test Scenario Start"])
+        HSPrint(L["  /horizon presence quest    - Test Quest Complete"])
+        HSPrint(L["  /horizon presence wq       - Test World Quest"])
+        HSPrint(L["  /horizon presence update   - Test Quest Update"])
+        HSPrint(L["  /horizon presence all      - Demo reel (all types)"])
+        HSPrint(L["  /horizon presence debug    - Dump state to chat"])
+        HSPrint(L["  /horizon presence debuglive - Toggle live debug panel (log as events happen)"])
         addon.Presence.QueueOrPlay("ZONE_CHANGE", GetZoneText() or "Unknown Zone", GetSubZoneText() or "")
     else
         return false

@@ -92,7 +92,9 @@
 
 Thanks to everyone who has contributed to Horizon Suite:
 
-- **feanor21#2847** — Panoramuxa (Tarren Mill -EU)
+- **feanor21#2847 — Panoramuxa (Tarren Mill -EU)** — Development
+- **Aishuu** — French localization (frFR)
+- **아즈샤라-두녘** — Korean localization (koKR)
 
 ---
 
@@ -102,6 +104,7 @@ The options panel is localized for:
 
 - **French (frFR)** — `options/frFR.lua`
 - **Korean (koKR)** — `options/koKR.lua`
+- **Brazilian Portuguese (ptBR)** — `options/ptBR.lua`
 
 Contributions for additional locales are welcome via discord request.
 

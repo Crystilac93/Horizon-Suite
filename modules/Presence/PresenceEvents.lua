@@ -110,7 +110,8 @@ end
 
 local function OnPlayerLevelUp(_, level)
     if addon.GetDB and not addon.GetDB("presenceLevelUp", true) then return end
-    addon.Presence.QueueOrPlay("LEVEL_UP", "LEVEL UP", "You have reached level " .. (level or "??"))
+    local L = addon.L or {}
+    addon.Presence.QueueOrPlay("LEVEL_UP", L["LEVEL UP"], L["You have reached level %s"]:format(level or "??"))
 end
 
 local function OnRaidBossEmote(_, msg, unitName)
@@ -128,7 +129,8 @@ end
 local function OnAchievementEarned(_, achID)
     if addon.GetDB and not addon.GetDB("presenceAchievement", true) then return end
     local _, name = GetAchievementInfo(achID)
-    addon.Presence.QueueOrPlay("ACHIEVEMENT", "ACHIEVEMENT EARNED", StripPresenceMarkup(name or ""))
+    local L = addon.L or {}
+    addon.Presence.QueueOrPlay("ACHIEVEMENT", L["ACHIEVEMENT EARNED"], StripPresenceMarkup(name or ""))
 end
 
 local function OnQuestAccepted(_, questID)
@@ -138,12 +140,15 @@ local function OnQuestAccepted(_, questID)
         local questName = StripPresenceMarkup(C_QuestLog.GetTitleForQuestID(questID) or "New Quest")
         if IsDNTQuest(questName) then return end
         if addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(questID) then
-            addon.Presence.QueueOrPlay("WORLD_QUEST_ACCEPT", "WORLD QUEST ACCEPTED", questName, opts)
+            local L = addon.L or {}
+            addon.Presence.QueueOrPlay("WORLD_QUEST_ACCEPT", L["WORLD QUEST ACCEPTED"], questName, opts)
         else
-            addon.Presence.QueueOrPlay("QUEST_ACCEPT", "QUEST ACCEPTED", questName, opts)
+            local L = addon.L or {}
+            addon.Presence.QueueOrPlay("QUEST_ACCEPT", L["QUEST ACCEPTED"], questName, opts)
         end
     else
-        addon.Presence.QueueOrPlay("QUEST_ACCEPT", "QUEST ACCEPTED", "New Quest", opts)
+        local L = addon.L or {}
+        addon.Presence.QueueOrPlay("QUEST_ACCEPT", L["QUEST ACCEPTED"], L["New Quest"], opts)
     end
 end
 
@@ -157,7 +162,8 @@ local function OnQuestTurnedIn(_, questID)
         end
         if IsDNTQuest(questName) then return end
         if addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(questID) then
-            addon.Presence.QueueOrPlay("WORLD_QUEST", "WORLD QUEST", questName, opts)
+            local L = addon.L or {}
+            addon.Presence.QueueOrPlay("WORLD_QUEST", L["WORLD QUEST"], questName, opts)
             return
         end
     end
@@ -250,7 +256,8 @@ local function ExecuteQuestUpdate(questID, isBlindUpdate, source, isRetry)
 
     -- 8. Trigger notification
     if addon.GetDB and not addon.GetDB("presenceQuestEvents", true) then return end
-    addon.Presence.QueueOrPlay("QUEST_UPDATE", "QUEST UPDATE", normalized, { questID = questID, source = source })
+    local L = addon.L or {}
+    addon.Presence.QueueOrPlay("QUEST_UPDATE", L["QUEST UPDATE"], normalized, { questID = questID, source = source })
     DbgWQ("ExecuteQuestUpdate: Shown", questID, msg)
 end
 
@@ -341,7 +348,8 @@ local function OnUIInfoMessage(_, msgType, msg)
 
             local stripped = StripPresenceMarkup(msg or "")
             local normalized = NormalizeQuestUpdateText(stripped)
-            addon.Presence.QueueOrPlay("QUEST_UPDATE", "QUEST UPDATE", normalized, { source = "UI_INFO_MESSAGE" })
+            local L = addon.L or {}
+            addon.Presence.QueueOrPlay("QUEST_UPDATE", L["QUEST UPDATE"], normalized, { source = "UI_INFO_MESSAGE" })
         end
     end
 end
