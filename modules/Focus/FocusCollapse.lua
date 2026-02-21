@@ -341,8 +341,8 @@ local function RefreshContentInCombat()
                 if showInZoneSuffix then
                     local needSuffix = false
                     if questData.category == "WORLD" then
-                        -- WORLD quests: show '**' only when HorizonSuite auto-added it. Exclude proximity-based (Blizzard default).
-                        needSuffix = (questData.isAutoAdded == true) and (questData.isSuperTracked ~= true) and (questData.isInQuestArea ~= true)
+                        -- WORLD quests: show '**' only when HorizonSuite auto-added it (not manually tracked, not WQT, not super-tracked).
+                        needSuffix = (questData.isAutoAdded == true) and (questData.isSuperTracked ~= true)
                     elseif questData.category == "WEEKLY" or questData.category == "DAILY" then
                         needSuffix = (questData.isAccepted == false)
                     end

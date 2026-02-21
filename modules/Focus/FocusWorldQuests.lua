@@ -246,31 +246,19 @@ local function GetNearbyQuestIDs()
     return nearbySet, taskQuestOnlySet
 end
 
---- True if player is within threshold of the quest's map position (Blizzard-style quest area proximity).
--- Uses C_TaskQuest.GetQuestLocation and C_Map.GetPlayerMapPosition. Restricted in instances.
-local QUEST_AREA_THRESHOLD = 0.12  -- normalized 0-1; ~12% of map = quest area size
-local function IsPlayerNearQuestArea(questID, mapID)
-    if not questID or not mapID or not C_TaskQuest or not C_TaskQuest.GetQuestLocation then return false end
-    if not C_Map or not C_Map.GetPlayerMapPosition then return false end
-    local qx, qy = C_TaskQuest.GetQuestLocation(questID, mapID)
-    if not qx or not qy then
-        -- Quest may be on parent map (e.g. micro zone); try parent
-        local info = C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)
-        if info and info.parentMapID and info.parentMapID ~= 0 then
-            qx, qy = C_TaskQuest.GetQuestLocation(questID, info.parentMapID)
-            mapID = info.parentMapID
-        end
+--- True if player is within the quest's active area (can progress it).
+-- For world/task quests, entering the area adds the quest to the quest log.
+-- C_QuestLog.IsOnQuest is the authoritative check.
+-- Falls back to C_QuestLog.GetLogIndexForQuestID if IsOnQuest is unavailable.
+local function IsPlayerInQuestArea(questID)
+    if not questID or questID <= 0 then return false end
+    if C_QuestLog and C_QuestLog.IsOnQuest then
+        return C_QuestLog.IsOnQuest(questID)
     end
-    if not qx or not qy then return false end
-    local pos = C_Map.GetPlayerMapPosition(mapID, "player")
-    if not pos then return false end
-    local px, py = pos.x, pos.y
-    if type(px) ~= "number" or type(py) ~= "number" then
-        if pos.GetXY and type(pos.GetXY) == "function" then px, py = pos:GetXY() end
+    if C_QuestLog and C_QuestLog.GetLogIndexForQuestID then
+        return C_QuestLog.GetLogIndexForQuestID(questID) ~= nil
     end
-    if not px or not py then return false end
-    local dist = math.sqrt((qx - px) * (qx - px) + (qy - py) * (qy - py))
-    return dist <= QUEST_AREA_THRESHOLD
+    return false
 end
 
 -- World quest watch set for map-close diff.
@@ -298,16 +286,9 @@ end
 -- Filter out deprecated/expired WQs: only show if on watch list, or calling, or (world/task and currently active or in quest log).
 local function GetWorldAndCallingQuestIDsToShow(nearbySet, taskQuestOnlySet)
     local mapCtx = addon.ResolvePlayerMapContext and addon.ResolvePlayerMapContext("player") or nil
-    local playerMapID = mapCtx and mapCtx.rawMapID or ((C_Map and C_Map.GetBestMapForUnit) and C_Map.GetBestMapForUnit("player") or nil)
     local zoneMapID = mapCtx and mapCtx.zoneMapID or nil
 
-    -- When we include map-derived WQs/tasks for the current zone, we want them to show in the list
-    -- even if the user has toggled off "Show in-zone world quests" (which hides auto-added zone WQs).
-    -- We'll mark them as "in quest area" to bypass that visibility gate.
-    local ALWAYS_SHOW_MAP_DERIVED_WQS = false
-
     local function IsQuestAWorldQuest(questID)
-        if not questID or questID <= 0 then return false end
         if addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(questID) then return true end
         if C_QuestLog and C_QuestLog.IsWorldQuest and C_QuestLog.IsWorldQuest(questID) then return true end
         if C_QuestInfoSystem and C_QuestInfoSystem.GetQuestClassification and Enum and Enum.QuestClassification then
@@ -436,12 +417,15 @@ local function GetWorldAndCallingQuestIDsToShow(nearbySet, taskQuestOnlySet)
             local isRecurring = (qc == Enum.QuestClassification.Recurring)
             -- Force WORLD for task-map pins that are not already classified as world/calling/campaign/recurring.
             local forceCategory = nil
-            -- isInQuestArea: player within distance of quest (Blizzard-style).
-            -- This is informational only; visibility is handled by the aggregator.
-            local isInQuestArea = playerMapID and IsPlayerNearQuestArea(questID, playerMapID)
+            -- isInQuestArea: player is inside the quest's active area (quest is in quest log).
+            local isInQuestArea = IsPlayerInQuestArea(questID)
             -- Re-check watch list so WQs just added from map get isTracked = true (no **).
             local isTracked = IsOnWorldQuestWatchList(questID)
             local isFromWQT = addon.focus and addon.focus.wqtTrackedQuests and addon.focus.wqtTrackedQuests[questID]
+            -- When the player is inside the quest area (can progress it), treat as tracked.
+            if isInQuestArea then
+                isTracked = true
+            end
             local isAutoAdded = (not isTracked) and (not isFromWQT)
             out[#out + 1] = { questID = questID, isTracked = isTracked, isInQuestArea = isInQuestArea, forceCategory = forceCategory, isAutoAdded = isAutoAdded }
         end

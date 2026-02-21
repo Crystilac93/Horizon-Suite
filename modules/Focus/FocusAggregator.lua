@@ -345,11 +345,10 @@ local function ReadTrackedQuests()
         local isCompleted = C_QuestLog.IsQuestFlaggedCompleted and C_QuestLog.IsQuestFlaggedCompleted(e.questID)
 
         -- If the toggle is OFF: only keep WORLD/CALLING items that are explicitly tracked
-        -- (manual watch list, WQT's tracked set), the current supertracked quest,
-        -- or in quest-area proximity (Blizzard default).
+        -- (manual watch list, WQT's tracked set), or the current supertracked quest.
+        -- Proximity alone is not enough to override the user's toggle.
         local explicitlyKept = (opts.isTracked == true) or (opts.isAutoAdded == false)
             or (superTracked and e.questID == superTracked)
-            or (opts.isInQuestArea == true)
 
         if not seen[e.questID]
             and not isBlacklisted
