@@ -63,6 +63,24 @@ local MPLUS_TYPOGRAPHY_KEYS = {
     mplusBarDoneColorR = true, mplusBarDoneColorG = true, mplusBarDoneColorB = true,
 }
 
+-- Keys written by color pickers during drag. When _colorPickerLive is true and key is in this list,
+-- we skip NotifyMainAddon to avoid FullLayout spam; key-specific handlers (e.g. ApplyBackdropOpacity) still run.
+local COLOR_LIVE_KEYS = {
+    backdropOpacity = true, backdropColorR = true, backdropColorG = true, backdropColorB = true,
+    headerColor = true,
+    colorMatrix = true,
+    highlightColor = true, completedObjectiveColor = true, sectionColors = true,
+    objectiveProgressFlashColor = true, presenceBossEmoteColor = true, presenceDiscoveryColor = true,
+    mplusDungeonColorR = true, mplusDungeonColorG = true, mplusDungeonColorB = true,
+    mplusTimerColorR = true, mplusTimerColorG = true, mplusTimerColorB = true,
+    mplusTimerOvertimeColorR = true, mplusTimerOvertimeColorG = true, mplusTimerOvertimeColorB = true,
+    mplusProgressColorR = true, mplusProgressColorG = true, mplusProgressColorB = true,
+    mplusBarColorR = true, mplusBarColorG = true, mplusBarColorB = true,
+    mplusBarDoneColorR = true, mplusBarDoneColorG = true, mplusBarDoneColorB = true,
+    mplusAffixColorR = true, mplusAffixColorG = true, mplusAffixColorB = true,
+    mplusBossColorR = true, mplusBossColorG = true, mplusBossColorB = true,
+}
+
 function OptionsData_GetDB(key, default)
     return addon.GetDB(key, default)
 end
@@ -99,7 +117,20 @@ function OptionsData_SetDB(key, value)
     if (key == "backdropOpacity" or key == "backdropColorR" or key == "backdropColorG" or key == "backdropColorB") and addon.ApplyBackdropOpacity then
         addon.ApplyBackdropOpacity()
     end
+    if addon._colorPickerLive and COLOR_LIVE_KEYS[key] then
+        OptionsData_NotifyMainAddon_Live()
+        return
+    end
     OptionsData_NotifyMainAddon()
+end
+
+--- Lightweight notify for live color picker: updates visuals without FullLayout.
+function OptionsData_NotifyMainAddon_Live()
+    local applyTy = _G.HorizonSuite_ApplyTypography or addon.ApplyTypography
+    if applyTy then applyTy() end
+    if addon.ApplyBackdropOpacity then addon.ApplyBackdropOpacity() end
+    if addon.ApplyBorderVisibility then addon.ApplyBorderVisibility() end
+    if addon.ApplyFocusColors then addon.ApplyFocusColors() end
 end
 
 function OptionsData_NotifyMainAddon()

@@ -818,6 +818,34 @@ local function FullLayout()
     if addon.EnsureFocusUpdateRunning then addon.EnsureFocusUpdateRunning() end
 end
 
+--- Lightweight color refresh: updates section headers and entry title colors without FullLayout.
+--- Used during live color picker drag for responsive feedback.
+function addon.ApplyFocusColors()
+    if not addon.focus or not addon.focus.enabled then return end
+    local focusedGroupKey = addon.GetFocusedGroupKey and addon.GetFocusedGroupKey()
+    for i = 1, addon.SECTION_POOL_SIZE do
+        local s = sectionPool[i]
+        if s and s.groupKey and s:IsShown() then
+            local color = addon.GetSectionColor and addon.GetSectionColor(s.groupKey)
+            if color and type(color) == "table" and color[1] and color[2] and color[3] then
+                if addon.GetDB("dimNonSuperTracked", false) and focusedGroupKey and s.groupKey ~= focusedGroupKey then
+                    color = { color[1] * 0.60, color[2] * 0.60, color[3] * 0.60 }
+                end
+                s.text:SetTextColor(color[1], color[2], color[3], addon.SECTION_COLOR_A or 1)
+            end
+        end
+    end
+    for key, entry in pairs(activeMap) do
+        if entry and (entry.questID or entry.entryKey) and entry.titleText then
+            local effectiveCat = (addon.GetEffectiveColorCategory and addon.GetEffectiveColorCategory(entry.category, entry.groupKey, nil)) or entry.category
+            local c = (addon.GetTitleColor and addon.GetTitleColor(effectiveCat)) or addon.QUEST_COLORS and addon.QUEST_COLORS.DEFAULT
+            if c and type(c) == "table" and c[1] and c[2] and c[3] then
+                entry.titleText:SetTextColor(c[1], c[2], c[3], 1)
+            end
+        end
+    end
+end
+
 addon.GetPlayerCurrentZoneName = GetPlayerCurrentZoneName
 addon.AcquireEntry        = AcquireEntry
 addon.FullLayout          = FullLayout

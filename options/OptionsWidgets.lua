@@ -705,7 +705,7 @@ local function SyncHexBoxToPicker()
     if cb then
         cb.setKeyVal({ r, g, b })
         if cb.tex then cb.tex:SetColorTexture(r, g, b, 1) end
-        if cb.notify then cb.notify() end
+        -- No notify during live hex typing; finishedFunc/cancelFunc will notify.
     end
 end
 
@@ -791,6 +791,7 @@ function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultT
                 end
             end
         end
+        addon._colorPickerLive = true
         _activeColorPickerCallbacks = { setKeyVal = setKeyVal, notify = notify, tex = tex }
         ColorPickerFrame:SetupColorPickerAndShow({
             r = r, g = g, b = b, hasOpacity = false,
@@ -798,17 +799,20 @@ function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultT
                 local nr, ng, nb = GetColorPickerEffectiveRGB()
                 setKeyVal({nr, ng, nb})
                 tex:SetColorTexture(nr, ng, nb, 1)
-                if notify then notify() end
+                -- No notify during drag; finishedFunc/cancelFunc will notify.
             end,
             cancelFunc = function()
+                addon._colorPickerLive = nil
                 _activeColorPickerCallbacks = nil
                 local p = ColorPickerFrame.previousValues
                 if p then
                     setKeyVal({p.r, p.g, p.b})
                     swatch:Refresh()
                 end
+                if notify then notify() end
             end,
             finishedFunc = function()
+                addon._colorPickerLive = nil
                 _activeColorPickerCallbacks = nil
                 local nr, ng, nb = GetColorPickerEffectiveRGB()
                 setKeyVal({nr, ng, nb})
@@ -1075,17 +1079,25 @@ function OptionsWidgets_CreateReorderList(parent, anchor, opt, scrollFrameRef, p
     local presetRow = nil
     if presets then
         presetRow = CreateFrame("Frame", nil, container)
-        presetRow:SetHeight(26)
+        presetRow:SetHeight(56)  -- 2 rows of buttons + gap
         presetRow:SetPoint("TOPLEFT", sectionLabel, "BOTTOMLEFT", 0, -8)
         presetRow:SetPoint("TOPRIGHT", container, "TOPRIGHT", -Def.CardPadding, 0)
-        local btnW, btnH, gap = 90, 22, 6
+        local btnW, btnH, gapH, gapV = 130, 22, 8, 6
         local prevBtn = nil
-        for _, name in ipairs(presetOrder) do
+        for idx, name in ipairs(presetOrder) do
             local presetOrderArr = presets[name]
             if presetOrderArr then
                 local btn = CreateFrame("Button", nil, presetRow)
                 btn:SetSize(btnW, btnH)
-                btn:SetPoint("TOPLEFT", prevBtn and prevBtn or presetRow, prevBtn and "TOPRIGHT" or "TOPLEFT", prevBtn and gap or 0, 0)
+                if idx == 1 then
+                    btn:SetPoint("TOPLEFT", presetRow, "TOPLEFT", 0, 0)
+                elseif idx == 2 then
+                    btn:SetPoint("TOPLEFT", prevBtn, "TOPRIGHT", gapH, 0)
+                elseif idx == 3 then
+                    btn:SetPoint("TOPLEFT", presetRow, "TOPLEFT", 0, -(btnH + gapV))
+                else
+                    btn:SetPoint("TOPLEFT", prevBtn, "TOPRIGHT", gapH, 0)
+                end
                 prevBtn = btn
                 local lab = btn:CreateFontString(nil, "OVERLAY")
                 lab:SetFont(Def.FontPath, Def.LabelSize - 1, "OUTLINE")
@@ -1273,7 +1285,7 @@ function OptionsWidgets_CreateReorderList(parent, anchor, opt, scrollFrameRef, p
     resetBtn:SetScript("OnEnter", function() SetTextColor(resetLabel, Def.TextColorHighlight) end)
     resetBtn:SetScript("OnLeave", function() SetTextColor(resetLabel, Def.TextColorLabel) end)
 
-    local presetH = presetRow and (8 + 26) or 0
+    local presetH = presetRow and (8 + 56) or 0
     local totalH = Def.CardPadding + 14 + presetH + (#keys * (REORDER_ROW_HEIGHT + REORDER_ROW_GAP)) + 6 + 22 + Def.CardPadding
     container:SetHeight(totalH)
     container.searchText = (opt.name or "order") .. " " .. (opt.desc or opt.tooltip or "")

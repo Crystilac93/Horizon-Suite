@@ -902,6 +902,8 @@ end
 
 function addon.EnsureDB()
     if not HorizonDB then HorizonDB = {} end
+    if addon._ensureDBInProgress then return end
+    addon._ensureDBInProgress = true
     if addon.EnsureModulesDB then addon:EnsureModulesDB() end
     EnsureProfilesAndMigrateLegacy()
     -- One-time migration from legacy hideInCombat toggle.
@@ -915,6 +917,7 @@ function addon.EnsureDB()
             profile.combatVisibility = legacyHide and "hide" or "show"
         end
     end
+    addon._ensureDBInProgress = nil
 end
 
 -- ==========================================================================

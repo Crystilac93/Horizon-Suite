@@ -556,7 +556,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             local swatches = {}
             for _, key in ipairs(keys) do
                 local getTbl = function() local db = getDB(opt.dbKey, nil) return db and db[key] end
-                local setKeyVal = function(v) addon.EnsureDB() if not HorizonDB[opt.dbKey] then HorizonDB[opt.dbKey] = {} end HorizonDB[opt.dbKey][key] = v notifyMainAddon() end
+                local setKeyVal = function(v) addon.EnsureDB() if not HorizonDB[opt.dbKey] then HorizonDB[opt.dbKey] = {} end HorizonDB[opt.dbKey][key] = v if not addon._colorPickerLive then notifyMainAddon() end end
                 local row = OptionsWidgets_CreateColorSwatchRow(currentCard, currentCard.contentAnchor, addon.L[(opt.labelMap and opt.labelMap[key]) or key:gsub("^%l", string.upper)], defaultMap[key], getTbl, setKeyVal, notifyMainAddon)
                 currentCard.contentAnchor = row
                 currentCard.contentHeight = currentCard.contentHeight + 4 + 24
@@ -587,7 +587,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             local overrideRows = {}
             for _, ov in ipairs(opt.overrides or {}) do
                 local getTbl = function() return getDB(ov.dbKey, nil) end
-                local setKeyVal = function(v) setDB(ov.dbKey, v) notifyMainAddon() end
+                local setKeyVal = function(v) setDB(ov.dbKey, v) if not addon._colorPickerLive then notifyMainAddon() end end
                 local row = OptionsWidgets_CreateColorSwatchRow(currentCard, currentCard.contentAnchor, ov.name, ov.default, getTbl, setKeyVal, notifyMainAddon)
                 currentCard.contentAnchor = row
                 currentCard.contentHeight = currentCard.contentHeight + 4 + 24
@@ -645,7 +645,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
                 local m = getMatrix()
                 m.overrides[key] = v
                 setDB(opt.dbKey, m)
-                notifyMainAddon()
+                if not addon._colorPickerLive then notifyMainAddon() end
             end
 
             -- All collapsible group widgets, tracked for card-height recalc.
@@ -783,7 +783,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
                             m.categories[key] = m.categories[key] or {}
                             m.categories[key][cd.subKey] = v
                             setDB(opt.dbKey, m)
-                            notifyMainAddon()
+                            if not addon._colorPickerLive then notifyMainAddon() end
                         end
                         local row = OptionsWidgets_CreateColorSwatchRow(container, prevAnchor, rowLabel, cd.def, getTbl, setKeyVal, notifyMainAddon)
                         prevAnchor = row
@@ -930,7 +930,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             local otherRows = {}
             for _, od in ipairs(otherDefs) do
                 local getTbl = function() return getDB(od.dbKey, nil) end
-                local setKeyVal = function(v) setDB(od.dbKey, v) notifyMainAddon() end
+                local setKeyVal = function(v) setDB(od.dbKey, v) if not addon._colorPickerLive then notifyMainAddon() end end
                 local row = OptionsWidgets_CreateColorSwatchRow(currentCard, currentCard.contentAnchor, od.label, od.def, getTbl, setKeyVal, notifyMainAddon)
                 currentCard.contentAnchor = row
                 currentCard.contentHeight = currentCard.contentHeight + GROUP_ROW_GAP + GROUP_ROW_H
@@ -1358,7 +1358,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             local swatches = {}
             for _, key in ipairs(keys) do
                 local getTbl = function() local db = getDB(opt.dbKey, nil) return db and db[key] end
-                local setKeyVal = function(v) addon.EnsureDB() if not HorizonDB[opt.dbKey] then HorizonDB[opt.dbKey] = {} end HorizonDB[opt.dbKey][key] = v notifyMainAddon() end
+                local setKeyVal = function(v) addon.EnsureDB() if not HorizonDB[opt.dbKey] then HorizonDB[opt.dbKey] = {} end HorizonDB[opt.dbKey][key] = v if not addon._colorPickerLive then notifyMainAddon() end end
                 local def = defaultMap[key] or {0.5,0.5,0.5}
                 local row = OptionsWidgets_CreateColorSwatchRow(currentCard, currentCard.contentAnchor, addon.L[(opt.labelMap and opt.labelMap[key]) or key:gsub("^%l", string.upper)], def, getTbl, setKeyVal, notifyMainAddon)
                 currentCard.contentAnchor = row
