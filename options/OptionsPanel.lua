@@ -500,15 +500,23 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             end)
             if opt.storeRef then addon[opt.storeRef] = edit end
             if opt.readonly then
+                edit:EnableKeyboard(true)
                 edit:SetScript("OnChar", function(self) self:SetText(opt.get and opt.get() or "") end)
-                edit:EnableKeyboard(false)
+                edit:SetScript("OnKeyDown", function(self, key)
+                    if IsControlKeyDown and IsControlKeyDown() then
+                        if key == "A" then
+                            self:HighlightText()
+                        end
+                    end
+                end)
                 edit:SetScript("OnMouseUp", function(self)
                     self:HighlightText()
-                    self:EnableKeyboard(true)
+                end)
+                edit:SetScript("OnEditFocusGained", function(self)
+                    self:HighlightText()
                 end)
                 edit:SetScript("OnEditFocusLost", function(self)
                     self:HighlightText(0, 0)
-                    self:EnableKeyboard(false)
                 end)
             else
                 edit:EnableKeyboard(true)
@@ -1945,23 +1953,6 @@ function _G.HorizonSuite_ShowOptions()
             C_Timer.After(0.05, function()
                 if addon.OptionsPanel_Refresh then addon.OptionsPanel_Refresh() end
             end)
-            -- Profile routing debug on options open
-            local HSPrint = addon.HSPrint or function(msg) print("|cFF00CCFFHorizon Suite:|r " .. tostring(msg or "")) end
-            local charName = _G.UnitName and _G.UnitName("player") or "?"
-            local realm = _G.GetNormalizedRealmName and _G.GetNormalizedRealmName() or "?"
-            local effectiveKey = addon.GetEffectiveProfileKey and addon.GetEffectiveProfileKey() or "nil"
-            local activeKey = addon.GetActiveProfileKey and addon.GetActiveProfileKey() or "nil"
-            local useGlobal = _G.HorizonDB and _G.HorizonDB.useGlobalProfile or false
-            local globalKey = _G.HorizonDB and _G.HorizonDB.globalProfileKey or "nil"
-            local usePerSpec = _G.HorizonDB and _G.HorizonDB.usePerSpecProfiles or false
-            local charProfKey = _G.HorizonDB and _G.HorizonDB.charProfileKeys and _G.HorizonDB.charProfileKeys[charName .. "-" .. (realm or "")] or "nil"
-            HSPrint(("[ProfileDebug] char=%s-%s | effective=%s | active=%s | charKey=%s | global=%s(key=%s) | perSpec=%s"):format(
-                tostring(charName), tostring(realm),
-                tostring(effectiveKey), tostring(activeKey),
-                tostring(charProfKey),
-                tostring(useGlobal), tostring(globalKey),
-                tostring(usePerSpec)
-            ))
         end
     end
 end

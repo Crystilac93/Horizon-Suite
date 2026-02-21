@@ -506,7 +506,6 @@ local OptionCategories = {
                     end,
                     set = function(v)
                         addon._profileExportKey = v
-                        addon._profileExportString = nil
                         if addon.OptionsPanel_Refresh then addon.OptionsPanel_Refresh() end
                     end,
                 }
@@ -520,24 +519,20 @@ local OptionCategories = {
                     storeRef = "_profileExportEditBox",
                     get = function()
                         local key = addon._profileExportKey
-                        if not key or key == "" then return "" end
-                        if not addon._profileExportString then
-                            addon._profileExportString = (addon.ExportProfile and addon.ExportProfile(key)) or ""
+                        if not key or key == "" then
+                            local current = addon.GetActiveProfileKey and addon.GetActiveProfileKey() or nil
+                            if current and current ~= "Default" then
+                                key = current
+                                addon._profileExportKey = key
+                            else
+                                local list = addon.ListProfiles and addon.ListProfiles() or {}
+                                for _, k in ipairs(list) do
+                                    if k ~= "Default" then key = k; addon._profileExportKey = k; break end
+                                end
+                            end
                         end
-                        return addon._profileExportString or ""
-                    end,
-                }
-
-                opts[#opts + 1] = {
-                    type = "button",
-                    name = L["Copy to clipboard"] or "Copy to clipboard",
-                    dbKey = "_profiles_export_copy_btn",
-                    onClick = function()
-                        local key = addon._profileExportKey
-                        if not key or key == "" then return end
-                        local str = (addon.ExportProfile and addon.ExportProfile(key)) or ""
-                        if str == "" then return end
-                        addon.ShowCopyPopup(str)
+                        if not key or key == "" then return "" end
+                        return (addon.ExportProfile and addon.ExportProfile(key)) or ""
                     end,
                 }
 

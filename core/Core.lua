@@ -647,98 +647,66 @@ if StaticPopupDialogs then
     }
 end
 
--- ==========================================================================
--- COPY POPUP (reliable Ctrl+C)
--- ==========================================================================
-
-local copyPopup
-function addon.ShowCopyPopup(text)
-    if not text or text == "" then return end
-    if not copyPopup then
-        copyPopup = CreateFrame("Frame", "HorizonSuiteCopyPopup", UIParent, "BackdropTemplate")
-        copyPopup:SetSize(420, 200)
-        copyPopup:SetPoint("CENTER")
-        copyPopup:SetFrameStrata("DIALOG")
-        copyPopup:SetMovable(true)
-        copyPopup:EnableMouse(true)
-        copyPopup:RegisterForDrag("LeftButton")
-        copyPopup:SetScript("OnDragStart", copyPopup.StartMoving)
-        copyPopup:SetScript("OnDragStop", copyPopup.StopMovingOrSizing)
-        copyPopup:SetBackdrop({ bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background", edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border", tile = true, tileSize = 32, edgeSize = 32, insets = { left = 8, right = 8, top = 8, bottom = 8 } })
-
-        local title = copyPopup:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-        title:SetPoint("TOP", 0, -16)
-        title:SetText("Copy profile string")
-
-        local hint = copyPopup:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        hint:SetPoint("TOP", title, "BOTTOM", 0, -4)
-        hint:SetText("Press Ctrl+C to copy, then close this window")
-
-        local sf = CreateFrame("ScrollFrame", nil, copyPopup, "UIPanelScrollFrameTemplate")
-        sf:SetPoint("TOPLEFT", 16, -56)
-        sf:SetPoint("BOTTOMRIGHT", -32, 40)
-
-        local edit = CreateFrame("EditBox", nil, copyPopup)
-        edit:SetMultiLine(true)
-        edit:SetAutoFocus(false)
-        edit:EnableMouse(true)
-        edit:SetFont("Fonts\\FRIZQT__.TTF", 11, "")
-        edit:SetWidth(sf:GetWidth() or 360)
-        sf:SetScrollChild(edit)
-        sf:SetScript("OnSizeChanged", function(_, w) if w and w > 0 then edit:SetWidth(w) end end)
-        copyPopup.edit = edit
-
-        local closeBtn = CreateFrame("Button", nil, copyPopup, "UIPanelCloseButton")
-        closeBtn:SetPoint("TOPRIGHT", -4, -4)
-        closeBtn:SetScript("OnClick", function() copyPopup:Hide() end)
-
-        local closeTextBtn = CreateFrame("Button", nil, copyPopup, "UIPanelButtonTemplate")
-        closeTextBtn:SetSize(80, 22)
-        closeTextBtn:SetPoint("BOTTOM", 0, 12)
-        closeTextBtn:SetText(_G.CLOSE or "Close")
-        closeTextBtn:SetScript("OnClick", function() copyPopup:Hide() end)
-
-        copyPopup:SetScript("OnShow", function(self)
-            self.edit:SetFocus()
-            self.edit:HighlightText()
-        end)
-        copyPopup:SetScript("OnKeyDown", function(self, key)
-            if key == "ESCAPE" then
-                self:SetPropagateKeyboardInput(false)
-                self:Hide()
-            else
-                self:SetPropagateKeyboardInput(true)
-            end
-        end)
-    end
-    copyPopup.edit:SetText(text)
-    copyPopup:Show()
-    copyPopup.edit:SetFocus()
-    copyPopup.edit:HighlightText()
-end
 
 -- ==========================================================================
 -- PROFILE EXPORT / IMPORT
 -- ==========================================================================
 
-local EXPORT_HEADER = "HSP1:"
+local EXPORT_HEADER = "HSP2:"
 
+-- Base64 encode/decode (pure Lua, no dependencies)
+local B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+local function b64encode(data)
+    local out = {}
+    for i = 1, #data, 3 do
+        local a, b, c = data:byte(i, i + 2)
+        b = b or 0; c = c or 0
+        local n = a * 65536 + b * 256 + c
+        local remain = #data - i + 1
+        out[#out + 1] = B64:sub(math.floor(n / 262144) % 64 + 1, math.floor(n / 262144) % 64 + 1)
+        out[#out + 1] = B64:sub(math.floor(n / 4096) % 64 + 1, math.floor(n / 4096) % 64 + 1)
+        out[#out + 1] = remain > 1 and B64:sub(math.floor(n / 64) % 64 + 1, math.floor(n / 64) % 64 + 1) or "="
+        out[#out + 1] = remain > 2 and B64:sub(n % 64 + 1, n % 64 + 1) or "="
+    end
+    return table.concat(out)
+end
+
+local B64INV = {}
+for i = 1, #B64 do B64INV[B64:byte(i)] = i - 1 end
+
+local function b64decode(data)
+    data = data:gsub("[^A-Za-z0-9%+/=]", "")
+    local out = {}
+    for i = 1, #data, 4 do
+        local a, b, c, d = data:byte(i, i + 3)
+        a = B64INV[a] or 0; b = B64INV[b] or 0
+        c = B64INV[c or 0] or 0; d = B64INV[d or 0] or 0
+        local n = a * 262144 + b * 4096 + c * 64 + d
+        out[#out + 1] = string.char(math.floor(n / 65536) % 256)
+        if data:sub(i + 2, i + 2) ~= "=" then out[#out + 1] = string.char(math.floor(n / 256) % 256) end
+        if data:sub(i + 3, i + 3) ~= "=" then out[#out + 1] = string.char(n % 256) end
+    end
+    return table.concat(out)
+end
+
+-- Compact Lua table serializer (supports string/number/boolean/nested table).
+-- Format per value: type tag + content. Pairs joined by \n, key\tvalue per pair.
+-- Nested tables are length-prefixed: "T" .. len .. ":" .. serialized_content
 local function SerializeValue(v)
-    local t = type(v)
-    if t == "string" then
-        return "s" .. v:gsub("\\", "\\\\"):gsub("\n", "\\n"):gsub("|", "\\p"):gsub("~", "\\t")
-    elseif t == "number" then
-        return "n" .. tostring(v)
-    elseif t == "boolean" then
-        return v and "btrue" or "bfalse"
-    elseif t == "table" then
+    local tv = type(v)
+    if tv == "string" then
+        return "s" .. v:gsub("\\", "\\\\"):gsub("\t", "\\t"):gsub("\n", "\\n")
+    elseif tv == "number" then return "n" .. tostring(v)
+    elseif tv == "boolean" then return v and "B1" or "B0"
+    elseif tv == "table" then
         local parts = {}
-        for kk, vv in pairs(v) do
-            local sk = SerializeValue(kk)
+        for k, vv in pairs(v) do
+            local sk = SerializeValue(k)
             local sv = SerializeValue(vv)
-            if sk and sv then parts[#parts + 1] = sk .. "~" .. sv end
+            if sk and sv then parts[#parts + 1] = sk .. "\t" .. sv end
         end
-        return "T" .. table.concat(parts, "|") .. "E"
+        local body = table.concat(parts, "\n")
+        return "T" .. #body .. ":" .. body
     end
     return nil
 end
@@ -747,82 +715,95 @@ local function DeserializeValue(str, pos)
     if not str or not pos or pos > #str then return nil, pos end
     local tag = str:sub(pos, pos)
     if tag == "s" then
-        local endPos = pos + 1
-        local result = {}
-        while endPos <= #str do
-            local ch = str:sub(endPos, endPos)
-            if ch == "~" or ch == "|" then break end
-            if ch == "E" then break end
-            if ch == "\\" and endPos + 1 <= #str then
-                local next = str:sub(endPos + 1, endPos + 1)
-                if next == "\\" then result[#result + 1] = "\\"
-                elseif next == "n" then result[#result + 1] = "\n"
-                elseif next == "p" then result[#result + 1] = "|"
-                elseif next == "t" then result[#result + 1] = "~"
-                else result[#result + 1] = next end
-                endPos = endPos + 2
-            else
-                result[#result + 1] = ch
-                endPos = endPos + 1
-            end
-        end
-        return table.concat(result), endPos
+        local nl = str:find("\t", pos + 1) or str:find("\n", pos + 1)
+        local raw
+        if not nl then raw = str:sub(pos + 1); nl = #str + 1
+        else raw = str:sub(pos + 1, nl - 1) end
+        return raw:gsub("\\n", "\n"):gsub("\\t", "\t"):gsub("\\\\", "\\"), nl
     elseif tag == "n" then
-        local endPos = pos + 1
-        while endPos <= #str and str:sub(endPos, endPos) ~= "~" and str:sub(endPos, endPos) ~= "|" and str:sub(endPos, endPos) ~= "E" do
-            endPos = endPos + 1
-        end
-        return tonumber(str:sub(pos + 1, endPos - 1)), endPos
-    elseif tag == "b" then
-        if str:sub(pos + 1, pos + 4) == "true" then return true, pos + 5 end
-        if str:sub(pos + 1, pos + 5) == "false" then return false, pos + 6 end
-        return nil, pos + 1
+        local nl = str:find("[\t\n]", pos + 1)
+        if not nl then return tonumber(str:sub(pos + 1)), #str + 1 end
+        return tonumber(str:sub(pos + 1, nl - 1)), nl
+    elseif tag == "B" then
+        return str:sub(pos + 1, pos + 1) == "1", pos + 2
     elseif tag == "T" then
+        local colon = str:find(":", pos + 1)
+        if not colon then return nil, pos end
+        local len = tonumber(str:sub(pos + 1, colon - 1))
+        if not len then return nil, pos end
+        local body = str:sub(colon + 1, colon + len)
         local tbl = {}
-        local p = pos + 1
-        while p <= #str and str:sub(p, p) ~= "E" do
-            local key, val
-            key, p = DeserializeValue(str, p)
-            if not key then break end
-            if p <= #str and str:sub(p, p) == "~" then p = p + 1 end
-            val, p = DeserializeValue(str, p)
-            if key ~= nil and val ~= nil then tbl[key] = val end
-            if p <= #str and str:sub(p, p) == "|" then p = p + 1 end
+        local p = 1
+        while p <= #body do
+            local k, v
+            local tabPos = body:find("\t", p)
+            if not tabPos then break end
+            k = DeserializeValue(body, p)
+            p = tabPos + 1
+            local nlPos = nil
+            if body:sub(p, p) == "T" then
+                local innerColon = body:find(":", p + 1)
+                if innerColon then
+                    local innerLen = tonumber(body:sub(p + 1, innerColon - 1))
+                    if innerLen then nlPos = innerColon + innerLen + 1 end
+                end
+            end
+            if not nlPos then nlPos = body:find("\n", p) end
+            if nlPos then
+                v = DeserializeValue(body, p)
+                p = nlPos + 1
+            else
+                v = DeserializeValue(body, p)
+                p = #body + 1
+            end
+            if k ~= nil and v ~= nil then tbl[k] = v end
         end
-        if p <= #str and str:sub(p, p) == "E" then p = p + 1 end
-        return tbl, p
+        return tbl, colon + len + 1
     end
     return nil, pos + 1
 end
+
 
 function addon.ExportProfile(key)
     if type(key) ~= "string" or key == "" then return nil end
     addon.EnsureDB()
     EnsureProfilesAndMigrateLegacy()
     HorizonDB.profiles = HorizonDB.profiles or {}
-    local profile = HorizonDB.profiles[key]
-    if not profile then return nil end
+    local profile
+    local activeKey = addon.GetEffectiveProfileKey()
+    if activeKey and activeKey == key then
+        profile = addon.GetActiveProfile()
+    else
+        profile = HorizonDB.profiles[key]
+    end
+    if not profile or type(profile) ~= "table" or next(profile) == nil then return nil end
     local serialized = SerializeValue(profile)
     if not serialized then return nil end
-    return EXPORT_HEADER .. serialized
+    return EXPORT_HEADER .. b64encode(serialized)
 end
 
 function addon.ValidateProfileString(str)
     if type(str) ~= "string" or str == "" then return false end
-    if str:sub(1, #EXPORT_HEADER) ~= EXPORT_HEADER then return false end
-    local data = str:sub(#EXPORT_HEADER + 1)
-    if data:sub(1, 1) ~= "T" then return false end
-    local tbl = DeserializeValue(data, 1)
-    return type(tbl) == "table"
+    if str:sub(1, 5) ~= "HSP2:" then return false end
+    local payload = str:sub(6)
+    if payload == "" then return false end
+    local ok, decoded = pcall(b64decode, payload)
+    if not ok or type(decoded) ~= "string" or decoded == "" then return false end
+    if decoded:sub(1, 1) ~= "T" then return false end
+    local tbl = DeserializeValue(decoded, 1)
+    return type(tbl) == "table" and next(tbl) ~= nil
 end
 
 function addon.ImportProfile(name, dataString)
     if type(name) ~= "string" or name == "" then return false, "invalid" end
     if type(dataString) ~= "string" or dataString == "" then return false, "invalid" end
-    if dataString:sub(1, #EXPORT_HEADER) ~= EXPORT_HEADER then return false, "invalid" end
-    local data = dataString:sub(#EXPORT_HEADER + 1)
-    local tbl = DeserializeValue(data, 1)
-    if type(tbl) ~= "table" then return false, "corrupt" end
+    if dataString:sub(1, 5) ~= "HSP2:" then return false, "invalid" end
+
+    local payload = dataString:sub(6)
+    local ok, decoded = pcall(b64decode, payload)
+    if not ok or type(decoded) ~= "string" or decoded == "" then return false, "corrupt" end
+    local tbl = DeserializeValue(decoded, 1)
+    if type(tbl) ~= "table" or next(tbl) == nil then return false, "corrupt" end
 
     addon.EnsureDB()
     EnsureProfilesAndMigrateLegacy()
