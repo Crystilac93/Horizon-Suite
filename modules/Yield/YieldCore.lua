@@ -1,0 +1,374 @@
+--[[
+    Horizon Suite - Yield - Core
+    Frame, pool, animation engine, ShowToast. Blizzard: CreateFrame, C_Timer.
+]]
+
+local addon = _G.HorizonSuite
+if not addon or not addon.Yield then return end
+
+local Y = addon.Yield
+local y = addon.yield
+
+local function easeOut(t)  return 1 - (1 - t) * (1 - t) end
+local function easeIn(t)   return t * t end
+local function easeInOut(t)
+    if t < 0.5 then return 2 * t * t end
+    return 1 - ((-2 * t + 2) * (-2 * t + 2)) / 2
+end
+
+-- ============================================================================
+-- FRAME & POOL
+-- ============================================================================
+
+local Frame = CreateFrame("Frame", nil, UIParent)
+Frame:SetSize(Y.TOTAL_WIDTH, Y.LINE_HEIGHT * Y.POOL_SIZE)
+Frame:SetPoint(Y.DEFAULT_ANCHOR, UIParent, Y.DEFAULT_ANCHOR, Y.DEFAULT_X, Y.DEFAULT_Y)
+Frame:Hide()
+
+Frame:SetMovable(true)
+Frame:EnableMouse(true)
+Frame:RegisterForDrag("LeftButton")
+Frame:SetClampedToScreen(true)
+
+local function SaveFramePosition()
+    local bottom = Frame:GetBottom()
+    local right  = Frame:GetRight()
+    if not bottom or not right then return end
+    local uiBottom = UIParent:GetBottom() or 0
+    local uiRight  = UIParent:GetRight()  or 0
+    local x = right  - uiRight
+    local yPos = bottom - uiBottom
+    Frame:ClearAllPoints()
+    Frame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", x, yPos)
+    Y.SavePosition("BOTTOMRIGHT", "BOTTOMRIGHT", x, yPos)
+end
+
+Frame:SetScript("OnDragStart", function(self)
+    self:StartMoving()
+end)
+
+Frame:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    SaveFramePosition()
+end)
+
+-- Edit overlay
+local editOverlay = CreateFrame("Frame", nil, Frame, "BackdropTemplate")
+editOverlay:SetAllPoints(Frame)
+editOverlay:SetBackdrop({
+    bgFile   = "Interface\\Tooltips\\UI-Tooltip-Background",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    edgeSize = 12,
+    insets   = { left = 2, right = 2, top = 2, bottom = 2 },
+})
+editOverlay:SetBackdropColor(0, 0, 0, 0.5)
+editOverlay:SetBackdropBorderColor(0.4, 0.8, 1.0, 0.8)
+editOverlay:SetFrameLevel(Frame:GetFrameLevel() + 10)
+editOverlay:EnableMouse(false)
+
+local editTitle = editOverlay:CreateFontString(nil, "OVERLAY")
+editTitle:SetFont(Y.FONT_PATH, 14, "OUTLINE")
+editTitle:SetTextColor(0.4, 0.8, 1.0, 1)
+editTitle:SetPoint("CENTER", editOverlay, "CENTER", 0, 10)
+editTitle:SetText("LOOT TOAST AREA")
+
+local editHint = editOverlay:CreateFontString(nil, "OVERLAY")
+editHint:SetFont(Y.FONT_PATH, 10, "OUTLINE")
+editHint:SetTextColor(0.7, 0.7, 0.7, 1)
+editHint:SetPoint("CENTER", editOverlay, "CENTER", 0, -8)
+editHint:SetText("Drag to reposition  |  /horizon yield edit to hide")
+
+editOverlay:Hide()
+
+local function CreateToastEntry(parent)
+    local f = CreateFrame("Frame", nil, parent)
+    f:SetSize(Y.TOTAL_WIDTH, Y.ENTRY_HEIGHT)
+
+    local iconBg = f:CreateTexture(nil, "BORDER")
+    iconBg:SetSize(Y.ICON_SIZE + Y.BORDER_PAD * 2, Y.ICON_SIZE + Y.BORDER_PAD * 2)
+    iconBg:SetPoint("LEFT", f, "LEFT", 0, 0)
+    iconBg:SetColorTexture(1, 1, 1, 0.8)
+
+    local icon = f:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(Y.ICON_SIZE, Y.ICON_SIZE)
+    icon:SetPoint("CENTER", iconBg, "CENTER", 0, 0)
+    icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+
+    local shine = f:CreateTexture(nil, "OVERLAY")
+    shine:SetSize(Y.ICON_SIZE + 8, Y.ICON_SIZE + 8)
+    shine:SetPoint("CENTER", iconBg, "CENTER", 0, 0)
+    shine:SetTexture("Interface\\Cooldown\\star4")
+    shine:SetBlendMode("ADD")
+    shine:SetAlpha(0)
+    shine:Hide()
+
+    local shadow = f:CreateFontString(nil, "BORDER")
+    shadow:SetFont(Y.FONT_PATH, Y.FONT_SIZE, "OUTLINE")
+    shadow:SetTextColor(0, 0, 0, 0.7)
+    shadow:SetJustifyH("LEFT")
+    shadow:SetPoint("LEFT", iconBg, "RIGHT", Y.ICON_GAP + 1, -1)
+    shadow:SetPoint("RIGHT", f, "RIGHT", 1, -1)
+    shadow:SetWordWrap(false)
+
+    local text = f:CreateFontString(nil, "OVERLAY")
+    text:SetFont(Y.FONT_PATH, Y.FONT_SIZE, "OUTLINE")
+    text:SetTextColor(1, 1, 1, 1)
+    text:SetJustifyH("LEFT")
+    text:SetPoint("LEFT", iconBg, "RIGHT", Y.ICON_GAP, 0)
+    text:SetPoint("RIGHT", f, "RIGHT", 0, 0)
+    text:SetWordWrap(false)
+
+    f:SetAlpha(0)
+    f:Hide()
+
+    return {
+        frame    = f,
+        iconBg   = iconBg,
+        icon     = icon,
+        shine    = shine,
+        shadow   = shadow,
+        text     = text,
+        active   = false,
+        elapsed  = 0,
+        holdDur  = Y.HOLD_ITEM,
+        quality  = nil,
+        stackY   = 0,
+        smoothY  = 0,
+        driftY   = 0,
+    }
+end
+
+for i = 1, Y.POOL_SIZE do
+    y.pool[i] = CreateToastEntry(Frame)
+end
+
+-- ============================================================================
+-- POOL & ANIMATION
+-- ============================================================================
+
+local function AcquireEntry()
+    for i = 1, Y.POOL_SIZE do
+        if not y.pool[i].active then return y.pool[i] end
+    end
+    local best, bestT = 1, 0
+    for i = 1, Y.POOL_SIZE do
+        if y.pool[i].elapsed > bestT then
+            best  = i
+            bestT = y.pool[i].elapsed
+        end
+    end
+    local entry = y.pool[best]
+    entry.frame:Hide()
+    entry.frame:SetAlpha(0)
+    entry.active = false
+    y.activeCount = y.activeCount - 1
+    return entry
+end
+
+local function UpdateEntry(entry, dt)
+    if not entry.active then return end
+
+    entry.elapsed = entry.elapsed + dt
+    local t = entry.elapsed
+
+    local isEpicOrLegendary = (entry.quality == 4 or entry.quality == 5)
+    local entranceDur = Y.ENTRANCE_DUR
+    local popPeak = 1
+    if entry.quality == 5 then
+        entranceDur = Y.ENTRANCE_DUR_LEGENDARY
+        popPeak = Y.POP_SCALE_PEAK_LEGEND
+    elseif entry.quality == 4 then
+        entranceDur = Y.ENTRANCE_DUR_EPIC
+        popPeak = Y.POP_SCALE_PEAK_EPIC
+    end
+
+    local entEnd  = entranceDur
+    local holdEnd = entEnd + entry.holdDur
+    local fadeEnd = holdEnd + Y.EXIT_DUR
+
+    local alpha, slideX, scale
+
+    if t < entEnd then
+        local p = easeOut(t / entranceDur)
+        alpha  = p
+        slideX = Y.SLIDE_DIST * (1 - p)
+        if isEpicOrLegendary then
+            local settleStart = 1 - Y.POP_SETTLE_FRAC
+            if p <= settleStart then
+                local q = p / settleStart
+                scale = Y.POP_SCALE_START + (popPeak - Y.POP_SCALE_START) * easeOut(q)
+            else
+                local q = (p - settleStart) / Y.POP_SETTLE_FRAC
+                scale = popPeak + (1 - popPeak) * easeInOut(q)
+            end
+        else
+            scale = 1
+        end
+
+    elseif t < holdEnd then
+        alpha  = 1
+        slideX = 0
+        scale  = 1
+
+    elseif t < fadeEnd then
+        local p = easeIn((t - holdEnd) / Y.EXIT_DUR)
+        alpha  = 1 - p
+        slideX = 0
+        scale  = 1
+        entry.driftY = entry.driftY + (Y.EXIT_DRIFT / Y.EXIT_DUR) * dt
+
+    else
+        entry.active = false
+        entry.frame:Hide()
+        entry.frame:SetAlpha(0)
+        entry.frame:SetScale(1)
+        if entry.shine then entry.shine:Hide() end
+        if entry.iconBg then entry.iconBg:SetAlpha(0.8) end
+        y.activeCount = y.activeCount - 1
+        return
+    end
+
+    if entry.quality == 5 and entry.shine then
+        if t < Y.FLASH_DUR then
+            entry.shine:Show()
+            entry.shine:SetAlpha(1 - easeOut(t / Y.FLASH_DUR))
+        else
+            entry.shine:Hide()
+        end
+    end
+
+    if isEpicOrLegendary and t >= entEnd and t < holdEnd and entry.iconBg then
+        local pulse = 0.5 + 0.5 * math.sin(t * Y.BORDER_PULSE_SPEED * 6.283185307)
+        local glowAlpha = 1 - Y.BORDER_PULSE_ALPHA + Y.BORDER_PULSE_ALPHA * pulse
+        entry.iconBg:SetAlpha(glowAlpha)
+    elseif entry.iconBg then
+        entry.iconBg:SetAlpha(0.8)
+    end
+
+    local gap = entry.stackY - entry.smoothY
+    if math.abs(gap) > 0.5 then
+        entry.smoothY = entry.smoothY + gap * math.min(Y.NUDGE_SPEED * dt, 1)
+    else
+        entry.smoothY = entry.stackY
+    end
+
+    entry.frame:SetAlpha(alpha)
+    entry.frame:SetScale(scale or 1)
+    entry.frame:ClearAllPoints()
+    entry.frame:SetPoint("BOTTOMRIGHT", Frame, "BOTTOMRIGHT",
+                         slideX, entry.smoothY + entry.driftY)
+end
+
+Frame:SetScript("OnUpdate", function(self, dt)
+    if y.activeCount == 0 then return end
+    for i = 1, Y.POOL_SIZE do
+        if y.pool[i].active then
+            UpdateEntry(y.pool[i], dt)
+        end
+    end
+end)
+
+-- ============================================================================
+-- SHOW TOAST & HELPERS
+-- ============================================================================
+
+function Y.ShowToast(data)
+    if not addon:IsModuleEnabled("yield") or not data then return end
+
+    local entry = AcquireEntry()
+
+    for i = 1, Y.POOL_SIZE do
+        if y.pool[i].active then
+            y.pool[i].stackY = y.pool[i].stackY + Y.LINE_HEIGHT
+        end
+    end
+
+    entry.icon:SetTexture(data.icon)
+    entry.iconBg:SetColorTexture(data.br, data.bg, data.bb, 0.8)
+
+    entry.text:SetText(data.text)
+    entry.text:SetTextColor(data.r, data.g, data.b, 1)
+    entry.shadow:SetText(data.text)
+
+    entry.active   = true
+    entry.elapsed  = 0
+    entry.holdDur  = data.holdDur
+    entry.quality  = data.quality
+    entry.stackY   = 0
+    entry.smoothY  = 0
+    entry.driftY   = 0
+
+    entry.frame:SetAlpha(0)
+    entry.frame:SetScale(1)
+    entry.shine:SetAlpha(0)
+    entry.shine:Hide()
+    entry.frame:ClearAllPoints()
+    entry.frame:SetPoint("BOTTOMRIGHT", Frame, "BOTTOMRIGHT", Y.SLIDE_DIST, 0)
+    entry.frame:Show()
+
+    if data.quality == 5 and Y.SOUND_LEGENDARY and PlaySound then
+        pcall(PlaySound, Y.SOUND_LEGENDARY)
+    elseif data.quality == 4 and Y.SOUND_EPIC and PlaySound then
+        pcall(PlaySound, Y.SOUND_EPIC)
+    end
+
+    if data.quality == 4 or data.quality == 5 then
+        if Y.KillDynamicItemRevealPopup then
+            C_Timer.After(0.1, function() Y.KillDynamicItemRevealPopup() end)
+            C_Timer.After(0.4, function() Y.KillDynamicItemRevealPopup() end)
+        end
+    end
+
+    y.activeCount = y.activeCount + 1
+end
+
+function Y.ToggleEditMode()
+    y.editMode = not y.editMode
+    if y.editMode then
+        editOverlay:Show()
+        print("|cFF00CCFFHorizon Suite - Yield:|r Edit mode |cFF00FF00ON|r - drag the box to reposition.")
+        Y.ShowToast({
+            icon = 135349, text = "Ashkandur, Fall of the Brotherhood",
+            r = 0.64, g = 0.21, b = 0.93, br = 0.77, bg = 0.25, bb = 1.0,
+            holdDur = Y.HOLD_EPIC, quality = 4,
+        })
+    else
+        editOverlay:Hide()
+        print("|cFF00CCFFHorizon Suite - Yield:|r Edit mode |cFFFF0000OFF|r")
+    end
+end
+
+function Y.RestoreSavedPosition()
+    local point, relPoint, x, yPos = Y.GetPosition()
+    if point and relPoint and x and yPos then
+        Frame:ClearAllPoints()
+        Frame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", x, yPos)
+    end
+end
+
+function Y.ResetPosition()
+    Frame:ClearAllPoints()
+    Frame:SetPoint(Y.DEFAULT_ANCHOR, UIParent, Y.DEFAULT_ANCHOR, Y.DEFAULT_X, Y.DEFAULT_Y)
+    Y.ClearPosition()
+end
+
+function Y.ClearActiveToasts()
+    for i = 1, Y.POOL_SIZE do
+        if y.pool[i].active then
+            y.pool[i].active = false
+            y.pool[i].frame:Hide()
+            y.pool[i].frame:SetAlpha(0)
+        end
+    end
+    y.activeCount = 0
+end
+
+function Y.SetFrameVisible(visible)
+    if visible then
+        Frame:Show()
+    else
+        Frame:Hide()
+    end
+end
+
+Y.Frame = Frame

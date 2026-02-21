@@ -206,6 +206,7 @@ local OptionCategories = {
             { type = "section", name = "" },
             { type = "toggle", name = L["Enable Focus module"], desc = L["Show the objective tracker for quests, world quests, rares, achievements, and scenarios."], dbKey = "_module_focus", get = function() return addon:IsModuleEnabled("focus") end, set = function(v) addon:SetModuleEnabled("focus", v) end },
             { type = "toggle", name = L["Enable Presence module"], desc = L["Cinematic zone text and notifications (zone changes, level up, boss emotes, achievements, quest updates)."], dbKey = "_module_presence", get = function() return addon:IsModuleEnabled("presence") end, set = function(v) addon:SetModuleEnabled("presence", v) end },
+            { type = "toggle", name = L["Enable Yield module"], desc = L["Cinematic loot notifications (items, money, currency, reputation)."], dbKey = "_module_yield", get = function() return addon:IsModuleEnabled("yield") end, set = function(v) addon:SetModuleEnabled("yield", v) end },
         },
     },
     {
@@ -488,6 +489,17 @@ local OptionCategories = {
             { type = "slider", name = L["Subtitle size"], desc = L["Font size for the subtitle (12–40 px)."], dbKey = "presenceSubSize", min = 12, max = 40, get = function() return math.max(12, math.min(40, tonumber(getDB("presenceSubSize", 24)) or 24)) end, set = function(v) setDB("presenceSubSize", math.max(12, math.min(40, v))) end },
         },
     },
+    {
+        key = "YieldGeneral",
+        name = L["General"],
+        moduleKey = "yield",
+        options = {
+            { type = "section", name = L["Position"] },
+            { type = "button", name = L["Reset position"], desc = L["Reset loot toast position to default."], onClick = function()
+                if addon.Yield and addon.Yield.ResetPosition then addon.Yield.ResetPosition() end
+            end },
+        },
+    },
 }
 
 -- ---------------------------------------------------------------------------
@@ -500,7 +512,7 @@ function OptionsData_BuildSearchIndex()
     for catIdx, cat in ipairs(OptionCategories) do
         local currentSection = ""
         local moduleKey = cat.moduleKey
-        local moduleLabel = (moduleKey == "focus" and L["Focus"]) or (moduleKey == "presence" and L["Presence"]) or L["Modules"]
+        local moduleLabel = (moduleKey == "focus" and L["Focus"]) or (moduleKey == "presence" and L["Presence"]) or (moduleKey == "yield" and L["Yield"]) or L["Modules"]
         for _, opt in ipairs(cat.options) do
             if opt.type == "section" then
                 currentSection = opt.name or ""

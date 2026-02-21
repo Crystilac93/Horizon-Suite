@@ -115,6 +115,13 @@ L["Enable Focus module"]                                = "Focus 모듈 활성�
 L["Show the objective tracker for quests, world quests, rares, achievements, and scenarios."] = "퀘스트, 월드 퀘스트, 희귀 몹, 업적, 시나리오를 추적하는 목표 추적기를 표시합니다."
 L["Enable Presence module"]                             = "Presence 모듈 활성화"
 L["Cinematic zone text and notifications (zone changes, level up, boss emotes, achievements, quest updates)."] = "시네마틱 지역 텍스트 및 알림 (지역 이동, 레벨 업, 보스 감정 표현, 업적, 퀘스트 갱신)."
+L["Enable Yield module"]                                = "Yield 모듈 활성화"
+L["Cinematic loot notifications (items, money, currency, reputation)."] = "시네마틱 전리품 알림 (아이템, 금화, 통화, 평판)."
+L["Yield"]                                              = "Yield"
+L["General"]                                            = "일반"
+L["Position"]                                           = "위치"
+L["Reset position"]                                     = "위치 초기화"
+L["Reset loot toast position to default."]              = "전리품 알림 위치를 기본값으로 초기화합니다."
 
 -- =====================================================================
 -- OptionsData.lua Layout

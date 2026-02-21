@@ -4,7 +4,7 @@
 
 [Discord](https://discord.gg/MndCSYQ2ra) [Patreon](https://www.patreon.com/c/HorizonSuite) [Ko-fi](https://ko-fi.com/horizonsuite) 
 
-**Horizon Suite** is a core addon with pluggable modules: **Focus** (objective tracker) and **Presence** (zone text & notifications). Designed for the Midnight era—clean, cinematic, player-in-control. It replaces static, cluttered lists with a fluid interface that grants you total agency over your goals. Additional suites will appear as modules in the same options panel.
+**Horizon Suite** is a core addon with pluggable modules: **Focus** (objective tracker), **Presence** (zone text & notifications), and **Yield** (loot toasts). Designed for the Midnight era—clean, cinematic, player-in-control. It replaces static, cluttered lists with a fluid interface that grants you total agency over your goals. Additional suites will appear as modules in the same options panel.
 
 
 
@@ -28,6 +28,11 @@
 
 - **Cinematic notifications** – Zone text, subzone changes, "Discovered" lines. Level-up, boss emotes, achievements, quest accept/complete, scenario start, and objective progress in delves/scenarios appear as styled toasts with smooth animations.
 
+## 💎 Yield (Loot Toasts) - BETA
+
+- **Cinematic loot notifications** – Items, money, currency, and reputation gains appear as styled toasts with quality-based colours and smooth slide-in animations.
+- **Epic and legendary flair** – Extra entrance time, shine effects, and optional sounds for high-value loot.
+
 ## 🎨 Visuals & UI Design
 
 - **High-fidelity icons** – Distinct icons for Campaign, Legendary, and World Quests.
@@ -49,6 +54,8 @@
 | `/horizon test`     | Preview your styling with sample data.        |
 | `/horizon reset`    | Clear test data.                              |
 | `/horizon resetpos` | Reset the tracker position.                   |
+| `/horizon yield`    | Show Yield (loot toast) help and test commands.|
+| `/horizon yield all`| Demo reel of all loot toast types.            |
 
 
 **Mouse:** Left-click to focus a quest (and complete auto-complete quests). Right-click to untrack. Shift+left-click for quest log and map. Shift+right-click to abandon. Drag the corner grip to resize.
@@ -57,7 +64,7 @@
 
 ## 📦 Modules & Roadmap
 
-**Focus** is the objective tracker. **Presence** adds cinematic zone text and notifications (enable it in options). More modules are planned: Quest Log, Minimap, Loot Hub, Combat Alerts, Unit Frames, Tooltips, Chat.
+**Focus** is the objective tracker. **Presence** adds cinematic zone text and notifications. **Yield** adds cinematic loot toasts (items, money, currency, reputation). Enable them in options. More modules are planned: Quest Log, Minimap, Combat Alerts, Unit Frames, Tooltips, Chat.
 
 ---
 
