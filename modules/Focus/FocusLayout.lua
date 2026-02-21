@@ -92,7 +92,8 @@ end
 --- Set initial alpha when showing the tracker. Combat fade "in" overrides; otherwise apply hover-fade state.
 local function ApplyShowAlpha()
     if addon.focus.combat.fadeState == "in" then
-        addon.HS:SetAlpha(0)
+        local startAlpha = addon.focus.combat.fadeInFromAlpha
+        addon.HS:SetAlpha((startAlpha ~= nil) and startAlpha or 0)
         return
     end
     if addon.GetDB("showOnMouseoverOnly", false) then

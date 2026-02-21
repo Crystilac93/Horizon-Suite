@@ -164,33 +164,40 @@ local function OnAddonLoaded(addonName)
 end
 
 local function OnPlayerRegenDisabled()
-    if addon.GetDB("hideInCombat", false) and addon.focus.enabled then
-        local useAnim = addon.GetDB("animations", true)
-        if useAnim and addon.HS:IsShown() then
-            addon.focus.combat.fadeState = "out"
-            addon.focus.combat.fadeTime  = 0
-            if addon.EnsureFocusUpdateRunning then addon.EnsureFocusUpdateRunning() end
-        else
-            -- Cannot call HS:Hide() here; we are entering combat (protected action blocked).
-            addon.focus.combat.fadeState = "out"
-            addon.focus.combat.fadeTime  = 0
-            addon.focus.pendingHideAfterCombat = true
-            if addon.EnsureFocusUpdateRunning then addon.EnsureFocusUpdateRunning() end
-        end
+    local mode = addon.GetCombatVisibility()
+    if (mode ~= "hide" and mode ~= "fade") or not addon.focus.enabled then return end
+    addon.focus.combat.faded = nil
+    addon.focus.combat.fadeFromAlpha = nil
+    addon.focus.combat.fadeInFromAlpha = nil
+    local useAnim = addon.GetDB("animations", true)
+    if useAnim and addon.HS:IsShown() then
+        addon.focus.combat.fadeState = "out"
+        addon.focus.combat.fadeTime  = 0
+        if addon.EnsureFocusUpdateRunning then addon.EnsureFocusUpdateRunning() end
+    else
+        -- Cannot call HS:Hide() here; we are entering combat (protected action blocked).
+        addon.focus.combat.fadeState = "out"
+        addon.focus.combat.fadeTime  = 0
+        addon.focus.pendingHideAfterCombat = (mode == "hide")
+        if addon.EnsureFocusUpdateRunning then addon.EnsureFocusUpdateRunning() end
     end
 end
 
 local function OnPlayerRegenEnabled()
     local hadLayoutPending = addon.focus.layoutPendingAfterCombat
+    local mode = addon.GetCombatVisibility()
+    local combatAffectsTracker = (mode == "hide" or mode == "fade") and addon.focus.enabled
     if addon.focus.pendingDimensionsAfterCombat then
         addon.focus.pendingDimensionsAfterCombat = nil
         if addon.ApplyDimensions then addon.ApplyDimensions() end
     end
     if addon.focus.layoutPendingAfterCombat then
         addon.focus.layoutPendingAfterCombat = nil
-        if addon.GetDB("hideInCombat", false) and addon.focus.enabled then
+        if combatAffectsTracker then
             addon.focus.combat.fadeState = "in"
             addon.focus.combat.fadeTime  = 0
+            addon.focus.combat.fadeInFromAlpha = ((mode == "fade") and addon.focus.combat.faded and addon.GetCombatFadeAlpha and addon.GetCombatFadeAlpha()) or 0
+            addon.focus.combat.faded = nil
             if addon.EnsureFocusUpdateRunning then addon.EnsureFocusUpdateRunning() end
         end
         if addon.FullLayout then
@@ -203,9 +210,11 @@ local function OnPlayerRegenEnabled()
         addon.focus.mplusLayoutPendingAfterCombat = nil
         if addon.UpdateMplusBlock then addon.UpdateMplusBlock() end
     end
-    if not hadLayoutPending and addon.GetDB("hideInCombat", false) and addon.focus.enabled then
+    if not hadLayoutPending and (combatAffectsTracker or addon.focus.combat.faded) then
         addon.focus.combat.fadeState = "in"
         addon.focus.combat.fadeTime  = 0
+        addon.focus.combat.fadeInFromAlpha = (addon.focus.combat.faded and addon.GetCombatFadeAlpha and addon.GetCombatFadeAlpha()) or 0
+        addon.focus.combat.faded = nil
         if addon.EnsureFocusUpdateRunning then addon.EnsureFocusUpdateRunning() end
         ScheduleRefresh()
     end
