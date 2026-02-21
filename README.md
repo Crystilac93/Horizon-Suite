@@ -73,7 +73,7 @@
 
 **Optional:** [LibSharedMedia-3.0](https://www.curseforge.com/wow/addons/libsharedmedia-3-0) (or any addon that provides it, e.g. SharedMedia Additional Fonts) for expanded font choices in the Typography options. If not installed, the font dropdown shows only Game Font and any custom path you enter.
 
-1. Download the [latest release](https://github.com/Crystilac93/Horizon-Suite/releases) and extract the `HorizonSuite` folder. ([Beta](https://github.com/Crystilac93/Horizon-Suite/releases/tag/beta))
+1. Install via [CurseForge](https://www.curseforge.com/projects/1457844), [Wago](https://addons.wago.io/addons/jK8gY56y), or download the [latest release](https://github.com/Crystilac93/Horizon-Suite/releases) and extract the `HorizonSuite` folder. ([Beta](https://github.com/Crystilac93/Horizon-Suite/releases/tag/beta))
 2. Place it in `World of Warcraft\_retail_\Interface\AddOns\`.
 3. Enable **Horizon Suite** in your AddOn list.
 4. Type `/horizon options` to customize.

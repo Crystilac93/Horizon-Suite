@@ -57,7 +57,7 @@
 
 **Requirements:** World of Warcraft Retail (The War Within or later).
 
-1. Install via CurseForge, or download from [GitHub](https://github.com/Crystilac93/Horizon-Suite/releases) and extract the `HorizonSuite` folder.
+1. Install via [CurseForge](https://www.curseforge.com/projects/1457844), [Wago](https://addons.wago.io/addons/jK8gY56y), or download from [GitHub](https://github.com/Crystilac93/Horizon-Suite/releases) and extract the `HorizonSuite` folder.
 2. Place it in `World of Warcraft\_retail_\Interface\AddOns\`.
 3. Enable **Horizon Suite** in your AddOn list.
 4. Type `/horizon options` to customize.
