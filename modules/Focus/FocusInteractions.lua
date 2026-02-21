@@ -363,8 +363,10 @@ for i = 1, addon.POOL_SIZE do
                     addon.RemoveWorldQuestWatch(self.questID)
                     -- Add to suppression: permanent or temporary
                     if usePermanent then
-                        if not HorizonDB.permanentQuestBlacklist then HorizonDB.permanentQuestBlacklist = {} end
-                        HorizonDB.permanentQuestBlacklist[self.questID] = true
+                        local bl = addon.GetDB("permanentQuestBlacklist", nil)
+                        if type(bl) ~= "table" then bl = {} end
+                        bl[self.questID] = true
+                        addon.SetDB("permanentQuestBlacklist", bl)
                         -- Trigger blacklist grid refresh
                         if addon.RefreshBlacklistGrid then addon.RefreshBlacklistGrid() end
                     else

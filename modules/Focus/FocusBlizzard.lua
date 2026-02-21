@@ -134,10 +134,9 @@ local function HookWQTTracking()
             if isWorldQuest then
                 addon.focus.wqtTrackedQuests = addon.focus.wqtTrackedQuests or {}
                 addon.focus.wqtTrackedQuests[qid] = true
-                if HorizonDB then
-                    HorizonDB.wqtTrackedQuests = HorizonDB.wqtTrackedQuests or {}
-                    HorizonDB.wqtTrackedQuests[qid] = true
-                end
+                local wqtDB = addon.GetDB("wqtTrackedQuests", nil) or {}
+                wqtDB[qid] = true
+                addon.SetDB("wqtTrackedQuests", wqtDB)
                 -- Also focus (super-track) the quest so it highlights in our list when coming from WQT.
                 if C_SuperTrack and C_SuperTrack.SetSuperTrackedQuestID then
                     pcall(C_SuperTrack.SetSuperTrackedQuestID, qid)
@@ -162,8 +161,10 @@ local function HookWQTTracking()
             if not addon.focus.enabled or not questID then return end
             if addon.focus.wqtTrackedQuests and addon.focus.wqtTrackedQuests[questID] then
                 addon.focus.wqtTrackedQuests[questID] = nil
-                if HorizonDB and HorizonDB.wqtTrackedQuests then
-                    HorizonDB.wqtTrackedQuests[questID] = nil
+                local wqtDB = addon.GetDB("wqtTrackedQuests", nil)
+                if wqtDB and type(wqtDB) == "table" then
+                    wqtDB[questID] = nil
+                    addon.SetDB("wqtTrackedQuests", wqtDB)
                 end
                 -- If WQT deselected the quest and it's currently super-tracked, clear super-tracking.
                 if C_SuperTrack and C_SuperTrack.GetSuperTrackedQuestID and C_SuperTrack.SetSuperTrackedQuestID then

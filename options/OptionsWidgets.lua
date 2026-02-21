@@ -62,7 +62,7 @@ local TOGGLE_TRACK_W, TOGGLE_TRACK_H = 48, 22
 local TOGGLE_INSET = 2
 local TOGGLE_THUMB_SIZE = 18
 
-function OptionsWidgets_CreateToggleSwitch(parent, labelText, description, get, set)
+function OptionsWidgets_CreateToggleSwitch(parent, labelText, description, get, set, disabledFn)
     local row = CreateFrame("Frame", nil, parent)
     row:SetHeight(38)
     local searchText = (labelText or "") .. " " .. (description or "")
@@ -121,6 +121,19 @@ function OptionsWidgets_CreateToggleSwitch(parent, labelText, description, get, 
         trackFill:SetWidth(t * fillW)
     end
 
+    local function applyDisabledVisuals()
+        local dis = disabledFn and disabledFn() == true
+        if dis then
+            label:SetAlpha(0.45)
+            desc:SetAlpha(0.45)
+            track:SetAlpha(0.45)
+        else
+            label:SetAlpha(1)
+            desc:SetAlpha(1)
+            track:SetAlpha(1)
+        end
+    end
+
     local function toggleOnUpdate()
         if not row.animStart then
             track:SetScript("OnUpdate", nil)
@@ -139,6 +152,7 @@ function OptionsWidgets_CreateToggleSwitch(parent, labelText, description, get, 
     end
 
     btn:SetScript("OnClick", function()
+        if disabledFn and disabledFn() == true then return end
         local next = not get()
         set(next)
         row.animStart = GetTime()
@@ -153,6 +167,7 @@ function OptionsWidgets_CreateToggleSwitch(parent, labelText, description, get, 
         row.animStart = nil
         track:SetScript("OnUpdate", nil)
         updateVisuals(row.thumbPos)
+        applyDisabledVisuals()
     end
 
     row:Refresh()
@@ -284,17 +299,19 @@ end
 
 -- Custom dropdown: button + popup list (no UIDropDownMenuTemplate)
 -- When searchable is true, adds an EditBox above the list to filter options by name (e.g. font dropdown).
-function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, options, get, set, displayFn, searchable)
+function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, options, get, set, displayFn, searchable, disabledFn)
+    local labelFn = type(labelText) == "function" and labelText or nil
+    local resolvedLabel = labelFn and labelFn() or labelText
     local row = CreateFrame("Frame", nil, parent)
     row:SetHeight(52)
-    local searchText = (labelText or "") .. " " .. (description or "")
+    local searchText = (resolvedLabel or "") .. " " .. (description or "")
     row.searchText = searchText:lower()
 
     local label = row:CreateFontString(nil, "OVERLAY")
     label:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
     label:SetJustifyH("LEFT")
     SetTextColor(label, Def.TextColorLabel)
-    label:SetText(labelText or "")
+    label:SetText(resolvedLabel or "")
     label:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
 
     local desc = row:CreateFontString(nil, "OVERLAY")
@@ -376,6 +393,27 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
     scrollFrame:SetScrollChild(scrollChild)
     scrollChild:SetWidth(1)
     scrollChild:SetHeight(1)
+
+    -- Ensure the dropdown list scrolls internally and doesn't forward wheel events to the parent panel.
+    scrollFrame:EnableMouseWheel(true)
+    scrollFrame:SetPropagateMouseMotion(false)
+    list:EnableMouseWheel(true)
+    list:SetPropagateMouseMotion(false)
+
+    local function consumeWheel() end
+    scrollFrame:SetScript("OnMouseWheel", function(self, delta)
+        if not list:IsShown() then return end
+        if self.StopMovingOrSizing then self:StopMovingOrSizing() end -- no-op consume
+        local step = 22 * 3
+        local cur = self:GetVerticalScroll() or 0
+        local childH = (scrollChild and scrollChild:GetHeight()) or 0
+        local frameH = self:GetHeight() or 0
+        local maxScroll = math.max(0, childH - frameH)
+        local new = math.max(0, math.min(cur - delta * step, maxScroll))
+        self:SetVerticalScroll(new)
+    end)
+    -- Capture mouse wheel on the outer list too, so the options panel underneath doesn't scroll.
+    list:SetScript("OnMouseWheel", function() consumeWheel() end)
 
     -- Keep our own list of option buttons; GetNumChildren()/GetChildren() is unreliable.
     local optionButtons = {}
@@ -531,7 +569,27 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
         searchEdit:SetScript("OnTextChanged", function() populate() end)
     end
 
+    local function isDisabled()
+        return disabledFn and disabledFn() == true
+    end
+
+    local function applyDisabledVisuals()
+        local dis = isDisabled()
+        if dis then
+            btn:Disable()
+            SetTextColor(btnText, Def.TextColorSection)
+            chevron:SetAlpha(0.5)
+            btnBg:SetAlpha(0.6)
+        else
+            btn:Enable()
+            SetTextColor(btnText, Def.TextColorLabel)
+            chevron:SetAlpha(1)
+            btnBg:SetAlpha(1)
+        end
+    end
+
     btn:SetScript("OnClick", function()
+        if isDisabled() then return end
         if list:IsShown() then
             closeList()
             return
@@ -546,15 +604,11 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
         end
     end)
 
-    list:EnableMouseWheel(true)
-    list:SetScript("OnMouseWheel", function(_, delta)
-        local current = scrollFrame:GetVerticalScroll()
-        local maxScroll = math.max(0, scrollChild:GetHeight() - scrollFrame:GetHeight())
-        local newScroll = math.max(0, math.min(current - (delta * 22), maxScroll))
-        scrollFrame:SetVerticalScroll(newScroll)
-    end)
-
     function row:Refresh()
+        if labelFn then
+            local newLabel = labelFn()
+            if newLabel then label:SetText(newLabel) end
+        end
         local val = get()
         local opts = normalizeOptions((type(options) == "function" and options()) or options or {})
 
@@ -564,6 +618,7 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
             local optVal = opt[2]
             if optVal == val then
                 btnText:SetText(opt[1])
+                applyDisabledVisuals()
                 return
             end
             local optResolved = (addon.ResolveFontPath and addon.ResolveFontPath(optVal)) or optVal
@@ -573,15 +628,19 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
                 else
                     btnText:SetText(opt[1])
                 end
+                applyDisabledVisuals()
                 return
             end
         end
 
         if displayFn then
             btnText:SetText(displayFn(val))
+        elseif val == nil or val == "" then
+            btnText:SetText("")
         else
             btnText:SetText(tostring(val))
         end
+        applyDisabledVisuals()
     end
 
     row:Refresh()
@@ -1200,7 +1259,7 @@ function OptionsWidgets_CreateReorderList(parent, anchor, opt, scrollFrameRef, p
     resetLabel:SetPoint("CENTER", resetBtn, "CENTER", 0, 0)
     resetBtn:SetScript("OnClick", function()
         if opt.set then opt.set(nil) end
-        if HorizonDB then HorizonDB.groupOrder = nil end
+        if addon.SetDB then addon.SetDB("groupOrder", nil) end
         local newKeys = opt.get and opt.get() or {}
         if type(newKeys) == "function" then newKeys = newKeys() end
         if type(newKeys) == "table" then repositionRows(newKeys) end

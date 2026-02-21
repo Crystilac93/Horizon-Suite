@@ -126,9 +126,10 @@ addon:RegisterModule("focus", {
 
     OnEnable = function()
         addon.focus.enabled = true
-        if HorizonDB and HorizonDB.wqtTrackedQuests then
+        local wqtDB = addon.GetDB("wqtTrackedQuests", nil)
+        if wqtDB and type(wqtDB) == "table" then
             addon.focus.wqtTrackedQuests = addon.focus.wqtTrackedQuests or {}
-            for questID, tracked in pairs(HorizonDB.wqtTrackedQuests) do
+            for questID, tracked in pairs(wqtDB) do
                 if tracked then
                     addon.focus.wqtTrackedQuests[questID] = true
                 end
@@ -139,7 +140,7 @@ addon:RegisterModule("focus", {
         addon.ApplyDimensions()
         if addon.ApplyBackdropOpacity then addon.ApplyBackdropOpacity() end
         if addon.ApplyBorderVisibility then addon.ApplyBorderVisibility() end
-        if HorizonDB and HorizonDB.collapsed then
+        if addon.GetDB("collapsed", false) then
             addon.focus.collapsed = true
             addon.chevron:SetText("+")
             addon.scrollFrame:Hide()

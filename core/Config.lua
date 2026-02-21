@@ -220,6 +220,52 @@ addon.CATEGORY_TO_GROUP = {
     DEFAULT   = "DEFAULT",
 }
 
+-- Returns a validated group order array.
+function addon.GetGroupOrder()
+    -- Stored in DB as an array of group keys.
+    local saved = (addon.GetDB and addon.GetDB("groupOrder", nil)) or nil
+    if type(saved) ~= "table" or #saved == 0 then
+        return addon.GROUP_ORDER
+    end
+
+    -- Validate: keep only known keys, preserve saved ordering, then append any missing.
+    local known = {}
+    for i = 1, #addon.GROUP_ORDER do
+        known[addon.GROUP_ORDER[i]] = true
+    end
+
+    local out, seen = {}, {}
+    for i = 1, #saved do
+        local k = saved[i]
+        if type(k) == "string" and known[k] and not seen[k] then
+            out[#out + 1] = k
+            seen[k] = true
+        end
+    end
+    for i = 1, #addon.GROUP_ORDER do
+        local k = addon.GROUP_ORDER[i]
+        if not seen[k] then
+            out[#out + 1] = k
+        end
+    end
+    return out
+end
+
+-- Persists a new group order.
+function addon.SetGroupOrder(order)
+    if type(order) ~= "table" then return end
+    if not addon.SetDB then return end
+
+    -- Store exactly what we were given; GetGroupOrder() will validate/repair.
+    addon.SetDB("groupOrder", order)
+
+    if addon.ScheduleRefresh then
+        addon.ScheduleRefresh()
+    elseif addon.FullLayout and not InCombatLockdown() then
+        addon.FullLayout()
+    end
+end
+
 -- Font list for options: "Game Font" first, then LibSharedMedia fonts if available
 local fontListNames, fontListPaths = {}, {}
 

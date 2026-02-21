@@ -112,7 +112,7 @@ local function ToggleCollapse()
         addon.FullLayout()
     end
     addon.EnsureDB()
-    HorizonDB.collapsed = addon.focus.collapsed
+    addon.SetDB("collapsed", addon.focus.collapsed)
 end
 
 --- Initiates category collapse for a group. Animates entries collapsing, then runs FullLayout.

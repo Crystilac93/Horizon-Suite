@@ -325,8 +325,10 @@ local function OnQuestWatchListChanged(questID, added)
             addon.focus.recentlyUntrackedWorldQuests[questID] = true
             if addon.focus.wqtTrackedQuests and addon.focus.wqtTrackedQuests[questID] then
                 addon.focus.wqtTrackedQuests[questID] = nil
-                if HorizonDB and HorizonDB.wqtTrackedQuests then
-                    HorizonDB.wqtTrackedQuests[questID] = nil
+                local wqtDB = addon.GetDB("wqtTrackedQuests", nil)
+                if wqtDB and type(wqtDB) == "table" then
+                    wqtDB[questID] = nil
+                    addon.SetDB("wqtTrackedQuests", wqtDB)
                 end
             end
         end
@@ -336,18 +338,19 @@ end
 
 --- Handles M+ dungeon enter/exit: snapshot overworld height on enter, restore on exit.
 local function RunMplusHeightTransitionCheck()
-    if not HorizonDB or not addon.IsInMythicDungeon then return end
+    if not addon.GetDB or not addon.IsInMythicDungeon then return end
     local inMplus = addon.IsInMythicDungeon()
     if addon.focus.wasInMplusDungeon and not inMplus then
         addon.focus.wasInMplusDungeon = false
-        if HorizonDB.maxContentHeightOverworld and type(HorizonDB.maxContentHeightOverworld) == "number" then
-            HorizonDB.maxContentHeight = HorizonDB.maxContentHeightOverworld
+        local owH = addon.GetDB("maxContentHeightOverworld", nil)
+        if owH and type(owH) == "number" then
+            addon.SetDB("maxContentHeight", owH)
         end
     elseif inMplus then
         addon.focus.wasInMplusDungeon = true
-        local cur = HorizonDB.maxContentHeight
+        local cur = addon.GetDB("maxContentHeight", nil)
         if cur and type(cur) == "number" then
-            HorizonDB.maxContentHeightOverworld = cur
+            addon.SetDB("maxContentHeightOverworld", cur)
         end
     else
         addon.focus.wasInMplusDungeon = false

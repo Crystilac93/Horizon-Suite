@@ -170,7 +170,7 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
             addon.focus.collapsed = false
             addon.chevron:SetText("-")
             addon.scrollFrame:Show()
-            if HorizonDB then HorizonDB.collapsed = false end
+            addon.SetDB("collapsed", false)
         end
         addon.FullLayout()
 
@@ -199,7 +199,7 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
             addon.focus.collapsed = false
             addon.chevron:SetText("-")
             addon.scrollFrame:Show()
-            if HorizonDB then HorizonDB.collapsed = false end
+            addon.SetDB("collapsed", false)
         end
         addon.FullLayout()
 
@@ -213,12 +213,10 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
     elseif cmd == "resetpos" then
         addon.HS:ClearAllPoints()
         addon.HS:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", addon.PANEL_X, addon.PANEL_Y)
-        if HorizonDB then
-            HorizonDB.point    = nil
-            HorizonDB.relPoint = nil
-            HorizonDB.x        = nil
-            HorizonDB.y        = nil
-        end
+        addon.SetDB("point", nil)
+        addon.SetDB("relPoint", nil)
+        addon.SetDB("x", nil)
+        addon.SetDB("y", nil)
         HSPrint("Position reset to default.")
 
     elseif cmd == "options" or cmd == "config" then

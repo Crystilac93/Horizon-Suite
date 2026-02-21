@@ -144,12 +144,12 @@ headerBtn:SetScript("OnLeave", function()
 end)
 headerBtn:RegisterForDrag("LeftButton")
 headerBtn:SetScript("OnDragStart", function()
-    if HorizonDB and HorizonDB.lockPosition then return end
+    if addon.GetDB("lockPosition", false) then return end
     if InCombatLockdown() then return end
     addon.HS:StartMoving()
 end)
 headerBtn:SetScript("OnDragStop", function()
-    if HorizonDB and HorizonDB.lockPosition then return end
+    if addon.GetDB("lockPosition", false) then return end
     addon.HS:StopMovingOrSizing()
     addon.HS:SetUserPlaced(false)
     if InCombatLockdown() then return end
@@ -670,7 +670,10 @@ local function FullLayout()
     addon.focus.layout.sectionLabelX = sectionLabelX
 
     for gi, grp in ipairs(grouped) do
-        local isCollapsed = showSections and addon.IsCategoryCollapsed(grp.key)
+        local isCollapsed = false
+        if showSections and addon.IsCategoryCollapsed then
+            isCollapsed = addon.IsCategoryCollapsed(grp.key)
+        end
 
         if showSections then
             if gi > 1 then

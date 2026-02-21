@@ -176,6 +176,35 @@ sidebar:SetWidth(SIDEBAR_WIDTH)
 local sidebarBg = sidebar:CreateTexture(nil, "BACKGROUND")
 sidebarBg:SetAllPoints(sidebar)
 sidebarBg:SetColorTexture(0.07, 0.07, 0.09, 0.96)
+
+-- Scrollable sidebar content (category list)
+local sidebarScrollFrame = CreateFrame("ScrollFrame", nil, sidebar)
+sidebarScrollFrame:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 0, 0)
+sidebarScrollFrame:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", 0, 0)
+-- Leave room for the version label at the bottom.
+sidebarScrollFrame:SetPoint("BOTTOMLEFT", sidebar, "BOTTOMLEFT", 0, 30)
+sidebarScrollFrame:SetPoint("BOTTOMRIGHT", sidebar, "BOTTOMRIGHT", 0, 30)
+sidebarScrollFrame:EnableMouseWheel(true)
+sidebarScrollFrame:SetClipsChildren(true)
+
+local sidebarScrollChild = CreateFrame("Frame", nil, sidebarScrollFrame)
+sidebarScrollChild:SetWidth(SIDEBAR_WIDTH)
+sidebarScrollChild:SetHeight(1)
+sidebarScrollFrame:SetScrollChild(sidebarScrollChild)
+
+local function SidebarScrollBy(delta)
+    local cur = sidebarScrollFrame:GetVerticalScroll() or 0
+    local childH = sidebarScrollChild:GetHeight() or 0
+    local frameH = sidebarScrollFrame:GetHeight() or 0
+    local maxScr = math.max(0, childH - frameH)
+    sidebarScrollFrame:SetVerticalScroll(math.max(0, math.min(cur - delta * 24, maxScr)))
+end
+sidebarScrollFrame:SetScript("OnMouseWheel", function(_, delta) SidebarScrollBy(delta) end)
+sidebar:SetScript("OnMouseWheel", function(_, delta) SidebarScrollBy(delta) end)
+
+-- Sidebar content parent (all buttons/rows should be parented here)
+local sidebarContent = sidebarScrollChild
+
 local tabButtons = {}
 local selectedTab = 1
 local contentWidth = PAGE_WIDTH - PADDING * 2 - SIDEBAR_WIDTH - 12
@@ -340,7 +369,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             end
             anchor = currentCard
         elseif opt.type == "toggle" and currentCard then
-            local w = OptionsWidgets_CreateToggleSwitch(currentCard, opt.name, opt.desc or opt.tooltip, opt.get, opt.set)
+            local w = OptionsWidgets_CreateToggleSwitch(currentCard, opt.name, opt.desc or opt.tooltip, opt.get, opt.set, opt.disabled)
             w:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -OptionGap)
             w:SetPoint("RIGHT", currentCard, "RIGHT", -CardPadding, 0)
             currentCard.contentAnchor = w
@@ -359,7 +388,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             table.insert(refreshers, w)
         elseif opt.type == "dropdown" and currentCard then
              local searchable = (opt.dbKey == "fontPath") or (opt.searchable == true)
-             local w = OptionsWidgets_CreateCustomDropdown(currentCard, opt.name, opt.desc or opt.tooltip, opt.options or {}, opt.get, opt.set, opt.displayFn, searchable)
+             local w = OptionsWidgets_CreateCustomDropdown(currentCard, opt.name, opt.desc or opt.tooltip, opt.options or {}, opt.get, opt.set, opt.displayFn, searchable, opt.disabled)
              w:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -OptionGap)
              w:SetPoint("RIGHT", currentCard, "RIGHT", -CardPadding, 0)
              currentCard.contentAnchor = w
@@ -392,13 +421,14 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             table.insert(refreshers, row)
         elseif opt.type == "button" and currentCard then
             local btn = CreateFrame("Button", nil, currentCard)
-            btn:SetSize(120, 22)
-            btn:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -OptionGap)
+            btn:SetHeight(22)
+            btn:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", CardPadding, -OptionGap)
+            btn:SetPoint("RIGHT", currentCard, "RIGHT", -CardPadding, 0)
             local lbl = btn:CreateFontString(nil, "OVERLAY")
             lbl:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", Def.LabelSize or 13, "OUTLINE")
             SetTextColor(lbl, Def.TextColorLabel)
             lbl:SetText(opt.name or L["Reset"])
-            lbl:SetPoint("CENTER", btn, "CENTER", 0, 0)
+            lbl:SetPoint("LEFT", btn, "LEFT", 0, 0)
             btn:SetScript("OnClick", function()
                 if opt.onClick then opt.onClick() end
                 if opt.refreshIds and optionFrames then
@@ -446,7 +476,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             rl:SetPoint("CENTER", resetBtn, "CENTER", 0, 0)
             resetBtn:SetScript("OnClick", function()
                 setDB(opt.dbKey, nil)
-                if HorizonDB then HorizonDB.sectionColors = nil end
+                setDB("sectionColors", nil)
                 for _, sw in ipairs(swatches) do if sw.Refresh then sw:Refresh() end end
                 notifyMainAddon()
             end)
@@ -498,10 +528,10 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             -- ---------------------------------------------------------------
             local function getMatrix()
                 if addon.EnsureDB then addon.EnsureDB() end
-                local m = HorizonDB and HorizonDB[opt.dbKey]
+                local m = addon.GetDB(opt.dbKey, nil)
                 if type(m) ~= "table" then
                     m = { categories = {}, overrides = {} }
-                    if HorizonDB then HorizonDB[opt.dbKey] = m end
+                    addon.SetDB(opt.dbKey, m)
                 else
                     m.categories = m.categories or {}
                     m.overrides = m.overrides or {}
@@ -934,18 +964,20 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
                 -- Clear existing children
                 local children = {gridContainer:GetChildren()}
                 for _, child in ipairs(children) do child:Hide() end
-                
+
+                local blacklistTbl = addon.GetDB and addon.GetDB("permanentQuestBlacklist", nil) or nil
+
                 -- If no blacklist, just show empty grid (no placeholder text)
-                if not HorizonDB or not HorizonDB.permanentQuestBlacklist or not next(HorizonDB.permanentQuestBlacklist) then
+                if type(blacklistTbl) ~= "table" or not next(blacklistTbl) then
                     gridContainer:SetSize(900, 40)
                     scrollChild:SetHeight(40)
                     if currentCard.updateScrollBars then currentCard.updateScrollBars() end
                     return
                 end
-                
+
                 -- Build blacklist table
                 local blacklistData = {}
-                for questID in pairs(HorizonDB.permanentQuestBlacklist) do
+                for questID in pairs(blacklistTbl) do
                     local title = C_QuestLog.GetTitleForQuestID(questID) or "Unknown Quest"
                     local questType = "Quest"
                     local zone = "Unknown"
@@ -1118,9 +1150,10 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
                     cb:SetCheckedTexture("Interface\\Buttons\\UI-CheckBox-Check")
                     cb:SetScript("OnClick", function(self)
                         if not self:GetChecked() then
-                            -- Remove from blacklist
-                            if HorizonDB and HorizonDB.permanentQuestBlacklist then
-                                HorizonDB.permanentQuestBlacklist[data.questID] = nil
+                            local bl = addon.GetDB and addon.GetDB("permanentQuestBlacklist", nil) or nil
+                            if type(bl) == "table" then
+                                bl[data.questID] = nil
+                                if addon.SetDB then addon.SetDB("permanentQuestBlacklist", bl) end
                             end
                             BuildBlacklistGrid()
                             if addon.FullLayout then addon.FullLayout() end
@@ -1246,7 +1279,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             rl:SetPoint("CENTER", resetBtn, "CENTER", 0, 0)
             resetBtn:SetScript("OnClick", function()
                 setDB(opt.dbKey, nil)
-                if HorizonDB then HorizonDB.sectionColors = nil end
+                setDB("sectionColors", nil)
                 for _, sw in ipairs(swatches) do if sw.Refresh then sw:Refresh() end end
                 notifyMainAddon()
             end)
@@ -1312,183 +1345,197 @@ for _, mk in ipairs(groupOrder) do
     if not g or #g.categories == 0 then
         -- skip empty groups
     else
-    g.tabButtons = {}
-    local isStandalone = (mk == "modules" and #g.categories == 1)
+        g.tabButtons = {}
+        local isStandalone = (mk == "modules" and #g.categories == 1)
 
-    if isStandalone then
-        -- Modules: single tab as standalone, no group header
-        local catIdx = g.categories[1]
-        local cat = addon.OptionCategories[catIdx]
-        local btn = CreateFrame("Button", nil, sidebar)
-        btn:SetSize(SIDEBAR_WIDTH, TAB_ROW_HEIGHT)
-        if not lastSidebarRow then btn:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 0, -SIDEBAR_TOP_PAD)
-        else btn:SetPoint("TOPLEFT", lastSidebarRow, "BOTTOMLEFT", 0, 0) end
-        lastSidebarRow = btn
-        btn.categoryIndex = catIdx
-        btn.label = btn:CreateFontString(nil, "OVERLAY")
-        btn.label:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", Def.LabelSize or 13, "OUTLINE")
-        btn.label:SetPoint("LEFT", btn, "LEFT", 12, 0)
-        btn.label:SetText(cat.name)
-        btn.highlight = btn:CreateTexture(nil, "BACKGROUND")
-        btn.highlight:SetAllPoints(btn)
-        btn.highlight:SetColorTexture(1, 1, 1, 0.05)
-        btn.hoverBg = btn:CreateTexture(nil, "BACKGROUND")
-        btn.hoverBg:SetAllPoints(btn)
-        btn.hoverBg:SetColorTexture(1, 1, 1, 0.03)
-        btn.hoverBg:Hide()
-        btn.leftAccent = btn:CreateTexture(nil, "OVERLAY")
-        btn.leftAccent:SetWidth(3)
-        btn.leftAccent:SetColorTexture(Def.AccentColor[1], Def.AccentColor[2], Def.AccentColor[3], Def.AccentColor[4] or 0.9)
-        btn.leftAccent:SetPoint("TOPLEFT", btn, "TOPLEFT", 0, 0)
-        btn.leftAccent:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", 0, 0)
-        btn:SetScript("OnClick", function()
-            selectedTab = catIdx
-            UpdateTabVisuals()
-            for j = 1, #tabFrames do tabFrames[j]:SetShown(j == catIdx) end
-            scrollFrame:SetScrollChild(tabFrames[catIdx])
-            scrollFrame:SetVerticalScroll(0)
-        end)
-        btn:SetScript("OnEnter", function()
-            if not btn.selected then
-                SetTextColor(btn.label, Def.TextColorHighlight)
-                if btn.hoverBg then btn.hoverBg:Show() end
+        if isStandalone then
+            -- Modules: single tab as standalone, no group header
+            local catIdx = g.categories[1]
+            local cat = addon.OptionCategories[catIdx]
+            local btn = CreateFrame("Button", nil, sidebarContent)
+            btn:SetSize(SIDEBAR_WIDTH, TAB_ROW_HEIGHT)
+            if not lastSidebarRow then btn:SetPoint("TOPLEFT", sidebarContent, "TOPLEFT", 0, -SIDEBAR_TOP_PAD)
+            else btn:SetPoint("TOPLEFT", lastSidebarRow, "BOTTOMLEFT", 0, 0) end
+            lastSidebarRow = btn
+            btn.categoryIndex = catIdx
+            btn.label = btn:CreateFontString(nil, "OVERLAY")
+            btn.label:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", Def.LabelSize or 13, "OUTLINE")
+            btn.label:SetPoint("LEFT", btn, "LEFT", 12, 0)
+            btn.label:SetText(cat.name)
+            btn.highlight = btn:CreateTexture(nil, "BACKGROUND")
+            btn.highlight:SetAllPoints(btn)
+            btn.highlight:SetColorTexture(1, 1, 1, 0.05)
+            btn.hoverBg = btn:CreateTexture(nil, "BACKGROUND")
+            btn.hoverBg:SetAllPoints(btn)
+            btn.hoverBg:SetColorTexture(1, 1, 1, 0.03)
+            btn.hoverBg:Hide()
+            btn.leftAccent = btn:CreateTexture(nil, "OVERLAY")
+            btn.leftAccent:SetWidth(3)
+            btn.leftAccent:SetColorTexture(Def.AccentColor[1], Def.AccentColor[2], Def.AccentColor[3], Def.AccentColor[4] or 0.9)
+            btn.leftAccent:SetPoint("TOPLEFT", btn, "TOPLEFT", 0, 0)
+            btn.leftAccent:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", 0, 0)
+            btn:SetScript("OnClick", function()
+                selectedTab = catIdx
+                UpdateTabVisuals()
+                for j = 1, #tabFrames do tabFrames[j]:SetShown(j == catIdx) end
+                scrollFrame:SetScrollChild(tabFrames[catIdx])
+                scrollFrame:SetVerticalScroll(0)
+            end)
+            btn:SetScript("OnEnter", function()
+                if not btn.selected then
+                    SetTextColor(btn.label, Def.TextColorHighlight)
+                    if btn.hoverBg then btn.hoverBg:Show() end
+                end
+            end)
+            btn:SetScript("OnLeave", function()
+                if btn.hoverBg then btn.hoverBg:Hide() end
+                UpdateTabVisuals()
+            end)
+            tabButtons[#tabButtons + 1] = btn
+            local refreshers = {}
+            local catOpts = type(cat.options) == "function" and cat.options() or cat.options
+            BuildCategory(tabFrames[catIdx], catIdx, catOpts, refreshers, optionFrames)
+            for _, r in ipairs(refreshers) do allRefreshers[#allRefreshers+1] = r end
+        else
+            -- Header row (clickable, collapsible)
+            local header = CreateFrame("Button", nil, sidebarContent)
+            header:SetSize(SIDEBAR_WIDTH, HEADER_ROW_HEIGHT)
+            if not lastSidebarRow then header:SetPoint("TOPLEFT", sidebarContent, "TOPLEFT", 0, -SIDEBAR_TOP_PAD)
+            else header:SetPoint("TOPLEFT", lastSidebarRow, "BOTTOMLEFT", 0, 0) end
+            lastSidebarRow = header
+            header.groupKey = mk
+            header.hoverBg = header:CreateTexture(nil, "BACKGROUND")
+            header.hoverBg:SetAllPoints(header)
+            header.hoverBg:SetColorTexture(1, 1, 1, 0.03)
+            header.hoverBg:Hide()
+            local chevron = header:CreateFontString(nil, "OVERLAY")
+            chevron:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", (Def.LabelSize or 13) - 1, "OUTLINE")
+            chevron:SetPoint("LEFT", header, "LEFT", 8, 0)
+            SetTextColor(chevron, Def.TextColorSection)
+            header.chevron = chevron
+            local headerLabel = header:CreateFontString(nil, "OVERLAY")
+            headerLabel:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", (Def.LabelSize or 13) + 1, "OUTLINE")
+            headerLabel:SetPoint("LEFT", chevron, "RIGHT", 4, 0)
+            SetTextColor(headerLabel, Def.TextColorSection)
+            headerLabel:SetText((g.label or ""):upper())
+            -- Container for tab buttons (animates height on collapse)
+            local tabsContainer = CreateFrame("Frame", nil, sidebarContent)
+            tabsContainer:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, 0)
+            tabsContainer:SetWidth(SIDEBAR_WIDTH)
+            tabsContainer:SetClipsChildren(true)
+            local fullHeight = TAB_ROW_HEIGHT * #g.categories
+            tabsContainer:SetHeight(GetGroupCollapsed(mk) and 0 or fullHeight)
+            g.tabsContainer = tabsContainer
+            -- Spacer anchored to header (not tabsContainer) so layout stays valid when tabsContainer collapses to 0.
+            -- WoW can mishandle anchors to zero-height frames; using header + offset avoids that.
+            local spacer = CreateFrame("Frame", nil, sidebarContent)
+            spacer:SetSize(2, 2)
+            spacer:SetAlpha(0)
+            local function UpdateSpacerPosition()
+                spacer:ClearAllPoints()
+                spacer:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -tabsContainer:GetHeight())
             end
-        end)
-        btn:SetScript("OnLeave", function()
-            if btn.hoverBg then btn.hoverBg:Hide() end
-            UpdateTabVisuals()
-        end)
-        tabButtons[#tabButtons + 1] = btn
-        local refreshers = {}
-        BuildCategory(tabFrames[catIdx], catIdx, cat.options, refreshers, optionFrames)
-        for _, r in ipairs(refreshers) do allRefreshers[#allRefreshers+1] = r end
-    else
-    -- Header row (clickable, collapsible)
-    local header = CreateFrame("Button", nil, sidebar)
-    header:SetSize(SIDEBAR_WIDTH, HEADER_ROW_HEIGHT)
-    if not lastSidebarRow then header:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 0, -SIDEBAR_TOP_PAD)
-    else header:SetPoint("TOPLEFT", lastSidebarRow, "BOTTOMLEFT", 0, 0) end
-    lastSidebarRow = header
-    header.groupKey = mk
-    header.hoverBg = header:CreateTexture(nil, "BACKGROUND")
-    header.hoverBg:SetAllPoints(header)
-    header.hoverBg:SetColorTexture(1, 1, 1, 0.03)
-    header.hoverBg:Hide()
-    local chevron = header:CreateFontString(nil, "OVERLAY")
-    chevron:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", (Def.LabelSize or 13) - 1, "OUTLINE")
-    chevron:SetPoint("LEFT", header, "LEFT", 8, 0)
-    SetTextColor(chevron, Def.TextColorSection)
-    header.chevron = chevron
-    local headerLabel = header:CreateFontString(nil, "OVERLAY")
-    headerLabel:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", (Def.LabelSize or 13) + 1, "OUTLINE")
-    headerLabel:SetPoint("LEFT", chevron, "RIGHT", 4, 0)
-    SetTextColor(headerLabel, Def.TextColorSection)
-    headerLabel:SetText((g.label or ""):upper())
-    -- Container for tab buttons (animates height on collapse)
-    local tabsContainer = CreateFrame("Frame", nil, sidebar)
-    tabsContainer:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, 0)
-    tabsContainer:SetWidth(SIDEBAR_WIDTH)
-    tabsContainer:SetClipsChildren(true)
-    local fullHeight = TAB_ROW_HEIGHT * #g.categories
-    tabsContainer:SetHeight(GetGroupCollapsed(mk) and 0 or fullHeight)
-    g.tabsContainer = tabsContainer
-    -- Spacer anchored to header (not tabsContainer) so layout stays valid when tabsContainer collapses to 0.
-    -- WoW can mishandle anchors to zero-height frames; using header + offset avoids that.
-    local spacer = CreateFrame("Frame", nil, sidebar)
-    spacer:SetSize(2, 2)
-    spacer:SetAlpha(0)
-    local function UpdateSpacerPosition()
-        spacer:ClearAllPoints()
-        spacer:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -tabsContainer:GetHeight())
-    end
-    UpdateSpacerPosition()
-    lastSidebarRow = spacer
-    header:SetScript("OnClick", function()
-        local collapsed = not GetGroupCollapsed(mk)
-        SetGroupCollapsed(mk, collapsed)
-        header.chevron:SetText(collapsed and "+" or "-")
-        local fromH = tabsContainer:GetHeight()
-        local toH = collapsed and 0 or fullHeight
-        if fromH == toH then return end
-        tabsContainer.animStart = GetTime()
-        tabsContainer.animFrom = fromH
-        tabsContainer.animTo = toH
-        tabsContainer:SetScript("OnUpdate", function(self)
-            local elapsed = GetTime() - self.animStart
-            local t = math.min(elapsed / COLLAPSE_ANIM_DUR, 1)
-            local h = self.animFrom + (self.animTo - self.animFrom) * easeOut(t)
-            self:SetHeight(math.max(0, h))
             UpdateSpacerPosition()
-            if t >= 1 then self:SetScript("OnUpdate", nil) end
-        end)
-    end)
-    header:SetScript("OnEnter", function()
-        header.hoverBg:Show()
-        SetTextColor(headerLabel, Def.TextColorHighlight)
-        SetTextColor(chevron, Def.TextColorHighlight)
-    end)
-    header:SetScript("OnLeave", function()
-        header.hoverBg:Hide()
-        SetTextColor(headerLabel, Def.TextColorSection)
-        SetTextColor(chevron, Def.TextColorSection)
-    end)
-    local collapsed = GetGroupCollapsed(mk)
-    chevron:SetText(collapsed and "+" or "-")
-    -- Tab rows for each category in this group (parented to container)
-    local containerAnchor = tabsContainer
-    for _, catIdx in ipairs(g.categories) do
-        local cat = addon.OptionCategories[catIdx]
-        local btn = CreateFrame("Button", nil, tabsContainer)
-        btn:SetSize(SIDEBAR_WIDTH, TAB_ROW_HEIGHT)
-        local anchorPt = (containerAnchor == tabsContainer) and "TOPLEFT" or "BOTTOMLEFT"
-        btn:SetPoint("TOPLEFT", containerAnchor, anchorPt, 0, 0)
-        containerAnchor = btn
-        btn.categoryIndex = catIdx
-        btn.label = btn:CreateFontString(nil, "OVERLAY")
-        btn.label:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", Def.LabelSize or 13, "OUTLINE")
-        btn.label:SetPoint("LEFT", btn, "LEFT", 12, 0)
-        btn.label:SetText(cat.name)
-        btn.highlight = btn:CreateTexture(nil, "BACKGROUND")
-        btn.highlight:SetAllPoints(btn)
-        btn.highlight:SetColorTexture(1, 1, 1, 0.05)
-        btn.hoverBg = btn:CreateTexture(nil, "BACKGROUND")
-        btn.hoverBg:SetAllPoints(btn)
-        btn.hoverBg:SetColorTexture(1, 1, 1, 0.03)
-        btn.hoverBg:Hide()
-        btn.leftAccent = btn:CreateTexture(nil, "OVERLAY")
-        btn.leftAccent:SetWidth(3)
-        btn.leftAccent:SetColorTexture(Def.AccentColor[1], Def.AccentColor[2], Def.AccentColor[3], Def.AccentColor[4] or 0.9)
-        btn.leftAccent:SetPoint("TOPLEFT", btn, "TOPLEFT", 0, 0)
-        btn.leftAccent:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", 0, 0)
-        btn:SetScript("OnClick", function()
-            selectedTab = catIdx
-            UpdateTabVisuals()
-            for j = 1, #tabFrames do tabFrames[j]:SetShown(j == catIdx) end
-            scrollFrame:SetScrollChild(tabFrames[catIdx])
-            scrollFrame:SetVerticalScroll(0)
-        end)
-        btn:SetScript("OnEnter", function()
-            if not btn.selected then
-                SetTextColor(btn.label, Def.TextColorHighlight)
-                if btn.hoverBg then btn.hoverBg:Show() end
+            lastSidebarRow = spacer
+            header:SetScript("OnClick", function()
+                local collapsed = not GetGroupCollapsed(mk)
+                SetGroupCollapsed(mk, collapsed)
+                header.chevron:SetText(collapsed and "+" or "-")
+                local fromH = tabsContainer:GetHeight()
+                local toH = collapsed and 0 or fullHeight
+                if fromH == toH then return end
+                tabsContainer.animStart = GetTime()
+                tabsContainer.animFrom = fromH
+                tabsContainer.animTo = toH
+                tabsContainer:SetScript("OnUpdate", function(self)
+                    local elapsed = GetTime() - self.animStart
+                    local t = math.min(elapsed / COLLAPSE_ANIM_DUR, 1)
+                    local h = self.animFrom + (self.animTo - self.animFrom) * easeOut(t)
+                    self:SetHeight(math.max(0, h))
+                    UpdateSpacerPosition()
+                    if t >= 1 then self:SetScript("OnUpdate", nil) end
+                end)
+            end)
+            header:SetScript("OnEnter", function()
+                header.hoverBg:Show()
+                SetTextColor(headerLabel, Def.TextColorHighlight)
+                SetTextColor(chevron, Def.TextColorHighlight)
+            end)
+            header:SetScript("OnLeave", function()
+                header.hoverBg:Hide()
+                SetTextColor(headerLabel, Def.TextColorSection)
+                SetTextColor(chevron, Def.TextColorSection)
+            end)
+            local collapsed = GetGroupCollapsed(mk)
+            chevron:SetText(collapsed and "+" or "-")
+            -- Tab rows for each category in this group (parented to container)
+            local containerAnchor = tabsContainer
+            for _, catIdx in ipairs(g.categories) do
+                local cat = addon.OptionCategories[catIdx]
+                local btn = CreateFrame("Button", nil, tabsContainer)
+                btn:SetSize(SIDEBAR_WIDTH, TAB_ROW_HEIGHT)
+                local anchorPt = (containerAnchor == tabsContainer) and "TOPLEFT" or "BOTTOMLEFT"
+                btn:SetPoint("TOPLEFT", containerAnchor, anchorPt, 0, 0)
+                containerAnchor = btn
+                btn.categoryIndex = catIdx
+                btn.label = btn:CreateFontString(nil, "OVERLAY")
+                btn.label:SetFont(Def.FontPath or "Fonts\\FRIZQT__.TTF", Def.LabelSize or 13, "OUTLINE")
+                btn.label:SetPoint("LEFT", btn, "LEFT", 12, 0)
+                btn.label:SetText(cat.name)
+                btn.highlight = btn:CreateTexture(nil, "BACKGROUND")
+                btn.highlight:SetAllPoints(btn)
+                btn.highlight:SetColorTexture(1, 1, 1, 0.05)
+                btn.hoverBg = btn:CreateTexture(nil, "BACKGROUND")
+                btn.hoverBg:SetAllPoints(btn)
+                btn.hoverBg:SetColorTexture(1, 1, 1, 0.03)
+                btn.hoverBg:Hide()
+                btn.leftAccent = btn:CreateTexture(nil, "OVERLAY")
+                btn.leftAccent:SetWidth(3)
+                btn.leftAccent:SetColorTexture(Def.AccentColor[1], Def.AccentColor[2], Def.AccentColor[3], Def.AccentColor[4] or 0.9)
+                btn.leftAccent:SetPoint("TOPLEFT", btn, "TOPLEFT", 0, 0)
+                btn.leftAccent:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", 0, 0)
+                btn:SetScript("OnClick", function()
+                    selectedTab = catIdx
+                    UpdateTabVisuals()
+                    for j = 1, #tabFrames do tabFrames[j]:SetShown(j == catIdx) end
+                    scrollFrame:SetScrollChild(tabFrames[catIdx])
+                    scrollFrame:SetVerticalScroll(0)
+                end)
+                btn:SetScript("OnEnter", function()
+                    if not btn.selected then
+                        SetTextColor(btn.label, Def.TextColorHighlight)
+                        if btn.hoverBg then btn.hoverBg:Show() end
+                    end
+                end)
+                btn:SetScript("OnLeave", function()
+                    if btn.hoverBg then btn.hoverBg:Hide() end
+                    UpdateTabVisuals()
+                end)
+                tabButtons[#tabButtons + 1] = btn
+
+                local refreshers = {}
+                local catOpts = type(cat.options) == "function" and cat.options() or cat.options
+                BuildCategory(tabFrames[catIdx], catIdx, catOpts, refreshers, optionFrames)
+                for _, r in ipairs(refreshers) do allRefreshers[#allRefreshers+1] = r end
             end
-        end)
-        btn:SetScript("OnLeave", function()
-            if btn.hoverBg then btn.hoverBg:Hide() end
-            UpdateTabVisuals()
-        end)
-        tabButtons[#tabButtons + 1] = btn
-
-        local refreshers = {}
-        BuildCategory(tabFrames[catIdx], catIdx, cat.options, refreshers, optionFrames)
-        for _, r in ipairs(refreshers) do allRefreshers[#allRefreshers+1] = r end
-    end
+        end
     end
 end
-end
-UpdateTabVisuals()
 
+-- After building sidebar content, size the scroll child so it can scroll
+C_Timer.After(0, function()
+    if not sidebarScrollChild or not lastSidebarRow then return end
+    local top = sidebarScrollChild:GetTop()
+    local bottom = lastSidebarRow:GetBottom()
+    if top and bottom then
+        local h = math.max(1, top - bottom + SIDEBAR_TOP_PAD)
+        sidebarScrollChild:SetHeight(h)
+    end
+end)
+
+-- ---------------------------------------------------------------------------
 -- Search: debounced filter, results dropdown, navigate to option
+-- ---------------------------------------------------------------------------
 local searchQuery = ""
 local searchDebounceTimer = nil
 local SEARCH_DEBOUNCE_MS = 180
@@ -1744,6 +1791,10 @@ panel:SetScript("OnShow", function()
         self:SetAlpha(easeOut(elapsed / ANIM_DUR))
     end)
 end)
+
+addon.OptionsPanel_Refresh = function()
+    for _, ref in ipairs(allRefreshers) do if ref and ref.Refresh then ref:Refresh() end end
+end
 
 function _G.HorizonSuite_OptionsRequestClose()
     if panel.animating == "out" then return end

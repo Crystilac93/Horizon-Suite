@@ -6,13 +6,13 @@
 local addon = _G.HorizonSuite
 
 local function EnsureColorMatrix()
-    if not HorizonDB then return end
-    if HorizonDB.colorMatrix and type(HorizonDB.colorMatrix) == "table" then return end
+    if not addon.GetDB then return end
+    local existing = addon.GetDB("colorMatrix", nil)
+    if existing and type(existing) == "table" then return end
 
     local cm = { categories = {}, overrides = {} }
 
-    -- Migrate legacy quest title colors into per-category title.
-    local qc = HorizonDB.questColors
+    local qc = addon.GetDB("questColors", nil)
     if qc and type(qc) == "table" then
         for k, v in pairs(qc) do
             if type(v) == "table" and v[1] and v[2] and v[3] then
@@ -22,8 +22,7 @@ local function EnsureColorMatrix()
         end
     end
 
-    -- Migrate legacy section header colors into per-category section.
-    local sc = HorizonDB.sectionColors
+    local sc = addon.GetDB("sectionColors", nil)
     if sc and type(sc) == "table" then
         for k, v in pairs(sc) do
             if type(v) == "table" and v[1] and v[2] and v[3] then
@@ -33,13 +32,13 @@ local function EnsureColorMatrix()
         end
     end
 
-    HorizonDB.colorMatrix = cm
+    addon.SetDB("colorMatrix", cm)
 end
 
 local function GetColorMatrix()
-    if not HorizonDB then return nil end
+    if not addon.GetDB then return nil end
     EnsureColorMatrix()
-    return HorizonDB.colorMatrix
+    return addon.GetDB("colorMatrix", nil)
 end
 
 -- When override toggles are on, Completed and Current Zone sections use their row colours for all elements.
@@ -88,7 +87,7 @@ local function GetTitleColor(category)
     end
 
     -- Legacy per-category questColors support (for safety if migration didn't run yet).
-    local db = HorizonDB and HorizonDB.questColors
+    local db = addon.GetDB and addon.GetDB("questColors", nil)
     if db then
         if db[category] then return SanitizeColor(db[category], addon.QUEST_COLORS[category] or addon.QUEST_COLORS.DEFAULT) end
         if category == "CALLING" and db.WORLD then return SanitizeColor(db.WORLD, addon.QUEST_COLORS.WORLD or addon.QUEST_COLORS.DEFAULT) end

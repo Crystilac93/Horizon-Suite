@@ -94,41 +94,39 @@ y.editMode    = y.editMode or false
 -- DB ACCESSORS
 -- ============================================================================
 
---- Get position from HorizonDB.modules.yield (or defaults).
+--- Get position from profile (or defaults).
 --- @return point string|nil, relPoint string|nil, x number|nil, y number|nil
 function Y.GetPosition()
-    if not HorizonDB or not HorizonDB.modules or not HorizonDB.modules.yield then
+    if not addon.GetDB then
         return nil, nil, Y.DEFAULT_X, Y.DEFAULT_Y
     end
-    local db = HorizonDB.modules.yield
-    return db.point, db.relPoint, db.x or Y.DEFAULT_X, db.y or Y.DEFAULT_Y
+    local pt = addon.GetDB("yieldPoint", nil)
+    local rp = addon.GetDB("yieldRelPoint", nil)
+    local px = addon.GetDB("yieldX", Y.DEFAULT_X)
+    local py = addon.GetDB("yieldY", Y.DEFAULT_Y)
+    return pt, rp, px, py
 end
 
---- Save frame position to HorizonDB.modules.yield.
+--- Save frame position to active profile.
 --- @param point string
 --- @param relPoint string
 --- @param x number
 --- @param y number
 --- @return nil
 function Y.SavePosition(point, relPoint, x, y)
-    if not HorizonDB then HorizonDB = {} end
-    if not HorizonDB.modules then HorizonDB.modules = {} end
-    if not HorizonDB.modules.yield then HorizonDB.modules.yield = {} end
-    local db = HorizonDB.modules.yield
-    db.point    = point
-    db.relPoint = relPoint
-    db.x        = x
-    db.y        = y
+    if not addon.SetDB then return end
+    addon.SetDB("yieldPoint", point)
+    addon.SetDB("yieldRelPoint", relPoint)
+    addon.SetDB("yieldX", x)
+    addon.SetDB("yieldY", y)
 end
 
 --- Clear saved position.
 --- @return nil
 function Y.ClearPosition()
-    if HorizonDB and HorizonDB.modules and HorizonDB.modules.yield then
-        local db = HorizonDB.modules.yield
-        db.point    = nil
-        db.relPoint = nil
-        db.x        = nil
-        db.y        = nil
-    end
+    if not addon.SetDB then return end
+    addon.SetDB("yieldPoint", nil)
+    addon.SetDB("yieldRelPoint", nil)
+    addon.SetDB("yieldX", nil)
+    addon.SetDB("yieldY", nil)
 end

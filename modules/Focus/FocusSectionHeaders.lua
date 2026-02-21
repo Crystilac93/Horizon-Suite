@@ -56,6 +56,15 @@ local function AcquireSectionHeader(groupKey, focusedGroupKey)
     s.shadow:SetText(label)
     s.text:SetTextColor(color[1], color[2], color[3], addon.SECTION_COLOR_A)
 
+    -- Ensure a small visual gap between the chevron and the label text.
+    if s.chevron and s.text then
+        local CHEVRON_GAP_PX = addon.SECTION_CHEVRON_GAP_PX or 4
+        s.text:ClearAllPoints()
+        s.shadow:ClearAllPoints()
+        s.text:SetPoint("LEFT", s.chevron, "RIGHT", CHEVRON_GAP_PX, 0)
+        s.shadow:SetPoint("CENTER", s.text, "CENTER", addon.SHADOW_OX, addon.SHADOW_OY)
+    end
+
     if s.chevron then
         if addon.focus.collapsed and addon.GetDB("showSectionHeadersWhenCollapsed", false) then
             s.chevron:SetText("+")
@@ -82,7 +91,7 @@ local function AcquireSectionHeader(groupKey, focusedGroupKey)
             if addon.focus.collapsed then
                 addon.focus.collapsed = false
                 addon.EnsureDB()
-                if HorizonDB then HorizonDB.collapsed = false end
+                addon.SetDB("collapsed", false)
                 addon.chevron:SetText("-")
                 scrollFrame:Show()
             end

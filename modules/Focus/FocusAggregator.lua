@@ -67,7 +67,17 @@ end
 --- @return table Array of { key = string, quests = table }
 local function SortAndGroupQuests(quests)
     local groups = {}
-    for _, key in ipairs(addon.GetGroupOrder()) do
+    local order = (addon.GetGroupOrder and addon.GetGroupOrder()) or addon.GROUP_ORDER or {}
+    if type(order) ~= "table" then order = {} end
+
+    -- Load-order safety: config tables should come from core/Config.lua, but never hard-crash if missing.
+    local categoryToGroup = addon.CATEGORY_TO_GROUP
+    if type(categoryToGroup) ~= "table" then
+        categoryToGroup = {}
+        addon.CATEGORY_TO_GROUP = categoryToGroup
+    end
+
+    for _, key in ipairs(order) do
         groups[key] = {}
     end
     for _, q in ipairs(quests) do
@@ -93,16 +103,16 @@ local function SortAndGroupQuests(quests)
             if addon.GetDB("showNearbyGroup", true) or q.category == "COMPLETE" then
                 groups["NEARBY"][#groups["NEARBY"] + 1] = q
             else
-                local grp = addon.CATEGORY_TO_GROUP[q.category] or DEFAULT_GROUP
+                local grp = categoryToGroup[q.category] or DEFAULT_GROUP
                 groups[grp][#groups[grp] + 1] = q
             end
         else
-            local grp = addon.CATEGORY_TO_GROUP[q.category] or DEFAULT_GROUP
+            local grp = categoryToGroup[q.category] or DEFAULT_GROUP
             groups[grp][#groups[grp] + 1] = q
         end
     end
 
-    for _, key in ipairs(addon.GetGroupOrder()) do
+    for _, key in ipairs(order) do
         if #groups[key] > 0 then
             table.sort(groups[key], CompareEntriesBySortMode)
             -- Always assign numbering at the source of truth so renderers can rely on it.
@@ -113,7 +123,7 @@ local function SortAndGroupQuests(quests)
     end
 
     local result = {}
-    for _, key in ipairs(addon.GetGroupOrder()) do
+    for _, key in ipairs(order) do
         if #groups[key] > 0 then
             result[#result + 1] = { key = key, quests = groups[key] }
         end
@@ -317,7 +327,7 @@ local function ReadTrackedQuests()
     end
 
     -- 2. World quests and callings (with blacklist)
-    local permanentBlacklist = (HorizonDB and HorizonDB.permanentQuestBlacklist) or {}
+    local permanentBlacklist = addon.GetDB("permanentQuestBlacklist", {}) or {}
     local usePermanent = addon.GetDB("permanentlySuppressUntracked", false)
     local recentlyUntrackedWQ = addon.focus.recentlyUntrackedWorldQuests
     local wqEntries = {}
