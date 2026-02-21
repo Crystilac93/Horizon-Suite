@@ -52,7 +52,11 @@ local function ToggleCollapse()
             end
         end
         wipe(activeMap)
-        scrollFrame:Hide()
+        if not InCombatLockdown() then
+            scrollFrame:Hide()
+        else
+            addon.focus.layoutPendingAfterCombat = true
+        end
         addon.focus.layout.targetHeight = addon.GetCollapsedHeight()
     end
 
@@ -98,13 +102,21 @@ local function ToggleCollapse()
             if showHeadersWhenCollapsed then
                 addon.FullLayout()
             else
-                scrollFrame:Hide()
+                if not InCombatLockdown() then
+                    scrollFrame:Hide()
+                else
+                    addon.focus.layoutPendingAfterCombat = true
+                end
                 addon.focus.layout.targetHeight = addon.GetCollapsedHeight()
             end
         end
     else
         addon.chevron:SetText("-")
-        scrollFrame:Show()
+        if not InCombatLockdown() then
+            scrollFrame:Show()
+        else
+            addon.focus.layoutPendingAfterCombat = true
+        end
         if addon.GetDB("animations", true) then
             addon.focus.collapse.sectionHeadersFadingIn  = true
             addon.focus.collapse.sectionHeaderFadeTime    = 0

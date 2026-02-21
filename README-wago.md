@@ -37,7 +37,7 @@
 
 - **High-fidelity icons** – Distinct icons for Campaign, Legendary, and World Quests.
 - **Customizable colours** – Per-category colour control (title, objective, zone, section). Panel backdrop colour and opacity.
-- **Typography and spacing** – Fonts, sizes, outlines, and spacing sliders. Optional LibSharedMedia support for fonts from addon packs. Turn-in highlights and progress counts (e.g. 15/18) at a glance.
+- **Typography and spacing** – Fonts, sizes, outlines, and spacing sliders. Optional SharedMedia support for fonts from addon packs. Turn-in highlights and progress counts (e.g. 15/18) at a glance.
 - **Fluid motion** – Smooth entry/exit animations and a subtle pulse on objective completion.
 
 ---
@@ -72,7 +72,7 @@
 
 **Requirements:** World of Warcraft Retail (The War Within or later).
 
-**Optional:** [LibSharedMedia-3.0](https://www.curseforge.com/wow/addons/libsharedmedia-3-0) (or any addon that provides it, e.g. SharedMedia Additional Fonts) for expanded font choices in the Typography options. If not installed, the font dropdown shows only Game Font and any custom path you enter.
+**Optional:** [SharedMedia](https://www.curseforge.com/wow/addons/sharedmedia) (e.g. SharedMedia Additional Fonts) for expanded font choices in the Typography options. If not installed, the font dropdown shows only Game Font and any custom path you enter.
 
 1. Install via [CurseForge](https://www.curseforge.com/projects/1457844), [Wago](https://addons.wago.io/addons/jK8gY56y), or download the [latest release](https://github.com/Crystilac93/Horizon-Suite/releases) and extract the `HorizonSuite` folder. ([Beta](https://github.com/Crystilac93/Horizon-Suite/releases/tag/beta))
 2. Place it in `World of Warcraft\_retail_\Interface\AddOns\`.
