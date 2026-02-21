@@ -42,6 +42,9 @@ addon.focus = {
     combat = {
         fadeState = nil,  -- "out" | "in" | nil
         fadeTime  = 0,
+        faded     = false, -- true when combat visibility mode is "fade" and fade-out completed
+        fadeFromAlpha = nil,
+        fadeInFromAlpha = nil,
     },
 
     hoverFade = {

@@ -13,7 +13,7 @@
 - **Rare boss alerts** – Super-track nearby rares with one click and optional audio alerts.
 - **Live quest sync** – World quests, dailies, and weeklies update dynamically. Quests auto-track when you accept them.
 - **All The Things integration** – Collection data appears directly in your objectives.
-- **Combat-ready** – Hide in combat, show or hide in dungeons/raids/BGs, compact or super-minimal layouts.
+- **Combat-ready** – Show, fade, or hide in combat; show or hide in dungeons/raids/BGs; compact or super-minimal layouts.
 - **Mythic+ and Delves** – Banner for keystone info, timer, and affixes. Delve objectives in the standard layout.
 
 ## 🎬 Presence (Zone Text & Notifications)

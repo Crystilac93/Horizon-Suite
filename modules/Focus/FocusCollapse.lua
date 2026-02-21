@@ -349,6 +349,9 @@ local function RefreshContentInCombat()
                     if needSuffix then displayTitle = displayTitle .. " **" end
                 end
                 displayTitle = addon.ApplyTextCase and addon.ApplyTextCase(displayTitle, "questTitleCase", "proper") or displayTitle
+                if addon.GetDB("showCategoryEntryNumbers", true) and questData.categoryIndex and type(questData.categoryIndex) == "number" then
+                    displayTitle = ("%d. %s"):format(questData.categoryIndex, displayTitle)
+                end
                 entry.titleText:SetText(displayTitle)
                 entry.titleShadow:SetText(displayTitle)
                 local titleColor = (addon.GetTitleColor and addon.GetTitleColor(effectiveCat)) or questData.color

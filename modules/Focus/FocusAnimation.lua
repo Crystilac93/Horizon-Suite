@@ -196,6 +196,13 @@ end
 addon.IsMouseOverTracker = addon.IsFocusHoverActive
 
 local function UpdateHoverFade(dt, useAnim)
+    -- Combat hide/fade owns alpha during combat transitions and deferred hide.
+    if addon.focus.combat.fadeState
+        or addon.focus.pendingHideAfterCombat
+        or (addon.ShouldHideInCombat and addon.ShouldHideInCombat())
+        or (addon.ShouldFadeInCombat and addon.ShouldFadeInCombat()) then
+        return
+    end
     if not addon.GetDB("showOnMouseoverOnly", false) then
         if addon.focus.hoverFade.fadeState then
             addon.focus.hoverFade.fadeState = nil
@@ -208,7 +215,6 @@ local function UpdateHoverFade(dt, useAnim)
         end
         return
     end
-    if addon.focus.combat.fadeState then return end
     if not HS:IsShown() then
         if addon.focus.hoverFade.fadeState then
             addon.focus.hoverFade.fadeState = nil
@@ -277,12 +283,42 @@ end
 local function UpdateCombatFade(dt, useAnim)
     local combatState = addon.focus.combat.fadeState
     if not combatState then return end
+    local mode = addon.GetCombatVisibility and addon.GetCombatVisibility() or "show"
+    local isFadeMode = (mode == "fade")
     local dur = anim.dur
     addon.focus.combat.fadeTime = addon.focus.combat.fadeTime + dt
     local floatingBtn = _G.HSFloatingQuestItem
 
     if combatState == "out" then
-        if not useAnim then
+        if addon.focus.combat.fadeFromAlpha == nil then
+            addon.focus.combat.fadeFromAlpha = HS:GetAlpha() or 1
+        end
+        local startAlpha = addon.focus.combat.fadeFromAlpha or 1
+        if isFadeMode then
+            local targetAlpha = addon.GetCombatFadeAlpha and addon.GetCombatFadeAlpha() or 0.3
+            if not useAnim then
+                HS:SetAlpha(targetAlpha)
+                if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(targetAlpha) end
+                addon.focus.combat.fadeState = nil
+                addon.focus.combat.fadeTime = 0
+                addon.focus.combat.fadeFromAlpha = nil
+                addon.focus.combat.faded = true
+            else
+                local p = GetProgress(addon.focus.combat.fadeTime, 0, dur)
+                local ep = addon.easeIn(p)
+                local alpha = startAlpha + (targetAlpha - startAlpha) * ep
+                HS:SetAlpha(alpha)
+                if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(alpha) end
+                if p >= 1 then
+                    HS:SetAlpha(targetAlpha)
+                    if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(targetAlpha) end
+                    addon.focus.combat.fadeState = nil
+                    addon.focus.combat.fadeTime = 0
+                    addon.focus.combat.fadeFromAlpha = nil
+                    addon.focus.combat.faded = true
+                end
+            end
+        elseif not useAnim then
             if not InCombatLockdown() then
                 HS:Hide()
                 if floatingBtn then floatingBtn:Hide() end
@@ -293,11 +329,13 @@ local function UpdateCombatFade(dt, useAnim)
             end
             addon.focus.combat.fadeState = nil
             addon.focus.combat.fadeTime = 0
+            addon.focus.combat.fadeFromAlpha = nil
         else
             local p = GetProgress(addon.focus.combat.fadeTime, 0, dur)
             local ep = addon.easeIn(p)
-            HS:SetAlpha(1 - ep)
-            if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(1 - ep) end
+            local alpha = startAlpha * (1 - ep)
+            HS:SetAlpha(alpha)
+            if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(alpha) end
             if p >= 1 then
                 if not InCombatLockdown() then
                     HS:Hide()
@@ -309,31 +347,40 @@ local function UpdateCombatFade(dt, useAnim)
                 end
                 addon.focus.combat.fadeState = nil
                 addon.focus.combat.fadeTime = 0
+                addon.focus.combat.fadeFromAlpha = nil
             end
         end
     elseif combatState == "in" then
+        addon.focus.combat.fadeFromAlpha = nil
+        if addon.focus.combat.fadeInFromAlpha == nil then
+            addon.focus.combat.fadeInFromAlpha = HS:GetAlpha() or 0
+        end
+        local startAlpha = addon.focus.combat.fadeInFromAlpha or 0
+        local targetAlpha = 1
+        if addon.GetDB("showOnMouseoverOnly", false) then
+            local fadeAlpha = GetFadeOnMouseoverAlpha()
+            targetAlpha = addon.IsFocusHoverActive() and 1 or fadeAlpha
+        end
         if not useAnim then
-            HS:SetAlpha(1)
-            if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(1) end
+            HS:SetAlpha(targetAlpha)
+            if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(targetAlpha) end
             addon.focus.combat.fadeState = nil
             addon.focus.combat.fadeTime = 0
+            addon.focus.combat.fadeInFromAlpha = nil
+            addon.focus.combat.faded = nil
         else
             local p = GetProgress(addon.focus.combat.fadeTime, 0, dur)
             local ep = addon.easeOut(p)
-            if HS:IsShown() then HS:SetAlpha(ep) end
-            if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(ep) end
+            local alpha = startAlpha + (targetAlpha - startAlpha) * ep
+            if HS:IsShown() then HS:SetAlpha(alpha) end
+            if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(alpha) end
             if p >= 1 then
-                HS:SetAlpha(1)
-                if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(1) end
+                HS:SetAlpha(targetAlpha)
+                if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(targetAlpha) end
                 addon.focus.combat.fadeState = nil
                 addon.focus.combat.fadeTime = 0
-                -- Restore hover fade state if show-on-mouseover is on and mouse is not over
-                if addon.GetDB("showOnMouseoverOnly", false) and not addon.IsFocusHoverActive() then
-                    local fadeAlpha = GetFadeOnMouseoverAlpha()
-                    addon.focus.hoverFade.fadeState = "out"
-                    addon.focus.hoverFade.fadeTime = 0
-                    addon.focus.hoverFade.startAlpha = 1
-                end
+                addon.focus.combat.fadeInFromAlpha = nil
+                addon.focus.combat.faded = nil
             end
         end
     end

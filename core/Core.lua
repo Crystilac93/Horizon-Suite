@@ -118,13 +118,40 @@ function addon.SetDB(key, value)
     HorizonDB[key] = value
 end
 
+--- Resolves combat visibility mode, migrating from legacy hideInCombat if needed.
+--- @return string "show" | "fade" | "hide"
+function addon.GetCombatVisibility()
+    local v = addon.GetDB("combatVisibility", nil)
+    if v == "show" or v == "fade" or v == "hide" then return v end
+    -- Migrate from legacy hideInCombat
+    if addon.GetDB("hideInCombat", false) then return "hide" end
+    return "show"
+end
+
 function addon.ShouldHideInCombat()
-    return addon.GetDB("hideInCombat", false) and UnitAffectingCombat("player")
+    return (addon.GetCombatVisibility() == "hide") and UnitAffectingCombat("player")
+end
+
+--- Whether combat fade mode is currently active.
+--- @return boolean
+function addon.ShouldFadeInCombat()
+    return (addon.GetCombatVisibility() == "fade") and UnitAffectingCombat("player")
+end
+
+--- Combat fade opacity (0..1) used for combat visibility Fade mode.
+--- @return number
+function addon.GetCombatFadeAlpha()
+    local pct = tonumber(addon.GetDB("combatFadeOpacity", 30)) or 30
+    return math.max(0, math.min(100, pct)) / 100
 end
 
 function addon.EnsureDB()
     if not HorizonDB then HorizonDB = {} end
     if addon.EnsureModulesDB then addon:EnsureModulesDB() end
+    -- One-time migration from legacy hideInCombat toggle.
+    if HorizonDB.combatVisibility == nil and HorizonDB.hideInCombat ~= nil then
+        HorizonDB.combatVisibility = HorizonDB.hideInCombat and "hide" or "show"
+    end
 end
 
 -- Persisted Focus category order (validated, fallback to addon.GROUP_ORDER).

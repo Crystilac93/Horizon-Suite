@@ -141,7 +141,11 @@ local function UpdateFloatingQuestItem(questsFlat)
                 floatingQuestItemBtn:SetPoint("TOP", addon.HS, "BOTTOM", ox, oy)
             end
         end
-        if addon.focus.combat.fadeState == "in" then floatingQuestItemBtn:SetAlpha(0) end
+        if addon.focus.combat.fadeState == "in" then
+            floatingQuestItemBtn:SetAlpha(0)
+        elseif addon.focus.combat.faded and addon.GetCombatFadeAlpha then
+            floatingQuestItemBtn:SetAlpha(addon.GetCombatFadeAlpha())
+        end
         floatingQuestItemBtn:Show()
         addon.ApplyItemCooldown(floatingQuestItemBtn.cooldown, chosenLink)
     else
