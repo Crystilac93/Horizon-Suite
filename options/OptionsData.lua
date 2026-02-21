@@ -202,12 +202,17 @@ local OptionCategories = {
         key = "Modules",
         name = L["Modules"],
         moduleKey = nil,
-        options = {
-            { type = "section", name = "" },
-            { type = "toggle", name = L["Enable Focus module"], desc = L["Show the objective tracker for quests, world quests, rares, achievements, and scenarios."], dbKey = "_module_focus", get = function() return addon:IsModuleEnabled("focus") end, set = function(v) addon:SetModuleEnabled("focus", v) end },
-            { type = "toggle", name = L["Enable Presence module"], desc = L["Cinematic zone text and notifications (zone changes, level up, boss emotes, achievements, quest updates)."], dbKey = "_module_presence", get = function() return addon:IsModuleEnabled("presence") end, set = function(v) addon:SetModuleEnabled("presence", v) end },
-            { type = "toggle", name = L["Enable Yield module"], desc = L["Cinematic loot notifications (items, money, currency, reputation)."], dbKey = "_module_yield", get = function() return addon:IsModuleEnabled("yield") end, set = function(v) addon:SetModuleEnabled("yield", v) end },
-        },
+        options = (function()
+            local opts = {
+                { type = "section", name = "" },
+                { type = "toggle", name = L["Enable Focus module"], desc = L["Show the objective tracker for quests, world quests, rares, achievements, and scenarios."], dbKey = "_module_focus", get = function() return addon:IsModuleEnabled("focus") end, set = function(v) addon:SetModuleEnabled("focus", v) end },
+                { type = "toggle", name = L["Enable Presence module"], desc = L["Cinematic zone text and notifications (zone changes, level up, boss emotes, achievements, quest updates)."], dbKey = "_module_presence", get = function() return addon:IsModuleEnabled("presence") end, set = function(v) addon:SetModuleEnabled("presence", v) end },
+            }
+            if _G.HorizonSuiteDevOverride and _G.HorizonSuiteDevOverride.showYieldToggle then
+                opts[#opts + 1] = { type = "toggle", name = L["Enable Yield module"], desc = L["Cinematic loot notifications (items, money, currency, reputation)."], dbKey = "_module_yield", get = function() return addon:IsModuleEnabled("yield") end, set = function(v) addon:SetModuleEnabled("yield", v) end }
+            end
+            return opts
+        end)(),
     },
     {
         key = "Layout",

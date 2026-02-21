@@ -50,6 +50,13 @@ end
 -- Quest text detection (private)
 -- ============================================================================
 
+--- Returns true if the quest title is a Blizzard DNT (Do Not Translate) internal quest.
+--- @param questName string|nil Quest title from C_QuestLog.GetTitleForQuestID
+--- @return boolean
+local function IsDNTQuest(questName)
+    return questName and questName:match("^%[DNT%]")
+end
+
 --- Returns true if the message looks like quest objective progress (e.g. "7/10", "slain", "Complete").
 --- @param msg string|nil Message text to check
 --- @return boolean
@@ -129,6 +136,7 @@ local function OnQuestAccepted(_, questID)
     local opts = (questID and { questID = questID }) or {}
     if C_QuestLog and C_QuestLog.GetTitleForQuestID then
         local questName = StripPresenceMarkup(C_QuestLog.GetTitleForQuestID(questID) or "New Quest")
+        if IsDNTQuest(questName) then return end
         if addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(questID) then
             addon.Presence.QueueOrPlay("WORLD_QUEST_ACCEPT", "WORLD QUEST ACCEPTED", questName, opts)
         else
@@ -147,6 +155,7 @@ local function OnQuestTurnedIn(_, questID)
         if C_QuestLog.GetTitleForQuestID then
             questName = StripPresenceMarkup(C_QuestLog.GetTitleForQuestID(questID) or questName)
         end
+        if IsDNTQuest(questName) then return end
         if addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(questID) then
             addon.Presence.QueueOrPlay("WORLD_QUEST", "WORLD QUEST", questName, opts)
             return
@@ -162,12 +171,14 @@ end
 local lastQuestObjectivesCache = {}  -- questID -> serialized objectives
 local bufferedUpdates = {}           -- questID -> timerObject
 local UPDATE_BUFFER_TIME = 0.35      -- Time to wait for data to settle (fix for 55/100 vs 71/100)
+local ZERO_PROGRESS_RETRY_TIME = 0.45 -- Re-sample when we get 0/X (meta quests like "0/8 WQs" may lag; fix for stale 0/8 after completion)
 
 -- Process debounced quest objective update; shows QUEST_UPDATE or skips if unchanged/blind.
 --- @param questID number
 --- @param isBlindUpdate boolean
 --- @param source string|nil Event name for debug (e.g. QUEST_WATCH_UPDATE, QUEST_LOG_UPDATE, UI_INFO_MESSAGE)
-local function ExecuteQuestUpdate(questID, isBlindUpdate, source)
+--- @param isRetry boolean|nil True when this is a deferred re-sample after 0/X
+local function ExecuteQuestUpdate(questID, isBlindUpdate, source, isRetry)
     bufferedUpdates[questID] = nil -- Clear the timer ref
 
     if not questID or questID <= 0 then return end
@@ -222,10 +233,23 @@ local function ExecuteQuestUpdate(questID, isBlindUpdate, source)
     
     if not msg or msg == "" then msg = "Objective updated" end
 
-    -- 6. Normalize to "X/Y Objective" and trigger notification
-    if addon.GetDB and not addon.GetDB("presenceQuestEvents", true) then return end
+    -- 6. Normalize to "X/Y Objective"
     local stripped = StripPresenceMarkup(msg)
     local normalized = NormalizeQuestUpdateText(stripped)
+
+    -- 7. Re-sample when we get 0/X from QUEST_WATCH_UPDATE (meta quests like "0/8 WQs completed"
+    --    often lag; client may not have updated yet when we first sample after completion).
+    if not isRetry and source == "QUEST_WATCH_UPDATE" and normalized and normalized:match("^0/%d+") then
+        lastQuestObjectivesCache[questID] = nil -- Roll back cache so retry sees "changed"
+        bufferedUpdates[questID] = C_Timer.After(ZERO_PROGRESS_RETRY_TIME, function()
+            ExecuteQuestUpdate(questID, isBlindUpdate, source, true)
+        end)
+        DbgWQ("ExecuteQuestUpdate: Deferred 0/X retry", questID)
+        return
+    end
+
+    -- 8. Trigger notification
+    if addon.GetDB and not addon.GetDB("presenceQuestEvents", true) then return end
     addon.Presence.QueueOrPlay("QUEST_UPDATE", "QUEST UPDATE", normalized, { questID = questID, source = source })
     DbgWQ("ExecuteQuestUpdate: Shown", questID, msg)
 end
@@ -380,10 +404,10 @@ end
 --- Build display string for an objective. Prefers Blizzard quantityString when present (completed).
 local function formatObjectiveMsg(o)
     if not o then return nil end
-    if o.quantityString and o.quantityString ~= "" then
+    if o.quantityString and o.quantityString ~= "" and o.quantityString ~= "0" then
         return o.quantityString
     end
-    if o.text and o.text ~= "" then
+    if o.text and o.text ~= "" and o.text ~= "0" then
         if o.numFulfilled ~= nil and o.numRequired ~= nil and o.numRequired > 0 then
             return ("%s (%d/%d)"):format(o.text, o.numFulfilled, o.numRequired)
         end
@@ -495,7 +519,7 @@ local function ExecuteScenarioCriteriaUpdate()
     if not msg and #objectives > 0 then
         msg = formatObjectiveMsg(objectives[1])
     end
-    if not msg or msg == "" then msg = "Objective updated" end
+    if not msg or msg == "" or msg == "0" then msg = "Objective updated" end
 
     local title, _, category = addon.GetScenarioDisplayInfo()
     addon.Presence.QueueOrPlay("SCENARIO_UPDATE", StripPresenceMarkup(title or "Scenario"), StripPresenceMarkup(msg), { category = category or "SCENARIO", source = "SCENARIO_CRITERIA_UPDATE" })

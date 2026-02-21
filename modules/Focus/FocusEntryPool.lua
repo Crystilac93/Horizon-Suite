@@ -318,7 +318,7 @@ local sectionPool = {}
 
 local function CreateSectionHeader(parent)
     local s = CreateFrame("Button", nil, parent)
-    s:SetSize(addon.GetPanelWidth() - addon.PADDING * 2, addon.SECTION_SIZE + 4)
+    s:SetSize(addon.GetPanelWidth() - addon.PADDING * 2, addon.GetSectionHeaderHeight())
 
     s:RegisterForClicks("LeftButtonUp")
 
@@ -454,7 +454,7 @@ local function ApplyDimensions(widthOverride)
         end
     end
     for i = 1, addon.SECTION_POOL_SIZE do
-        sectionPool[i]:SetSize(w - addon.PADDING - leftOffset - (addon.CONTENT_RIGHT_PADDING or 0), addon.SECTION_SIZE + 4)
+        sectionPool[i]:SetSize(w - addon.PADDING - leftOffset - (addon.CONTENT_RIGHT_PADDING or 0), addon.GetSectionHeaderHeight())
     end
     if addon.UpdateMplusBlock then addon.UpdateMplusBlock() end
 end

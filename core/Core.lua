@@ -34,6 +34,14 @@ function addon.GetSectionToEntryGap()
     local v = tonumber(addon.GetDB("sectionToEntryGap", 6)) or 6
     return math.max(0, math.min(16, v))
 end
+
+--- Returns section header frame height from section font size so text is not clipped.
+--- @return number
+function addon.GetSectionHeaderHeight()
+    local sz = tonumber(addon.GetDB("sectionFontSize", 10)) or 10
+    return math.max(addon.SECTION_SIZE + 4, sz + 6)
+end
+
 function addon.GetObjIndent()
     return addon.GetDB("compactMode", false) and addon.COMPACT_OBJ_INDENT or addon.OBJ_INDENT
 end
@@ -704,8 +712,9 @@ do
             -- LSM fires: "LibSharedMedia_Registered" (self, mediatype, key)
             if not addon.__OnLSMFontRegistered then
                 function addon.__OnLSMFontRegistered(_, mediaType)
-                    if mediaType == "font" and addon.RefreshFontList then
-                        addon.RefreshFontList()
+                    if mediaType == "font" then
+                        if addon.RefreshFontList then addon.RefreshFontList() end
+                        if addon.ApplyTypography then addon.ApplyTypography() end
                     end
                 end
             end
@@ -713,6 +722,14 @@ do
             -- This registers addon as the callback owner and listens to the LSM event.
             LSM.RegisterCallback(addon, "LibSharedMedia_Registered", "__OnLSMFontRegistered")
         end
+
+        -- Deferred typography apply: catch fonts that register after HorizonSuite loads.
+        C_Timer.After(0.5, function()
+            if addon.ApplyTypography then addon.ApplyTypography() end
+        end)
+        C_Timer.After(1.5, function()
+            if addon.ApplyTypography then addon.ApplyTypography() end
+        end)
 
         f:UnregisterEvent("PLAYER_LOGIN")
     end)

@@ -22,7 +22,6 @@ addon.Presence = addon.Presence or {}
 -- CONFIGURATION
 -- ============================================================================
 
-local FONT_PATH    = (addon.FONT_PATH and addon.FONT_PATH ~= "") and addon.FONT_PATH or "Fonts\\FRIZQT__.TTF"
 local MAIN_SIZE    = 48
 local SUB_SIZE     = 24
 local FRAME_WIDTH  = 800
@@ -89,6 +88,11 @@ local function getHoldScale()
     return math.max(0.5, math.min(2, v))
 end
 
+local function getPresenceFontPath()
+    local raw = addon.GetDB and addon.GetDB("fontPath", addon.GetDefaultFontPath and addon.GetDefaultFontPath() or "Fonts\\FRIZQT__.TTF") or "Fonts\\FRIZQT__.TTF"
+    return (addon.ResolveFontPath and addon.ResolveFontPath(raw)) or raw
+end
+
 local function getMainSize()
     local v = addon.GetDB and tonumber(addon.GetDB("presenceMainSize", MAIN_SIZE)) or MAIN_SIZE
     return math.max(24, math.min(72, v))
@@ -145,12 +149,12 @@ local function CreateLayer(parent)
     local shadowY = (addon.GetDB and tonumber(addon.GetDB("shadowOffsetY", -2))) or addon.SHADOW_OY or -2
 
     L.titleShadow = parent:CreateFontString(nil, "BORDER")
-    L.titleShadow:SetFont(FONT_PATH, MAIN_SIZE, "OUTLINE")
+    L.titleShadow:SetFont(getPresenceFontPath(), MAIN_SIZE, "OUTLINE")
     L.titleShadow:SetTextColor(0, 0, 0, shadowA)
     L.titleShadow:SetJustifyH("CENTER")
 
     L.titleText = parent:CreateFontString(nil, "OVERLAY")
-    L.titleText:SetFont(FONT_PATH, MAIN_SIZE, "OUTLINE")
+    L.titleText:SetFont(getPresenceFontPath(), MAIN_SIZE, "OUTLINE")
     L.titleText:SetTextColor(1, 1, 1, 1)
     L.titleText:SetJustifyH("CENTER")
     L.titleText:SetPoint("TOP", 0, 0)
@@ -169,24 +173,24 @@ local function CreateLayer(parent)
     L.divider:SetAlpha(0)
 
     L.subShadow = parent:CreateFontString(nil, "BORDER")
-    L.subShadow:SetFont(FONT_PATH, SUB_SIZE, "OUTLINE")
+    L.subShadow:SetFont(getPresenceFontPath(), SUB_SIZE, "OUTLINE")
     L.subShadow:SetTextColor(0, 0, 0, shadowA)
     L.subShadow:SetJustifyH("CENTER")
 
     L.subText = parent:CreateFontString(nil, "OVERLAY")
-    L.subText:SetFont(FONT_PATH, SUB_SIZE, "OUTLINE")
+    L.subText:SetFont(getPresenceFontPath(), SUB_SIZE, "OUTLINE")
     L.subText:SetTextColor(1, 1, 1, 1)  -- neutral; resolved at play via resolveColors
     L.subText:SetJustifyH("CENTER")
     L.subText:SetPoint("TOP", L.divider, "BOTTOM", 0, -10)
     L.subShadow:SetPoint("CENTER", L.subText, "CENTER", shadowX, shadowY)
 
     L.discoveryShadow = parent:CreateFontString(nil, "BORDER")
-    L.discoveryShadow:SetFont(FONT_PATH, DISCOVERY_SIZE, "OUTLINE")
+    L.discoveryShadow:SetFont(getPresenceFontPath(), DISCOVERY_SIZE, "OUTLINE")
     L.discoveryShadow:SetTextColor(0, 0, 0, shadowA)
     L.discoveryShadow:SetJustifyH("CENTER")
 
     L.discoveryText = parent:CreateFontString(nil, "OVERLAY")
-    L.discoveryText:SetFont(FONT_PATH, DISCOVERY_SIZE, "OUTLINE")
+    L.discoveryText:SetFont(getPresenceFontPath(), DISCOVERY_SIZE, "OUTLINE")
     L.discoveryText:SetTextColor(1, 1, 1, 1)  -- neutral; resolved at show via getDiscoveryColor
     L.discoveryText:SetJustifyH("CENTER")
     L.discoveryText:SetPoint("TOP", L.subText, "BOTTOM", 0, -5)
@@ -607,10 +611,10 @@ PlayCinematic = function(typeName, title, subtitle, opts)
     local mainSz = math.max(12, math.min(72, math.floor(cfg.sz * (getMainSize() / MAIN_SIZE))))
     local subSz  = math.max(12, math.min(40, math.floor(((cfg.sz >= SUB_SIZE) and SUB_SIZE or cfg.sz) * (getSubSize() / SUB_SIZE))))
 
-    L.titleText:SetFont(FONT_PATH, mainSz, "OUTLINE")
-    L.titleShadow:SetFont(FONT_PATH, mainSz, "OUTLINE")
-    L.subText:SetFont(FONT_PATH, subSz, "OUTLINE")
-    L.subShadow:SetFont(FONT_PATH, subSz, "OUTLINE")
+    L.titleText:SetFont(getPresenceFontPath(), mainSz, "OUTLINE")
+    L.titleShadow:SetFont(getPresenceFontPath(), mainSz, "OUTLINE")
+    L.subText:SetFont(getPresenceFontPath(), subSz, "OUTLINE")
+    L.subShadow:SetFont(getPresenceFontPath(), subSz, "OUTLINE")
 
     L.titleText:SetTextColor(c[1], c[2], c[3], 1)
     L.subText:SetTextColor(sc[1], sc[2], sc[3], 1)

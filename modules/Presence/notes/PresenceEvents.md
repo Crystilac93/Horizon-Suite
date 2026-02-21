@@ -5,6 +5,7 @@
 1. Called from `OnQuestWatchUpdate` (direct questID) or `OnQuestLogUpdate`/`OnUIInfoMessage` (blind, guessed ID).
 2. Cancels any existing C_Timer for this questID (debounce).
 3. Schedules `C_Timer.After(UPDATE_BUFFER_TIME, ...)` so we process the *final* state (fixes 55/100 → 71/100 flicker).
+4. ExecuteQuestUpdate: When result is 0/X from QUEST_WATCH_UPDATE, re-samples after ZERO_PROGRESS_RETRY_TIME (meta quests like "0/8 WQs" often lag; avoids showing stale 0/8 right after completion).
 
 ## ExecuteQuestUpdate
 

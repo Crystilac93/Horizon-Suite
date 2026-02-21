@@ -378,7 +378,7 @@ local function FullLayout()
                         local x = addon.PADDING
                         sec:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", x, yOff)
                         sec.finalX, sec.finalY = x, yOff
-                        yOff = yOff - (addon.SECTION_SIZE + 4) - addon.GetSectionToEntryGap()
+                        yOff = yOff - addon.GetSectionHeaderHeight() - addon.GetSectionToEntryGap()
                     end
                 end
                 local totalContentH = math.max(-yOff, 1)
@@ -669,7 +669,7 @@ local function FullLayout()
                 local x = addon.PADDING
                 sec:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", x, yOff)
                 sec.finalX, sec.finalY = x, yOff
-                yOff = yOff - (addon.SECTION_SIZE + 4) - addon.GetSectionToEntryGap()
+                yOff = yOff - addon.GetSectionHeaderHeight() - addon.GetSectionToEntryGap()
             end
         end
 
