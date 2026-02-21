@@ -38,6 +38,12 @@ local function GetQuestBaseCategory(questID)
     if IsQuestWorldQuest(questID) then
         return "WORLD"
     end
+    if C_QuestLog.GetQuestTagInfo then
+        local ok, tagInfo = pcall(C_QuestLog.GetQuestTagInfo, questID)
+        if ok and tagInfo and tagInfo.tagID == 62 then
+            return "RAID"
+        end
+    end
     -- Classification (single source): Normal, Important, Legendary, Campaign, Calling, Meta, Recurring, Questline.
     if C_QuestInfoSystem and C_QuestInfoSystem.GetQuestClassification then
         local qc = C_QuestInfoSystem.GetQuestClassification(questID)
@@ -101,6 +107,7 @@ local function GetQuestTypeAtlas(questID, category)
     if category == "WEEKLY" then return "quest-recurring-available" end
     if category == "DAILY" then return "quest-recurring-available" end
     if category == "DUNGEON" then return "questlog-questtypeicon-dungeon" end
+    if category == "RAID" then return "questlog-questtypeicon-raid" end
     if C_QuestLog.GetQuestTagInfo then
         local tagInfo = C_QuestLog.GetQuestTagInfo(questID)
         if tagInfo and tagInfo.tagID then

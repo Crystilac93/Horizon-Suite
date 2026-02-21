@@ -641,7 +641,7 @@ local function FullLayout()
     local yOff = 0
     local entryIndex = 0
 
-    local showSections = #grouped > 1 and addon.GetDB("showSectionHeaders", true)
+    local showSections = addon.GetDB("showSectionHeaders", true)
     local focusedGroupKey = addon.GetFocusedGroupKey(grouped)
 
     -- Offset quest entries so their text starts under the section header label

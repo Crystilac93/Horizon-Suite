@@ -541,6 +541,7 @@ L["Order"]                                              = "Ordem"
 -- Tracker section labels (SECTION_LABELS)
 -- =====================================================================
 L["DUNGEON"]           = "MASMORRA"
+L["RAID"]              = "RAIDE"
 L["DELVES"]            = "Delves"
 L["SCENARIO EVENTS"]   = "EVENTOS DE CENÁRIO"
 L["AVAILABLE IN ZONE"] = "DISPONÍVEL NA ZONA"

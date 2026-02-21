@@ -25,7 +25,7 @@ end
 -- Category order for questType sort (lower = earlier)
 local CATEGORY_SORT_ORDER = {
     COMPLETE = 1, CAMPAIGN = 2, IMPORTANT = 3, LEGENDARY = 4,
-    DELVES = 5, SCENARIO = 5, ACHIEVEMENT = 5, DUNGEON = 5, WORLD = 6, WEEKLY = 7, DAILY = 8, CALLING = 9, RARE = 10, DEFAULT = 11,
+    DELVES = 5, SCENARIO = 5, ACHIEVEMENT = 5, DUNGEON = 5, RAID = 5, WORLD = 6, WEEKLY = 7, DAILY = 8, CALLING = 9, RARE = 10, DEFAULT = 11,
 }
 
 local function CompareEntriesBySortMode(a, b)
@@ -85,6 +85,8 @@ local function SortAndGroupQuests(quests)
             groups["RARES"][#groups["RARES"] + 1] = q
         elseif q.isDungeonQuest or q.category == "DUNGEON" then
             groups["DUNGEON"][#groups["DUNGEON"] + 1] = q
+        elseif q.isRaidQuest or q.category == "RAID" then
+            groups["RAID"][#groups["RAID"] + 1] = q
         elseif q.category == "DELVES" then
             groups["DELVES"][#groups["DELVES"] + 1] = q
         elseif q.category == "SCENARIO" then
@@ -264,6 +266,7 @@ local function ReadTrackedQuests()
         local zoneName = addon.GetQuestZoneName(questID)
         local isNearby = (nearbySet[questID] or false) and (not filterByZone or questMapMatchesPlayer(questID))
         local isDungeonQuest = opts.isDungeonQuest or (addon.IsInPartyDungeon and addon.IsInPartyDungeon() and isNearby)
+        local isRaidQuest = opts.isRaidQuest or (category == "RAID")
         local isTracked = opts.isTracked ~= false
         local isAutoAdded = opts.isAutoAdded and true or false
         local isInQuestArea = opts.isInQuestArea and true or false
@@ -299,7 +302,7 @@ local function ReadTrackedQuests()
             color = color, category = category, baseCategory = baseCategory,
             isComplete = isComplete, isSuperTracked = isSuper, isNearby = isNearby,
             isAccepted = isAccepted, zoneName = zoneName, itemLink = itemLink, itemTexture = itemTexture,
-            questTypeAtlas = questTypeAtlas, isDungeonQuest = isDungeonQuest, isTracked = isTracked, level = questLevel,
+            questTypeAtlas = questTypeAtlas, isDungeonQuest = isDungeonQuest, isRaidQuest = isRaidQuest, isTracked = isTracked, level = questLevel,
             isAutoComplete = isAutoComplete,
             isAutoAdded = isAutoAdded,
             isInQuestArea = isInQuestArea,

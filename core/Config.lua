@@ -94,6 +94,7 @@ addon.QUEST_COLORS = {
     IMPORTANT = { 1.00, 0.45, 0.80 },  -- pink to match importantavailablequesticon
     LEGENDARY = { 1.00, 0.50, 0.00 },
     DUNGEON   = { 0.60, 0.40, 1.00 },  -- purple: party dungeon quests (Normal/Heroic/Mythic/M+)
+    RAID      = { 0.85, 0.25, 0.25 },  -- red: raid quests
     DELVES    = { 0.32, 0.72, 0.68 },  -- teal/seafoam: Delve steps (distinct from all other categories)
     SCENARIO  = { 0.38, 0.52, 0.88 },  -- deep blue: event/scenario steps (Twilight's Call etc.)
     WORLD     = { 0.60, 0.20, 1.00 },
@@ -115,7 +116,7 @@ addon.PRESENCE_DISCOVERY_COLOR  = { 0.4, 1, 0.5 }
 addon.SECTION_SIZE      = 10
 addon.SECTION_SPACING   = 10
 addon.SECTION_COLOR_A   = 1
-addon.SECTION_POOL_SIZE = 8
+addon.SECTION_POOL_SIZE = 10
 
 function addon.GetDefaultFontPath()
     local path = GameFontNormal and GameFontNormal:GetFont()
@@ -137,6 +138,7 @@ addon.SectionFont:SetFont(addon.FONT_PATH, addon.SECTION_SIZE, "OUTLINE")
 
 addon.SECTION_LABELS = {
     DUNGEON   = "DUNGEON",
+    RAID      = "RAID",
     DELVES    = "DELVES",
     SCENARIO  = "SCENARIO EVENTS",
     AVAILABLE = "AVAILABLE IN ZONE",
@@ -157,6 +159,7 @@ addon.SECTION_LABELS = {
 
 addon.SECTION_COLORS = {
     DUNGEON   = { 0.60, 0.40, 1.00 },
+    RAID      = { 0.85, 0.25, 0.25 },  -- red: raid quests
     DELVES    = { 0.32, 0.72, 0.68 },  -- teal: Delve section
     SCENARIO  = { 0.38, 0.52, 0.88 },  -- deep blue: event/scenario steps
     AVAILABLE = { 0.25, 0.88, 0.92 },  -- cyan/teal (available to pick up)
@@ -175,18 +178,18 @@ addon.SECTION_COLORS = {
     COMPLETE  = { 0.20, 1.00, 0.40 },
 }
 
-addon.GROUP_ORDER = { "DELVES", "SCENARIO", "ACHIEVEMENTS", "ENDEAVORS", "DECOR", "DUNGEON", "NEARBY", "COMPLETE", "WORLD", "WEEKLY", "DAILY", "RARES", "AVAILABLE", "CAMPAIGN", "IMPORTANT", "LEGENDARY", "DEFAULT" }
+addon.GROUP_ORDER = { "DELVES", "SCENARIO", "ACHIEVEMENTS", "ENDEAVORS", "DECOR", "DUNGEON", "RAID", "NEARBY", "COMPLETE", "WORLD", "WEEKLY", "DAILY", "RARES", "AVAILABLE", "CAMPAIGN", "IMPORTANT", "LEGENDARY", "DEFAULT" }
 
 addon.GROUP_ORDER_PRESETS = {
-    ["Collection Focused"] = { "ACHIEVEMENTS", "ENDEAVORS", "DECOR", "DELVES", "SCENARIO", "DUNGEON", "NEARBY", "COMPLETE", "WORLD", "WEEKLY", "DAILY", "RARES", "AVAILABLE", "CAMPAIGN", "IMPORTANT", "LEGENDARY", "DEFAULT" },
-    ["Quest Focused"]      = { "COMPLETE", "NEARBY", "AVAILABLE", "DELVES", "SCENARIO", "DUNGEON", "WORLD", "WEEKLY", "DAILY", "CAMPAIGN", "IMPORTANT", "LEGENDARY", "RARES", "ACHIEVEMENTS", "ENDEAVORS", "DECOR", "DEFAULT" },
-    ["Campaign Focused"]   = { "CAMPAIGN", "IMPORTANT", "LEGENDARY", "COMPLETE", "NEARBY", "DELVES", "SCENARIO", "DUNGEON", "AVAILABLE", "WORLD", "WEEKLY", "DAILY", "RARES", "ACHIEVEMENTS", "ENDEAVORS", "DECOR", "DEFAULT" },
-    ["World / Rare Focused"] = { "WORLD", "WEEKLY", "DAILY", "RARES", "NEARBY", "COMPLETE", "AVAILABLE", "DELVES", "SCENARIO", "DUNGEON", "CAMPAIGN", "IMPORTANT", "LEGENDARY", "ACHIEVEMENTS", "ENDEAVORS", "DECOR", "DEFAULT" },
+    ["Collection Focused"] = { "ACHIEVEMENTS", "ENDEAVORS", "DECOR", "DELVES", "SCENARIO", "DUNGEON", "RAID", "NEARBY", "COMPLETE", "WORLD", "WEEKLY", "DAILY", "RARES", "AVAILABLE", "CAMPAIGN", "IMPORTANT", "LEGENDARY", "DEFAULT" },
+    ["Quest Focused"]      = { "COMPLETE", "NEARBY", "AVAILABLE", "DELVES", "SCENARIO", "DUNGEON", "RAID", "WORLD", "WEEKLY", "DAILY", "CAMPAIGN", "IMPORTANT", "LEGENDARY", "RARES", "ACHIEVEMENTS", "ENDEAVORS", "DECOR", "DEFAULT" },
+    ["Campaign Focused"]   = { "CAMPAIGN", "IMPORTANT", "LEGENDARY", "COMPLETE", "NEARBY", "DELVES", "SCENARIO", "DUNGEON", "RAID", "AVAILABLE", "WORLD", "WEEKLY", "DAILY", "RARES", "ACHIEVEMENTS", "ENDEAVORS", "DECOR", "DEFAULT" },
+    ["World / Rare Focused"] = { "WORLD", "WEEKLY", "DAILY", "RARES", "NEARBY", "COMPLETE", "AVAILABLE", "DELVES", "SCENARIO", "DUNGEON", "RAID", "CAMPAIGN", "IMPORTANT", "LEGENDARY", "ACHIEVEMENTS", "ENDEAVORS", "DECOR", "DEFAULT" },
 }
 
 -- Category keys (enum-style) for consistent string usage across modules.
 addon.CATEGORY_KEYS = {
-    DUNGEON = "DUNGEON", DELVES = "DELVES", SCENARIO = "SCENARIO", AVAILABLE = "AVAILABLE", NEARBY = "NEARBY", CAMPAIGN = "CAMPAIGN",
+    DUNGEON = "DUNGEON", RAID = "RAID", DELVES = "DELVES", SCENARIO = "SCENARIO", AVAILABLE = "AVAILABLE", NEARBY = "NEARBY", CAMPAIGN = "CAMPAIGN",
     IMPORTANT = "IMPORTANT", LEGENDARY = "LEGENDARY", WORLD = "WORLD", WEEKLY = "WEEKLY",
     DAILY = "DAILY", RARES = "RARES", RARE = "RARE",     ACHIEVEMENT = "ACHIEVEMENT", ACHIEVEMENTS = "ACHIEVEMENTS",
     ENDEAVOR = "ENDEAVOR", ENDEAVORS = "ENDEAVORS",
@@ -205,6 +208,7 @@ addon.ATLAS_QUEST_PVP = "questlog-questtypeicon-pvp"
 addon.CATEGORY_TO_GROUP = {
     COMPLETE  = "COMPLETE",
     DUNGEON   = "DUNGEON",
+    RAID      = "RAID",
     DELVES    = "DELVES",
     SCENARIO  = "SCENARIO",
     LEGENDARY = "LEGENDARY",

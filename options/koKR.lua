@@ -541,6 +541,7 @@ L["Order"]                                              = "순서"
 -- Tracker section labels (SECTION_LABELS)
 -- =====================================================================
 L["DUNGEON"]           = "던전"
+L["RAID"]              = "레이드"
 L["DELVES"]            = "심층 탐사"
 L["SCENARIO EVENTS"]   = "시나리오 이벤트"
 L["AVAILABLE IN ZONE"] = "지역 내 수락 가능"
