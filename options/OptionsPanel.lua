@@ -1665,8 +1665,9 @@ local function ShowSearchResults(matches)
         else
             breadcrumb = (m.categoryName or "") .. " \194\187 " .. (m.sectionName or "")
         end
-        local optionName = m.option and m.option.name or ""
-        row.btn.subLabel:SetText(breadcrumb)
+        local rawName = m.option and (type(m.option.name) == "function" and m.option.name() or m.option.name) or nil
+        local optionName = tostring(rawName or "")
+        row.btn.subLabel:SetText(breadcrumb or "")
         row.btn.label:SetText(optionName)
         row.btn.entry = m
         row.btn:SetPoint("TOP", searchDropdownContent, "TOP", 0, -(i - 1) * SEARCH_DROPDOWN_ROW_HEIGHT)
