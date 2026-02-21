@@ -433,8 +433,14 @@ local function CreatePopupFrame()
     titleBar:SetHeight(36)
     titleBar:EnableMouse(true)
     titleBar:RegisterForDrag("LeftButton")
-    titleBar:SetScript("OnDragStart", function() panel:StartMoving() end)
-    titleBar:SetScript("OnDragStop", function() panel:StopMovingOrSizing() end)
+    titleBar:SetScript("OnDragStart", function()
+        if InCombatLockdown() then return end
+        panel:StartMoving()
+    end)
+    titleBar:SetScript("OnDragStop", function()
+        if InCombatLockdown() then return end
+        panel:StopMovingOrSizing()
+    end)
 
     local titleText = titleBar:CreateFontString(nil, "OVERLAY")
     titleText:SetFont("Fonts\\FRIZQT__.TTF", 14, "OUTLINE")

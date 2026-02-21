@@ -113,8 +113,12 @@ titleBar:SetPoint("TOPRIGHT", 0, 0)
 titleBar:SetHeight(HEADER_HEIGHT)
 titleBar:EnableMouse(true)
 titleBar:RegisterForDrag("LeftButton")
-titleBar:SetScript("OnDragStart", function() panel:StartMoving() end)
+titleBar:SetScript("OnDragStart", function()
+    if InCombatLockdown() then return end
+    panel:StartMoving()
+end)
 titleBar:SetScript("OnDragStop", function()
+    if InCombatLockdown() then return end
     panel:StopMovingOrSizing()
     if HorizonDB then
         local x, y = panel:GetCenter()

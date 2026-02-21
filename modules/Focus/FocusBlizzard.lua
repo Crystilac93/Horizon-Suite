@@ -63,7 +63,7 @@ local function TrySuppressTracker()
                 return
             end
             local wqtFrame = _G.WorldQuestTrackerScreenPanel
-            if wqtFrame and wqtFrame:IsShown() then
+            if wqtFrame and wqtFrame:IsShown() and not InCombatLockdown() then
                 wqtFrame:Hide()
             end
         end)

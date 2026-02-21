@@ -168,7 +168,13 @@ addon:RegisterModule("focus", {
         StopMapCheckTicker()
         StopProximityCheckTicker()
         if addon.HS then addon.HS:SetScript("OnUpdate", nil) end
-        if addon.RestoreTracker then addon.RestoreTracker() end
+        if addon.RestoreTracker then
+            if InCombatLockdown() then
+                addon.focus.restoreTrackerPendingAfterCombat = true
+            else
+                addon.RestoreTracker()
+            end
+        end
         if not InCombatLockdown() then
             addon.HS:Hide()
         else

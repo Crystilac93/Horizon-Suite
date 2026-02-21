@@ -29,6 +29,7 @@ local PRESENCE_KEYS = {
     presenceBossEmoteColor = true,
     presenceDiscoveryColor = true,
     presenceZoneChange = true,
+    presenceSuppressZoneInMplus = true,
     presenceLevelUp = true,
     presenceBossEmote = true,
     presenceAchievement = true,
@@ -879,6 +880,7 @@ local OptionCategories = {
         options = {
             { type = "section", name = L["Notification types"] },
             { type = "toggle", name = L["Show zone changes"], desc = L["Show zone and subzone change notifications."], dbKey = "presenceZoneChange", get = function() return getDB("presenceZoneChange", true) end, set = function(v) setDB("presenceZoneChange", v) end },
+            { type = "toggle", name = L["Suppress zone changes in Mythic+"], desc = L["In Mythic+, only show boss emotes, achievements, and level-up. Hide zone, quest, and scenario notifications."], dbKey = "presenceSuppressZoneInMplus", get = function() return getDB("presenceSuppressZoneInMplus", true) end, set = function(v) setDB("presenceSuppressZoneInMplus", v) end },
             { type = "toggle", name = L["Show level up"], desc = L["Show level-up notification."], dbKey = "presenceLevelUp", get = function() return getDB("presenceLevelUp", true) end, set = function(v) setDB("presenceLevelUp", v) end },
             { type = "toggle", name = L["Show boss emotes"], desc = L["Show raid and dungeon boss emote notifications."], dbKey = "presenceBossEmote", get = function() return getDB("presenceBossEmote", true) end, set = function(v) setDB("presenceBossEmote", v) end },
             { type = "toggle", name = L["Show achievements"], desc = L["Show achievement earned notifications."], dbKey = "presenceAchievement", get = function() return getDB("presenceAchievement", true) end, set = function(v) setDB("presenceAchievement", v) end },

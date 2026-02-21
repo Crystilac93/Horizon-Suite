@@ -77,6 +77,11 @@ end
 local eventFrame = CreateFrame("Frame")
 local eventsRegistered = false
 
+--- True when we should suppress non-essential Presence notifications in Mythic+ (zone, quest, scenario).
+local function ShouldSuppressInMplus()
+    return addon.GetDB and addon.GetDB("presenceSuppressZoneInMplus", true) and addon.IsInMythicDungeon and addon.IsInMythicDungeon()
+end
+
 local PRESENCE_EVENTS = {
     "ADDON_LOADED",
     "ZONE_CHANGED",
@@ -135,6 +140,7 @@ end
 
 local function OnQuestAccepted(_, questID)
     if addon.GetDB and not addon.GetDB("presenceQuestEvents", true) then return end
+    if ShouldSuppressInMplus() then return end
     local opts = (questID and { questID = questID }) or {}
     if C_QuestLog and C_QuestLog.GetTitleForQuestID then
         local questName = StripPresenceMarkup(C_QuestLog.GetTitleForQuestID(questID) or "New Quest")
@@ -154,6 +160,7 @@ end
 
 local function OnQuestTurnedIn(_, questID)
     if addon.GetDB and not addon.GetDB("presenceQuestEvents", true) then return end
+    if ShouldSuppressInMplus() then return end
     local opts = (questID and { questID = questID }) or {}
     local questName = "Objective"
     if C_QuestLog then
@@ -256,6 +263,7 @@ local function ExecuteQuestUpdate(questID, isBlindUpdate, source, isRetry)
 
     -- 8. Trigger notification
     if addon.GetDB and not addon.GetDB("presenceQuestEvents", true) then return end
+    if ShouldSuppressInMplus() then return end
     local L = addon.L or {}
     addon.Presence.QueueOrPlay("QUEST_UPDATE", L["QUEST UPDATE"], normalized, { questID = questID, source = source })
     DbgWQ("ExecuteQuestUpdate: Shown", questID, msg)
@@ -341,6 +349,7 @@ local function OnUIInfoMessage(_, msgType, msg)
             end
             if hasPendingUpdate then return end
             if addon.GetDB and not addon.GetDB("presenceQuestEvents", true) then return end
+            if ShouldSuppressInMplus() then return end
 
             local now = GetTime()
             if lastUIInfoMsg == msg and (now - lastUIInfoTime) < UI_MSG_THROTTLE then return end
@@ -431,6 +440,7 @@ end
 local function ExecuteScenarioCriteriaUpdate()
     scenarioCriteriaUpdateTimer = nil
     if not addon.IsScenarioActive or not addon.IsScenarioActive() then return end
+    if ShouldSuppressInMplus() then return end
     if addon.GetDB and not addon.GetDB("showScenarioEvents", true) then return end
     if not addon.GetScenarioDisplayInfo then return end
 
@@ -547,6 +557,7 @@ local function TryShowScenarioStart()
     if wasInScenario then return end
     -- Delve objective update feature disabled for now; zone entry already shows ZONE_CHANGE
     if addon.IsDelveActive and addon.IsDelveActive() then return end
+    if ShouldSuppressInMplus() then return end
     if addon.GetDB and not addon.GetDB("showScenarioEvents", true) then return end
     if not addon.GetScenarioDisplayInfo then return end
 
@@ -625,6 +636,7 @@ local function OnZoneChangedNewArea()
             end
         else
             if addon.GetDB and not addon.GetDB("presenceZoneChange", true) then return end
+            if ShouldSuppressInMplus() then return end
             local opts = {}
             local displaySub = sub
             if addon.IsDelveActive and addon.IsDelveActive() then
@@ -666,6 +678,7 @@ local function OnZoneChanged()
                 -- to avoid duplicate or inverted toast (parent/delve swap from GetZoneText/GetSubZoneText).
                 if addon.IsDelveActive and addon.IsDelveActive() then return end
                 if addon.GetDB and not addon.GetDB("presenceZoneChange", true) then return end
+                if ShouldSuppressInMplus() then return end
 
                 local opts = {}
                 local displaySub = sub

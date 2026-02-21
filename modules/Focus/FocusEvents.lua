@@ -441,13 +441,39 @@ local eventHandlers = {
 -- @param ... any Event payload (varargs)
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     -- Process pending hide before addon.focus.enabled check (handles module disabled in combat).
-    if event == "PLAYER_REGEN_ENABLED" and addon.focus.pendingHideAfterCombat and addon.HS then
-        addon.focus.pendingHideAfterCombat = nil
-        addon.HS:Hide()
-        local floatingBtn = _G.HSFloatingQuestItem
-        if floatingBtn then floatingBtn:Hide() end
-        if addon.UpdateFloatingQuestItem then addon.UpdateFloatingQuestItem(nil) end
-        if addon.UpdateMplusBlock then addon.UpdateMplusBlock() end
+    if event == "PLAYER_REGEN_ENABLED" then
+        if addon.focus.restoreTrackerPendingAfterCombat and addon.RestoreTracker then
+            addon.focus.restoreTrackerPendingAfterCombat = nil
+            addon.RestoreTracker()
+        end
+        if addon.focus.pendingHideAfterCombat and addon.HS then
+            addon.focus.pendingHideAfterCombat = nil
+            addon.HS:Hide()
+            local floatingBtn = _G.HSFloatingQuestItem
+            if floatingBtn then floatingBtn:Hide() end
+            if addon.UpdateFloatingQuestItem then addon.UpdateFloatingQuestItem(nil) end
+            if addon.UpdateMplusBlock then addon.UpdateMplusBlock() end
+        end
+        local pending = addon.focus.pendingEntryHideAfterCombat
+        if pending then
+            addon.focus.pendingEntryHideAfterCombat = nil
+            for entry in next, pending do
+                entry:Hide()
+                if entry.itemBtn then entry.itemBtn:Hide() end
+                if entry.trackBar then entry.trackBar:Hide() end
+                if entry.affixText then entry.affixText:Hide() end
+                if entry.affixShadow then entry.affixShadow:Hide() end
+                if entry.wqTimerText then entry.wqTimerText:Hide() end
+                if entry.wqProgressBg then entry.wqProgressBg:Hide() end
+                if entry.wqProgressFill then entry.wqProgressFill:Hide() end
+                if entry.wqProgressText then entry.wqProgressText:Hide() end
+                if entry.scenarioTimerBars then
+                    for _, bar in ipairs(entry.scenarioTimerBars) do
+                        bar:Hide()
+                    end
+                end
+            end
+        end
     end
     if event ~= "ADDON_LOADED" and not addon.focus.enabled then
         return

@@ -303,8 +303,14 @@ local function CreateDebugPanel()
         msg:SetScrollOffset(scroll - delta)
     end)
 
-    panel:SetScript("OnDragStart", function() panel:StartMoving() end)
-    panel:SetScript("OnDragStop", function() panel:StopMovingOrSizing() end)
+    panel:SetScript("OnDragStart", function()
+        if InCombatLockdown() then return end
+        panel:StartMoving()
+    end)
+    panel:SetScript("OnDragStop", function()
+        if InCombatLockdown() then return end
+        panel:StopMovingOrSizing()
+    end)
 
     debugLogFrame = panel
     debugLogFrame.msg = msg

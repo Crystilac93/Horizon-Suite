@@ -17,6 +17,8 @@ addon.focus = {
     layoutPendingAfterCombat     = false,
     pendingDimensionsAfterCombat  = false,
     pendingHideAfterCombat       = false,
+    restoreTrackerPendingAfterCombat = false,
+    pendingEntryHideAfterCombat   = nil,  -- { [entry] = true } entries cleared during combat
     mplusLayoutPendingAfterCombat = false,
 
     rares = {

@@ -460,6 +460,10 @@ local function ApplyDimensions(widthOverride)
     if addon.UpdateMplusBlock then addon.UpdateMplusBlock() end
 end
 
+--- Return an entry to the pool; clears data and hides frame. Hide() is guarded during combat and deferred to PLAYER_REGEN_ENABLED.
+--- @param entry table Pool entry frame
+--- @param full boolean|nil If false, only clear data; if true/nil, also hide frame and children
+--- @return nil
 local function ClearEntry(entry, full)
     if not entry then return end
     entry.questID    = nil
@@ -474,24 +478,33 @@ local function ClearEntry(entry, full)
     entry.animState  = "idle"
     entry.groupKey   = nil
     if full ~= false then
-        entry:Hide()
         entry:SetAlpha(0)
         entry:SetHitRectInsets(0, 0, 0, 0)
-        if entry.itemBtn then entry.itemBtn:Hide() end
-        if entry.trackBar then entry.trackBar:Hide() end
-        if entry.affixText then entry.affixText:Hide() end
-        if entry.affixShadow then entry.affixShadow:Hide() end
-        if entry.wqTimerText then entry.wqTimerText:Hide() end
-        if entry.wqProgressBg then entry.wqProgressBg:Hide() end
-        if entry.wqProgressFill then entry.wqProgressFill:Hide() end
-        if entry.wqProgressText then entry.wqProgressText:Hide() end
         if entry.scenarioTimerBars then
             for _, bar in ipairs(entry.scenarioTimerBars) do
                 bar.duration = nil
                 bar.startTime = nil
                 bar._expiredAt = nil
-                bar:Hide()
             end
+        end
+        if not InCombatLockdown() then
+            entry:Hide()
+            if entry.itemBtn then entry.itemBtn:Hide() end
+            if entry.trackBar then entry.trackBar:Hide() end
+            if entry.affixText then entry.affixText:Hide() end
+            if entry.affixShadow then entry.affixShadow:Hide() end
+            if entry.wqTimerText then entry.wqTimerText:Hide() end
+            if entry.wqProgressBg then entry.wqProgressBg:Hide() end
+            if entry.wqProgressFill then entry.wqProgressFill:Hide() end
+            if entry.wqProgressText then entry.wqProgressText:Hide() end
+            if entry.scenarioTimerBars then
+                for _, bar in ipairs(entry.scenarioTimerBars) do
+                    bar:Hide()
+                end
+            end
+        else
+            addon.focus.pendingEntryHideAfterCombat = addon.focus.pendingEntryHideAfterCombat or {}
+            addon.focus.pendingEntryHideAfterCombat[entry] = true
         end
     end
 end

@@ -44,10 +44,12 @@ local function SaveFramePosition()
 end
 
 Frame:SetScript("OnDragStart", function(self)
+    if InCombatLockdown() then return end
     self:StartMoving()
 end)
 
 Frame:SetScript("OnDragStop", function(self)
+    if InCombatLockdown() then return end
     self:StopMovingOrSizing()
     SaveFramePosition()
 end)
