@@ -134,13 +134,43 @@ end
 function addon.ApplyTextCase(text, dbKey, default)
     if text == nil or type(text) ~= "string" then return text end
     local v = addon.GetDB(dbKey, default or "proper")
-    if v == "upper" then return text:upper() end
-    if v == "lower" then return text:lower() end
-    if v == "proper" or v == "default" then
-        -- Title case: first letter of each word upper, rest lower. [%a'] keeps possessives (e.g. Traitor's) as one word.
-        return text:gsub("(%a)([%a']*)", function(a, rest) return a:upper() .. rest:lower() end)
+    if v ~= "upper" and v ~= "lower" and v ~= "proper" and v ~= "default" then return text end
+
+    -- Extract WoW escape sequences (|T...|t, |A...|a, |c........text|r) so case
+    -- transforms don't corrupt them. Replace each with a placeholder, apply the
+    -- case change on the clean string, then re-insert the escapes.
+    local escapes = {}
+    local placeholder = "\001"
+    local clean = text:gsub("|[TtAa][^|]*|[TtAa]", function(m)
+        escapes[#escapes + 1] = m
+        return placeholder
+    end)
+    clean = clean:gsub("|c%x%x%x%x%x%x%x%x(.-)|r", function(inner)
+        -- Preserve the full color escape; we'll transform the inner text separately.
+        escapes[#escapes + 1] = { inner = inner, isColor = true }
+        return placeholder
+    end)
+
+    local function applyCase(s)
+        if v == "upper" then return s:upper() end
+        if v == "lower" then return s:lower() end
+        return s:gsub("(%a)([%a']*)", function(a, rest) return a:upper() .. rest:lower() end)
     end
-    return text
+
+    clean = applyCase(clean)
+
+    -- Re-insert escapes in order.
+    local idx = 0
+    clean = clean:gsub(placeholder, function()
+        idx = idx + 1
+        local esc = escapes[idx]
+        if type(esc) == "table" and esc.isColor then
+            return esc.inner
+        end
+        return esc
+    end)
+
+    return clean
 end
 
 --- Create a text + shadow pair using the addon font objects and shadow offsets.

@@ -234,14 +234,16 @@ local function ReadTrackedQuests()
 
         -- Always exclude cross-zone map-scoped content that is not in the player's log.
         -- This is separate from the user-facing filterByZone option.
+        -- Exception: explicitly tracked (manual watch list, WQT, supertracked) quests bypass the zone gate.
         local logIndex = C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(questID) or nil
         local isAccepted = (logIndex ~= nil)
+        local isExplicitlyTracked = (opts.isTracked == true) or (superTracked and questID == superTracked)
         local category = opts.forceCategory or addon.GetQuestCategory(questID)
-        if not isAccepted and (category == "WORLD" or category == "CALLING" or category == "WEEKLY" or category == "DAILY") then
+        if not isAccepted and not isExplicitlyTracked and (category == "WORLD" or category == "CALLING" or category == "WEEKLY" or category == "DAILY") then
             if not IsQuestOnPlayerZoneMap(questID) then return end
         end
 
-        if not questMapMatchesPlayer(questID) then return end
+        if not isExplicitlyTracked and not questMapMatchesPlayer(questID) then return end
         seen[questID] = true
 
         local baseCategory = (category == "COMPLETE") and addon.GetQuestBaseCategory(questID) or nil

@@ -341,12 +341,15 @@ local function RefreshContentInCombat()
                 if showInZoneSuffix then
                     local needSuffix = false
                     if questData.category == "WORLD" then
-                        -- WORLD quests: show '**' only when HorizonSuite auto-added it (not manually tracked, not WQT, not super-tracked).
                         needSuffix = (questData.isAutoAdded == true) and (questData.isSuperTracked ~= true)
                     elseif questData.category == "WEEKLY" or questData.category == "DAILY" then
                         needSuffix = (questData.isAccepted == false)
                     end
-                    if needSuffix then displayTitle = displayTitle .. " **" end
+                    if needSuffix then
+                        local iconKey = addon.GetDB("autoTrackIcon", "radar1")
+                        local iconPath = addon.GetRadarIconPath and addon.GetRadarIconPath(iconKey) or ("Interface\\AddOns\\HorizonSuite\\media\\" .. iconKey .. ".blp")
+                        displayTitle = displayTitle .. " |T" .. iconPath .. ":0|t"
+                    end
                 end
                 displayTitle = addon.ApplyTextCase and addon.ApplyTextCase(displayTitle, "questTitleCase", "proper") or displayTitle
                 entry.titleText:SetText(displayTitle)

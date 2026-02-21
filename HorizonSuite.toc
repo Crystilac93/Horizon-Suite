@@ -10,6 +10,7 @@
 
 HorizonSuite.lua
 Utilities.lua
+media/MediaRegistry.lua
 core/Config.lua
 core/Core.lua
 

@@ -207,7 +207,10 @@ L["For multi-objective quests, how to display objectives you've completed (e.g. 
 L["Show all"]                                           = "모두 표시"
 L["Fade completed"]                                     = "완료 시 흐리게"
 L["Hide completed"]                                     = "완료 시 숨기기"
-L["Show '**' in-zone suffix"]                           = "지역 내 '**' 접미사 표시"
+L["Show icon for in-zone auto-tracking"]                = "지역 내 자동 추적 아이콘 표시"
+L["Display an icon next to auto-tracked world quests and weeklies/dailies that are not yet in your quest log (in-zone only)."] = "퀘스트 로그에 없는 자동 추적된 월드 퀘스트 및 주간/일일 퀘스트 옆에 아이콘을 표시합니다 (지역 내에서만)."
+L["Auto-track icon"]                                    = "자동 추적 아이콘"
+L["Choose which icon to display next to auto-tracked in-zone entries."] = "지역 내 자동 추적 항목 옆에 표시할 아이콘을 선택합니다."
 L["Append ** to world quests and weeklies/dailies that are not yet in your quest log (in-zone only)."] = "퀘스트 목록에 없는 월드 퀘스트/주간·일일 퀘스트에 ** 접미사를 붙입니다 (해당 지역 내에서만)."
 
 -- =====================================================================

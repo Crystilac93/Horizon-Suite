@@ -207,8 +207,11 @@ L["For multi-objective quests, how to display objectives you've completed (e.g. 
 L["Show all"]                                           = "Tout afficher"
 L["Fade completed"]                                     = "Estomper les objectifs terminés"
 L["Hide completed"]                                     = "Masquer les objectifs terminés"
-L["Show '**' in-zone suffix"]                           = "Afficher le suffixe '**' pour les quêtes de la zone"
-L["Append ** to world quests and weeklies/dailies that are not yet in your quest log (in-zone only)."] = "Ajoute ** aux expéditions et hebdomadaires/journalières non encore dans le journal de quêtes (de la zone actuelle uniquement)."
+L["Show icon for in-zone auto-tracking"]                = "Afficher l'icône de suivi automatique en zone"
+L["Display an icon next to auto-tracked world quests and weeklies/dailies that are not yet in your quest log (in-zone only)."] = "Affiche une icône à côté des expéditions et hebdomadaires/quotidiennes suivies automatiquement qui ne sont pas encore dans votre journal de quêtes (zone uniquement)."
+L["Auto-track icon"]                                    = "Icône de suivi automatique"
+L["Choose which icon to display next to auto-tracked in-zone entries."] = "Choisissez l'icône affichée à côté des entrées suivies automatiquement en zone."
+L["Append ** to world quests and weeklies/dailies that are not yet in your quest log (in-zone only)."] = "Ajoute ** aux expéditions et hebdomadaires/journalières non encore dans le journal de quêtes (de la zone actuelle uniquement)." -- deprecated, kept for compat
 
 -- =====================================================================
 -- OptionsData.lua Display — Spacing

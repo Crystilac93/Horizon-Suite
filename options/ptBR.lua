@@ -207,7 +207,10 @@ L["For multi-objective quests, how to display objectives you've completed (e.g. 
 L["Show all"]                                           = "Mostrar tudo"
 L["Fade completed"]                                     = "Esmaecer concluídos"
 L["Hide completed"]                                     = "Ocultar concluídos"
-L["Show '**' in-zone suffix"]                           = "Mostrar sufixo '**' em zona"
+L["Show icon for in-zone auto-tracking"]                = "Mostrar ícone de rastreamento automático na zona"
+L["Display an icon next to auto-tracked world quests and weeklies/dailies that are not yet in your quest log (in-zone only)."] = "Exibe um ícone ao lado de missões mundiais e semanais/diárias rastreadas automaticamente que ainda não estão no seu registro de missões (apenas na zona)."
+L["Auto-track icon"]                                    = "Ícone de rastreamento automático"
+L["Choose which icon to display next to auto-tracked in-zone entries."] = "Escolha qual ícone exibir ao lado das entradas rastreadas automaticamente na zona."
 L["Append ** to world quests and weeklies/dailies that are not yet in your quest log (in-zone only)."] = "Adiciona ** a missões mundiais e semanais/diárias que ainda não estão no seu diário (apenas na zona)."
 
 -- =====================================================================
