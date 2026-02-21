@@ -393,6 +393,12 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
              w:SetPoint("RIGHT", currentCard, "RIGHT", -CardPadding, 0)
              currentCard.contentAnchor = w
              currentCard.contentHeight = currentCard.contentHeight + OptionGap + RowHeights.dropdown
+             if type(opt.hidden) == "function" then
+                 w._hiddenFn = opt.hidden
+                 w._normalHeight = RowHeights.dropdown
+                 w._parentCard = currentCard
+                 w._gapHeight = OptionGap
+             end
              local oid = opt.dbKey or (addon.OptionCategories[tabIndex].key .. "_" .. (opt.name or ""):gsub("%s+", "_"))
              if optionFrames then optionFrames[oid] = { tabIndex = tabIndex, frame = w } end
              table.insert(refreshers, w)
@@ -1754,6 +1760,16 @@ function updateOptionsPanelFonts()
     closeLabel:SetFont(path, Def.LabelSize or 13, "OUTLINE")
     versionLabel:SetFont(path, Def.SectionSize or 10, "OUTLINE")
     for _, btn in ipairs(tabButtons) do if btn.label then btn.label:SetFont(path, Def.LabelSize or 13, "OUTLINE") end end
+    if searchInput and searchInput.edit then
+        searchInput.edit:SetFont(path, Def.LabelSize or 13, "OUTLINE")
+        if searchInput.edit.placeholder then searchInput.edit.placeholder:SetFont(path, Def.LabelSize or 13, "OUTLINE") end
+    end
+    for _, row in ipairs(searchDropdownButtons) do
+        if row.btn then
+            if row.btn.label then row.btn.label:SetFont(path, Def.LabelSize or 12, "OUTLINE") end
+            if row.btn.subLabel then row.btn.subLabel:SetFont(path, Def.SectionSize or 10, "OUTLINE") end
+        end
+    end
 end
 addon.OptionsData_SetUpdateFontsRef(updateOptionsPanelFonts)
 
@@ -1793,7 +1809,35 @@ panel:SetScript("OnShow", function()
 end)
 
 addon.OptionsPanel_Refresh = function()
-    for _, ref in ipairs(allRefreshers) do if ref and ref.Refresh then ref:Refresh() end end
+    local cardDeltas = {}
+    for _, ref in ipairs(allRefreshers) do
+        if ref and ref.Refresh then ref:Refresh() end
+        if ref and ref._hiddenFn then
+            local shouldHide = ref._hiddenFn()
+            local wasHidden = not ref:IsShown() or (ref:GetHeight() < 1)
+            if shouldHide and not wasHidden then
+                ref:Hide()
+                ref:SetHeight(0.1)
+                if ref._parentCard then
+                    local delta = (ref._normalHeight or 0) + (ref._gapHeight or 0)
+                    cardDeltas[ref._parentCard] = (cardDeltas[ref._parentCard] or 0) - delta
+                end
+            elseif not shouldHide and wasHidden then
+                ref:Show()
+                if ref._normalHeight then ref:SetHeight(ref._normalHeight) end
+                if ref._parentCard then
+                    local delta = (ref._normalHeight or 0) + (ref._gapHeight or 0)
+                    cardDeltas[ref._parentCard] = (cardDeltas[ref._parentCard] or 0) + delta
+                end
+            end
+        end
+    end
+    for card, delta in pairs(cardDeltas) do
+        if card.GetHeight and card.SetHeight then
+            local h = card:GetHeight() + delta
+            if h > 0 then card:SetHeight(h) end
+        end
+    end
 end
 
 function _G.HorizonSuite_OptionsRequestClose()
@@ -1812,7 +1856,30 @@ function _G.HorizonSuite_ShowOptions()
     if p then
         if p:IsShown() then
             if _G.HorizonSuite_OptionsRequestClose then _G.HorizonSuite_OptionsRequestClose() else p:Hide() end
-        else p:Show() end
+        else
+            p:Show()
+            if addon.OptionsPanel_Refresh then addon.OptionsPanel_Refresh() end
+            C_Timer.After(0.05, function()
+                if addon.OptionsPanel_Refresh then addon.OptionsPanel_Refresh() end
+            end)
+            -- Profile routing debug on options open
+            local HSPrint = addon.HSPrint or function(msg) print("|cFF00CCFFHorizon Suite:|r " .. tostring(msg or "")) end
+            local charName = _G.UnitName and _G.UnitName("player") or "?"
+            local realm = _G.GetNormalizedRealmName and _G.GetNormalizedRealmName() or "?"
+            local effectiveKey = addon.GetEffectiveProfileKey and addon.GetEffectiveProfileKey() or "nil"
+            local activeKey = addon.GetActiveProfileKey and addon.GetActiveProfileKey() or "nil"
+            local useGlobal = _G.HorizonDB and _G.HorizonDB.useGlobalProfile or false
+            local globalKey = _G.HorizonDB and _G.HorizonDB.globalProfileKey or "nil"
+            local usePerSpec = _G.HorizonDB and _G.HorizonDB.usePerSpecProfiles or false
+            local charProfKey = _G.HorizonDB and _G.HorizonDB.charProfileKeys and _G.HorizonDB.charProfileKeys[charName .. "-" .. (realm or "")] or "nil"
+            HSPrint(("[ProfileDebug] char=%s-%s | effective=%s | active=%s | charKey=%s | global=%s(key=%s) | perSpec=%s"):format(
+                tostring(charName), tostring(realm),
+                tostring(effectiveKey), tostring(activeKey),
+                tostring(charProfKey),
+                tostring(useGlobal), tostring(globalKey),
+                tostring(usePerSpec)
+            ))
+        end
     end
 end
 

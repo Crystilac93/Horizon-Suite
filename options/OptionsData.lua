@@ -212,7 +212,9 @@ local OptionCategories = {
                 local list = addon.ListProfiles and addon.ListProfiles() or {}
                 local out = {}
                 for _, k in ipairs(list) do
-                    out[#out + 1] = { k, k }
+                    if k ~= "Default" then
+                        out[#out + 1] = { k, k }
+                    end
                 end
                 return out
             end
@@ -303,7 +305,11 @@ local OptionCategories = {
                 local function specProfileOptions()
                     local list = addon.ListProfiles and addon.ListProfiles() or {}
                     local out = {}
-                    for _, k in ipairs(list) do out[#out + 1] = { k, k } end
+                    for _, k in ipairs(list) do
+                        if k ~= "Default" then
+                            out[#out + 1] = { k, k }
+                        end
+                    end
                     return out
                 end
 
@@ -319,11 +325,17 @@ local OptionCategories = {
                         end
                         return ("Spec %d"):format(specIndex)
                     end
+                    local function specHiddenFn()
+                        local numSpecs = _G.GetNumSpecializations and _G.GetNumSpecializations() or 0
+                        if numSpecs < 1 then return false end
+                        return specIndex > numSpecs
+                    end
                     opts[#opts + 1] = {
                         type = "dropdown",
                         name = specNameFn,
                         dbKey = "_profiles_spec_" .. tostring(specIndex),
                         options = specProfileOptions,
+                        hidden = specHiddenFn,
                         disabled = function()
                             if not addon.GetProfileModeState then return true end
                             local useGlobal, usePerSpec = addon.GetProfileModeState()
@@ -349,8 +361,18 @@ local OptionCategories = {
                     }
                 end
 
-                -- Section C: Create profile
+                -- Section C: Create / Copy profile
                 opts[#opts + 1] = { type = "section", name = L["Create"] or "Create" }
+
+                opts[#opts + 1] = {
+                    type = "button",
+                    name = L["Create new profile from Default template"] or "Create new profile from Default template",
+                    desc = L["Creates a new profile with all default settings."] or "Creates a new profile with all default settings.",
+                    dbKey = "_profiles_create_new",
+                    onClick = function()
+                        if addon.ShowCreateProfilePopup then addon.ShowCreateProfilePopup("Default") end
+                    end,
+                }
 
                 opts[#opts + 1] = {
                     type = "dropdown",
@@ -374,9 +396,9 @@ local OptionCategories = {
 
                 opts[#opts + 1] = {
                     type = "button",
-                    name = L["Create new profile"] or "Create new profile",
+                    name = L["Copy from selected"] or "Copy from selected",
                     desc = L["Creates a new profile copied from the selected source profile."] or "Creates a new profile copied from the selected source profile.",
-                    dbKey = "_profiles_create_selected",
+                    dbKey = "_profiles_copy_selected",
                     onClick = function()
                         local src = addon._profileCopyFrom or (addon.GetActiveProfileKey and addon.GetActiveProfileKey())
                         if addon.ShowCreateProfilePopup then addon.ShowCreateProfilePopup(src) end
@@ -389,14 +411,14 @@ local OptionCategories = {
                 opts[#opts + 1] = {
                     type = "dropdown",
                     name = L["Delete profile"] or "Delete profile",
-                    desc = L["Select a profile to delete (current profile not shown)."] or "Select a profile to delete (current profile not shown).",
+                    desc = L["Select a profile to delete (current and Default not shown)."] or "Select a profile to delete (current and Default not shown).",
                     dbKey = "_profiles_delete",
                     options = function()
                         local current = addon.GetActiveProfileKey and addon.GetActiveProfileKey() or nil
                         local list = addon.ListProfiles and addon.ListProfiles() or {}
                         local out = {}
                         for _, k in ipairs(list) do
-                            if k ~= current then out[#out + 1] = { k, k } end
+                            if k ~= current and k ~= "Default" then out[#out + 1] = { k, k } end
                         end
                         return out
                     end,
@@ -408,11 +430,11 @@ local OptionCategories = {
                             for _, kk in ipairs(list) do if kk == k then return true end end
                             return false
                         end
-                        if exists(addon._profileDeleteKey) and addon._profileDeleteKey ~= current then
+                        if exists(addon._profileDeleteKey) and addon._profileDeleteKey ~= current and addon._profileDeleteKey ~= "Default" then
                             return addon._profileDeleteKey
                         end
                         for _, k in ipairs(list) do
-                            if k ~= current then
+                            if k ~= current and k ~= "Default" then
                                 addon._profileDeleteKey = k
                                 return k
                             end

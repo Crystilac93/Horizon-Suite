@@ -342,6 +342,54 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
             HSPrint("ShowUnacceptedPopup not available.")
         end
 
+    elseif cmd == "profiledebug" then
+        HSPrint("|cFF00CCFF--- Profile Routing Debug ---|r")
+        local charName = _G.UnitName and _G.UnitName("player") or "?"
+        local realm = _G.GetNormalizedRealmName and _G.GetNormalizedRealmName() or "?"
+        local charFullKey = tostring(charName) .. "-" .. tostring(realm)
+        HSPrint("Character: " .. charFullKey)
+        local numSpecs = _G.GetNumSpecializations and _G.GetNumSpecializations() or "?"
+        local curSpec = _G.GetSpecialization and _G.GetSpecialization() or "?"
+        HSPrint("Specs: " .. tostring(numSpecs) .. " | Current spec index: " .. tostring(curSpec))
+        if _G.HorizonDB then
+            local db = _G.HorizonDB
+            HSPrint("useGlobalProfile: " .. tostring(db.useGlobalProfile))
+            HSPrint("globalProfileKey: " .. tostring(db.globalProfileKey))
+            HSPrint("usePerSpecProfiles: " .. tostring(db.usePerSpecProfiles))
+            -- Show per-character spec keys
+            local charSpecs = db.charPerSpecKeys and db.charPerSpecKeys[charFullKey:gsub("%s+", "")]
+            if charSpecs then
+                for i = 1, 4 do
+                    if charSpecs[i] then
+                        local specName = _G.GetSpecializationInfo and select(2, _G.GetSpecializationInfo(i)) or ("Spec " .. i)
+                        HSPrint("  charPerSpec[" .. i .. "] (" .. tostring(specName) .. "): " .. tostring(charSpecs[i]))
+                    end
+                end
+            else
+                HSPrint("  charPerSpecKeys: (none for this character)")
+            end
+            HSPrint("charProfileKeys:")
+            if db.charProfileKeys then
+                for ck, pk in pairs(db.charProfileKeys) do
+                    HSPrint("  " .. tostring(ck) .. " -> " .. tostring(pk))
+                end
+            end
+            HSPrint("Existing profiles:")
+            if db.profiles then
+                for k in pairs(db.profiles) do
+                    HSPrint("  " .. tostring(k))
+                end
+            end
+        end
+        local effectiveKey = addon.GetEffectiveProfileKey and addon.GetEffectiveProfileKey() or "?"
+        local activeKey = addon.GetActiveProfileKey and addon.GetActiveProfileKey() or "?"
+        HSPrint("GetEffectiveProfileKey(): " .. tostring(effectiveKey))
+        HSPrint("GetActiveProfileKey(): " .. tostring(activeKey))
+        if addon.GetActiveProfile then
+            local _, profileKey = addon.GetActiveProfile()
+            HSPrint("GetActiveProfile() key: " .. tostring(profileKey))
+        end
+
     elseif cmd == "clicktodebug" then
         HSPrint("|cFF00CCFF--- Click-to-complete debug ---|r")
         if not C_QuestLog then
@@ -469,6 +517,7 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
         HSPrint("  /horizon endeavordebug   - Dump Endeavor APIs + GetInitiativeTaskInfo fields (for tooltip/rewards)")
         HSPrint("  /horizon unaccepted      - Show popup of unaccepted quests in current zone with type labels (test)")
         HSPrint("  /horizon clicktodebug    - Debug: list tracked quests and which are eligible for click-to-complete")
+        HSPrint("  /horizon profiledebug    - Dump profile routing: char key, effective key, global/perSpec state")
         HSPrint("")
         HSPrint("  Click the header row to collapse / expand.")
         HSPrint("  Scroll with mouse wheel when content overflows.")

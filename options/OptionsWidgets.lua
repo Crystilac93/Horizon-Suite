@@ -612,8 +612,6 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
         local val = get()
         local opts = normalizeOptions((type(options) == "function" and options()) or options or {})
 
-        local valResolved = (addon.ResolveFontPath and addon.ResolveFontPath(val)) or val
-
         for _, opt in ipairs(opts) do
             local optVal = opt[2]
             if optVal == val then
@@ -621,15 +619,22 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
                 applyDisabledVisuals()
                 return
             end
-            local optResolved = (addon.ResolveFontPath and addon.ResolveFontPath(optVal)) or optVal
-            if optResolved == valResolved then
-                if displayFn then
-                    btnText:SetText(displayFn(optVal))
-                else
-                    btnText:SetText(opt[1])
+        end
+
+        if searchable and addon.ResolveFontPath then
+            local valResolved = addon.ResolveFontPath(val) or val
+            for _, opt in ipairs(opts) do
+                local optVal = opt[2]
+                local optResolved = addon.ResolveFontPath(optVal) or optVal
+                if optResolved == valResolved then
+                    if displayFn then
+                        btnText:SetText(displayFn(optVal))
+                    else
+                        btnText:SetText(opt[1])
+                    end
+                    applyDisabledVisuals()
+                    return
                 end
-                applyDisabledVisuals()
-                return
             end
         end
 
