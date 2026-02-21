@@ -905,8 +905,15 @@ function addon.EnsureDB()
     if addon.EnsureModulesDB then addon:EnsureModulesDB() end
     EnsureProfilesAndMigrateLegacy()
     -- One-time migration from legacy hideInCombat toggle.
-    if HorizonDB.combatVisibility == nil and HorizonDB.hideInCombat ~= nil then
-        HorizonDB.combatVisibility = HorizonDB.hideInCombat and "hide" or "show"
+    -- Check both the active profile and the root HorizonDB for the legacy key,
+    -- then write the migrated value into the active profile where GetDB reads it.
+    local profile = addon.GetActiveProfile()
+    if profile and profile.combatVisibility == nil then
+        local legacyHide = profile.hideInCombat
+        if legacyHide == nil then legacyHide = HorizonDB.hideInCombat end
+        if legacyHide ~= nil then
+            profile.combatVisibility = legacyHide and "hide" or "show"
+        end
     end
 end
 

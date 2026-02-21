@@ -21,7 +21,7 @@ function addon.GetRadarIconOptions()
     local opts = {}
     for _, entry in ipairs(addon.RadarIcons) do
         opts[#opts + 1] = {
-            "|T" .. entry.file .. ".blp:16:16|t " .. entry.label,
+            "|T" .. entry.file .. ".blp:0|t " .. entry.label,
             entry.key,
         }
     end
