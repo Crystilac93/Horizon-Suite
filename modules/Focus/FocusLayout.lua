@@ -361,6 +361,9 @@ local function FullLayout()
         if addon.ReadTrackedDecor then
             for _, d in ipairs(addon.ReadTrackedDecor()) do quests[#quests + 1] = d end
         end
+        if addon.ReadTrackedRecipes then
+            for _, r in ipairs(addon.ReadTrackedRecipes()) do quests[#quests + 1] = r end
+        end
         if addon.ReadTrackedAdventureGuide then
             for _, ag in ipairs(addon.ReadTrackedAdventureGuide()) do quests[#quests + 1] = ag end
         end
@@ -439,6 +442,9 @@ local function FullLayout()
     end
     if addon.ReadTrackedDecor then
         for _, d in ipairs(addon.ReadTrackedDecor()) do quests[#quests + 1] = d end
+    end
+    if addon.ReadTrackedRecipes then
+        for _, r in ipairs(addon.ReadTrackedRecipes()) do quests[#quests + 1] = r end
     end
     if addon.ReadTrackedAdventureGuide then
         for _, ag in ipairs(addon.ReadTrackedAdventureGuide()) do quests[#quests + 1] = ag end
@@ -871,6 +877,7 @@ function addon.ApplyFocusColors()
             if not category and entry.groupKey == "ACHIEVEMENTS" then category = "ACHIEVEMENT" end
             if not category and entry.groupKey == "ENDEAVORS" then category = "ENDEAVOR" end
             if not category and entry.groupKey == "DECOR" then category = "DECOR" end
+            if not category and entry.groupKey == "RECIPES" then category = "RECIPE" end
             local effectiveCat = (addon.GetEffectiveColorCategory and addon.GetEffectiveColorCategory(category, entry.groupKey, entry.baseCategory)) or category
 
             local titleColor = (addon.GetTitleColor and addon.GetTitleColor(effectiveCat)) or addon.QUEST_COLORS and addon.QUEST_COLORS.DEFAULT

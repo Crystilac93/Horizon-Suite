@@ -156,8 +156,12 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
             end
         end
 
-        obj.text:SetWidth(objTextWidth)
-        obj.shadow:SetWidth(objTextWidth)
+        local effectiveObjWidth = objTextWidth
+        if oData and oData.itemLink and obj.copyBtn then
+            effectiveObjWidth = objTextWidth - 18  -- room for copy button (14px) + gap (4px)
+        end
+        obj.text:SetWidth(effectiveObjWidth)
+        obj.shadow:SetWidth(effectiveObjWidth)
 
         if oData then
             local objText = oData.text or ""
@@ -212,6 +216,19 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
             obj.text:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", leftPad, -objSpacing)
             obj.text:Show()
             obj.shadow:Show()
+
+            -- Copy button for recipe reagents (oData.itemLink)
+            if obj.copyBtn then
+                if oData.itemLink then
+                    obj.copyBtn._itemLink = oData.itemLink
+                    obj.copyBtn:ClearAllPoints()
+                    obj.copyBtn:SetPoint("LEFT", obj.text, "RIGHT", 4, 0)
+                    obj.copyBtn:Show()
+                else
+                    obj.copyBtn._itemLink = nil
+                    obj.copyBtn:Hide()
+                end
+            end
 
             local objH = obj.text:GetStringHeight()
             if not objH or objH < 1 then objH = addon.OBJ_SIZE + 2 end
@@ -268,6 +285,7 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
             if obj.progressBarBg then obj.progressBarBg:Hide() end
             if obj.progressBarFill then obj.progressBarFill:Hide() end
             if obj.progressBarLabel then obj.progressBarLabel:Hide() end
+            if obj.copyBtn then obj.copyBtn:Hide() obj.copyBtn._itemLink = nil end
         end
     end
 
@@ -536,7 +554,8 @@ local function PopulateEntry(entry, questData, groupKey)
     local showQuestIcons = addon.GetDB("showQuestTypeIcons", false)
     local showAchievementIcons = addon.GetDB("showAchievementIcons", true)
     local showDecorIcons = addon.GetDB("showDecorIcons", true)
-    local hasIcon = ((questData.questTypeAtlas ~= nil) and showQuestIcons) or (questData.isAchievement and questData.achievementIcon and showQuestIcons and showAchievementIcons) or (questData.isDecor and questData.decorIcon and showQuestIcons and showDecorIcons)
+    local showRecipeIcons = addon.GetDB("showRecipeIcons", true)
+    local hasIcon = ((questData.questTypeAtlas ~= nil) and showQuestIcons) or (questData.isAchievement and questData.achievementIcon and showQuestIcons and showAchievementIcons) or (questData.isDecor and questData.decorIcon and showQuestIcons and showDecorIcons) or (questData.isRecipe and questData.recipeIcon and showQuestIcons and showRecipeIcons)
     local isOffMapWorld = (questData.category == "WORLD") and questData.isTracked and not questData.isNearby
 
     local leftOffset = addon.GetContentLeftOffset and addon.GetContentLeftOffset() or (addon.PADDING + addon.ICON_COLUMN_WIDTH)
@@ -608,6 +627,9 @@ local function PopulateEntry(entry, questData, groupKey)
         entry.questTypeIcon:Show()
     elseif questData.isDecor and questData.decorIcon and showDecorIcons then
         entry.questTypeIcon:SetTexture(questData.decorIcon)
+        entry.questTypeIcon:Show()
+    elseif questData.isRecipe and questData.recipeIcon and showRecipeIcons then
+        entry.questTypeIcon:SetTexture(questData.recipeIcon)
         entry.questTypeIcon:Show()
     elseif questData.questTypeAtlas then
         entry.questTypeIcon:SetAtlas(questData.questTypeAtlas)
@@ -851,6 +873,7 @@ local function PopulateEntry(entry, questData, groupKey)
         entry.achievementID = nil
         entry.endeavorID = nil
         entry.decorID    = nil
+        entry.recipeID   = nil
         entry.itemLink   = nil
         entry.isTracked  = nil
     elseif questData.isAchievement or questData.category == "ACHIEVEMENT" then
@@ -860,6 +883,8 @@ local function PopulateEntry(entry, questData, groupKey)
         entry.creatureID = nil
         entry.achievementID = questData.achievementID
         entry.endeavorID = nil
+        entry.decorID    = nil
+        entry.recipeID   = nil
         entry.isTracked  = true
     elseif questData.isEndeavor or questData.category == "ENDEAVOR" then
         entry.questID    = nil
@@ -869,6 +894,8 @@ local function PopulateEntry(entry, questData, groupKey)
         entry.achievementID = nil
         entry.endeavorID = questData.endeavorID
         entry.decorID    = nil
+        entry.recipeID   = nil
+        entry.recipeIsRecraft = nil
         entry.isTracked  = true
     elseif questData.isDecor or questData.category == "DECOR" then
         entry.questID    = nil
@@ -878,6 +905,21 @@ local function PopulateEntry(entry, questData, groupKey)
         entry.achievementID = nil
         entry.endeavorID = nil
         entry.decorID    = questData.decorID
+        entry.recipeID   = nil
+        entry.recipeIsRecraft = nil
+        entry.adventureGuideID   = nil
+        entry.adventureGuideType = nil
+        entry.isTracked  = true
+    elseif questData.isRecipe or questData.category == "RECIPE" then
+        entry.questID    = nil
+        entry.entryKey   = questData.entryKey
+        entry.category   = questData.category
+        entry.creatureID = nil
+        entry.achievementID = nil
+        entry.endeavorID = nil
+        entry.decorID    = nil
+        entry.recipeID   = questData.recipeID
+        entry.recipeIsRecraft = questData.recipeIsRecraft or false
         entry.adventureGuideID   = nil
         entry.adventureGuideType = nil
         entry.isTracked  = true
@@ -889,6 +931,7 @@ local function PopulateEntry(entry, questData, groupKey)
         entry.achievementID = nil
         entry.endeavorID = nil
         entry.decorID    = nil
+        entry.recipeID   = nil
         entry.adventureGuideID   = questData.adventureGuideID
         entry.adventureGuideType = questData.adventureGuideType
         entry.isTracked  = true
@@ -900,6 +943,7 @@ local function PopulateEntry(entry, questData, groupKey)
         entry.achievementID = nil
         entry.endeavorID = nil
         entry.decorID    = nil
+        entry.recipeID   = nil
         entry.isTracked  = questData.isTracked
     else
         entry.questID    = questData.questID
@@ -909,6 +953,7 @@ local function PopulateEntry(entry, questData, groupKey)
         entry.achievementID = nil
         entry.endeavorID = nil
         entry.decorID    = nil
+        entry.recipeID   = nil
         entry.isTracked  = questData.isTracked
     end
     return totalH

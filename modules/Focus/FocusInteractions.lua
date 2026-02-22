@@ -128,6 +128,15 @@ for i = 1, addon.POOL_SIZE do
                     end
                     return
                 end
+                local recipeID = self.entryKey:match("^recipe:(%d+)$")
+                if recipeID and self.recipeID then
+                    local requireCtrl = addon.GetDB("requireCtrlForQuestClicks", false)
+                    if requireCtrl and not IsControlKeyDown() then return end
+                    if C_TradeSkillUI and C_TradeSkillUI.OpenRecipe then
+                        pcall(C_TradeSkillUI.OpenRecipe, self.recipeID)
+                    end
+                    return
+                end
                 local endID = self.entryKey:match("^endeavor:(%d+)$")
                 if endID and self.endeavorID then
                     local requireCtrl = addon.GetDB("requireCtrlForQuestClicks", false)
@@ -319,6 +328,23 @@ for i = 1, addon.POOL_SIZE do
                     local stopType = (Enum and Enum.ContentTrackingStopType and Enum.ContentTrackingStopType.Manual) or 0
                     if C_ContentTracking and C_ContentTracking.StopTracking then
                         pcall(C_ContentTracking.StopTracking, trackTypeDecor, self.decorID, stopType)
+                    end
+                    addon.ScheduleRefresh()
+                    return
+                end
+                local recipeID = self.entryKey:match("^recipe:(%d+)$")
+                if recipeID and self.recipeID then
+                    local requireCtrl = addon.GetDB("requireCtrlForQuestClicks", false)
+                    if requireCtrl and not IsControlKeyDown() then return end
+                    if C_TradeSkillUI and C_TradeSkillUI.SetRecipeTracked and C_TradeSkillUI.IsRecipeTracked then
+                        -- SetRecipeTracked(recipeID, tracked, isRecraft) requires all 3 args
+                        local isRecraft = (self.recipeIsRecraft == true)
+                        if C_TradeSkillUI.IsRecipeTracked(self.recipeID, isRecraft) then
+                            pcall(C_TradeSkillUI.SetRecipeTracked, self.recipeID, false, isRecraft)
+                        else
+                            -- Try the other; recipe may have been tracked as normal or recraft
+                            pcall(C_TradeSkillUI.SetRecipeTracked, self.recipeID, false, not isRecraft)
+                        end
                     end
                     addon.ScheduleRefresh()
                     return
@@ -525,6 +551,47 @@ for i = 1, addon.POOL_SIZE do
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:SetText(self.titleText:GetText() or "")
             GameTooltip:AddLine(("Decor #%d"):format(self.decorID), 0.7, 0.7, 0.7)
+            GameTooltip:Show()
+        elseif self.recipeID then
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:ClearLines()
+            local recipeColor = (addon.GetQuestColor and addon.GetQuestColor("RECIPE")) or (addon.QUEST_COLORS and addon.QUEST_COLORS.RECIPE) or { 0.55, 0.75, 0.45 }
+            local greyR, greyG, greyB = 0.7, 0.7, 0.7
+            GameTooltip:AddLine(self.titleText:GetText() or ("Recipe #" .. tostring(self.recipeID)), recipeColor[1], recipeColor[2], recipeColor[3])
+            if C_TradeSkillUI then
+                if C_TradeSkillUI.GetProfessionInfoByRecipeID then
+                    local ok, info = pcall(C_TradeSkillUI.GetProfessionInfoByRecipeID, self.recipeID)
+                    if ok and info and type(info) == "table" and info.professionName then
+                        GameTooltip:AddLine(info.professionName, greyR, greyG, greyB)
+                    end
+                end
+                -- Craftable count (GetCraftableCount uses recipeSpellID; recipeID often equals it)
+                if C_TradeSkillUI.GetCraftableCount then
+                    local countOk, count = pcall(C_TradeSkillUI.GetCraftableCount, self.recipeID)
+                    if countOk and type(count) == "number" and count >= 0 then
+                        local countLabel = _G.CRAFTING_AVAILABLE or "Can craft:"
+                        GameTooltip:AddLine(("  %s %d"):format(countLabel, count), greyR, greyG, greyB)
+                    end
+                end
+                -- Recipe requirements (skill level, etc.)
+                if C_TradeSkillUI.GetRecipeRequirements then
+                    local reqOk, reqs = pcall(C_TradeSkillUI.GetRecipeRequirements, self.recipeID)
+                    if reqOk and reqs and type(reqs) == "table" and #reqs > 0 then
+                        GameTooltip:AddLine(" ")
+                        local reqHeader = _G.REQUIREMENTS or "Requirements:"
+                        GameTooltip:AddLine(reqHeader, greyR, greyG, greyB)
+                        for _, req in ipairs(reqs) do
+                            local text = (type(req) == "table" and (req.requirementText or req.text or req.name)) or tostring(req)
+                            if text and text ~= "" then
+                                local met = (type(req) == "table" and req.met == true)
+                                local r, g, b = met and 0.5 or 1, met and 0.8 or 0.5, met and 0.5 or 0.5
+                                GameTooltip:AddLine("  " .. text, r, g, b)
+                            end
+                        end
+                    end
+                end
+            end
+            GameTooltip:AddLine(("Recipe #%d"):format(self.recipeID), 0.6, 0.6, 0.6)
             GameTooltip:Show()
         elseif self.achievementID and GetAchievementLink then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")

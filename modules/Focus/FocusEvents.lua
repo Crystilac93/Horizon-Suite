@@ -52,6 +52,7 @@ pcall(function() eventFrame:RegisterEvent("INITIATIVE_TASKS_TRACKED_UPDATED") en
 pcall(function() eventFrame:RegisterEvent("INITIATIVE_TASKS_TRACKED_LIST_CHANGED") end)
 pcall(function() eventFrame:RegisterEvent("TRACKING_TARGET_INFO_UPDATE") end)
 pcall(function() eventFrame:RegisterEvent("TRACKABLE_INFO_UPDATE") end)
+pcall(function() eventFrame:RegisterEvent("TRACKED_RECIPE_UPDATE") end)
 
 local function ScheduleRefresh()
     if not addon.focus.enabled then return end
@@ -462,6 +463,7 @@ local eventHandlers = {
     INITIATIVE_TASKS_TRACKED_LIST_CHANGED = function() ScheduleRefresh() end,
     TRACKING_TARGET_INFO_UPDATE = function() ScheduleRefresh() end,
     TRACKABLE_INFO_UPDATE = function() ScheduleRefresh() end,
+    TRACKED_RECIPE_UPDATE = function() ScheduleRefresh() end,
 }
 
 --- OnEvent: table-dispatch to eventHandlers[event]; falls back to ScheduleRefresh for unhandled events.

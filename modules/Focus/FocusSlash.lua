@@ -45,6 +45,7 @@ local function MatrixKey(category)
     if category == "ACHIEVEMENT" then return "ACHIEVEMENTS" end
     if category == "ENDEAVOR" then return "ENDEAVORS" end
     if category == "DECOR" then return "DECOR" end
+    if category == "RECIPE" then return "RECIPES" end
     return category
 end
 
@@ -56,6 +57,7 @@ local function CategoryFromEntry(entry)
     if groupKey == "ACHIEVEMENTS" then return "ACHIEVEMENT" end
     if groupKey == "ENDEAVORS" then return "ENDEAVOR" end
     if groupKey == "DECOR" then return "DECOR" end
+    if groupKey == "RECIPES" then return "RECIPE" end
     return nil
 end
 

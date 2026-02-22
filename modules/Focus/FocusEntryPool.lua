@@ -242,7 +242,38 @@ local function CreateQuestEntry(parent, index)
         progLabel:SetJustifyH("CENTER")
         progLabel:Hide()
 
-        e.objectives[j] = { text = objText, shadow = objShadow, tick = tickTex, progressBarBg = progBg, progressBarFill = progFill, progressBarLabel = progLabel }
+        -- Copy button for recipe reagents (insert item link into chat)
+        local copyBtn = CreateFrame("Button", nil, e)
+        copyBtn:SetSize(14, 14)
+        copyBtn:SetAlpha(0.85)
+        copyBtn.icon = copyBtn:CreateTexture(nil, "ARTWORK")
+        copyBtn.icon:SetAllPoints()
+        copyBtn.icon:SetTexture("Interface\\Icons\\INV_Misc_Note_01")
+        copyBtn.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+        copyBtn:SetScript("OnClick", function(self)
+            local link = self._itemLink
+            if link and ChatEdit_ActivateChat and ChatEdit_InsertLink then
+                ChatEdit_ActivateChat(ChatFrame1)
+                ChatEdit_InsertLink(link)
+            end
+        end)
+        copyBtn:SetScript("OnEnter", function(self)
+            self:SetAlpha(1)
+            if GameTooltip and GameTooltip.SetOwner then
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:AddLine(addon.L and addon.L["Copy to chat"] or "Copy to chat", 1, 1, 1)
+                GameTooltip:Show()
+            end
+        end)
+        copyBtn:SetScript("OnLeave", function(self)
+            self:SetAlpha(0.85)
+            if GameTooltip and GameTooltip:GetOwner() == self then
+                GameTooltip:Hide()
+            end
+        end)
+        copyBtn:Hide()
+
+        e.objectives[j] = { text = objText, shadow = objShadow, tick = tickTex, progressBarBg = progBg, progressBarFill = progFill, progressBarLabel = progLabel, copyBtn = copyBtn }
         objText:Hide()
         objShadow:Hide()
     end
@@ -548,6 +579,8 @@ local function ClearEntry(entry, full)
     entry.achievementID = nil
     entry.endeavorID = nil
     entry.decorID    = nil
+    entry.recipeID   = nil
+    entry.recipeIsRecraft = nil
     entry.affixData  = nil
     entry.tierSpellID = nil
     entry.itemLink   = nil
@@ -594,6 +627,7 @@ local function ClearEntry(entry, full)
                         if obj.progressBarBg then obj.progressBarBg:Hide() end
                         if obj.progressBarFill then obj.progressBarFill:Hide() end
                         if obj.progressBarLabel then obj.progressBarLabel:Hide() end
+                        if obj.copyBtn then obj.copyBtn:Hide() end
                     end
                 end
             end

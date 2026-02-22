@@ -98,6 +98,7 @@ L["Mythic+"]                                            = "Mythique+"
 L["Achievements"]                                       = "Hauts faits"
 L["Endeavors"]                                          = "Initiatives"
 L["Decor"]                                              = "Décoration"
+L["Recipes"]                                            = "Recettes"
 L["Scenario & Delve"]                                   = "Scénario et Gouffre"
 L["Font"]                                               = "Police"
 L["Text case"]                                          = "Casse"
@@ -338,6 +339,17 @@ L["Show decor"]                                         = "Afficher les décorat
 L["Show tracked housing decor in the list."]            = "Affiche les décorations de Logis suivies dans la liste."
 L["Show decor icons"]                                   = "Afficher les icônes de décorations"
 L["Show each decor item's icon next to the title. Requires 'Show quest type icons' in Display."] = "Affiche l'icône de chaque décoration à côté du titre. Nécessite « Afficher les icônes de type de quête » dans Affichage."
+
+-- =====================================================================
+-- OptionsData.lua Features — Recipes
+-- =====================================================================
+L["Show recipes"]                                       = "Afficher les recettes"
+L["Show tracked profession recipes in the list."]        = "Affiche les recettes de métier suivies dans la liste."
+L["Show recipe reagents"]                               = "Afficher les réactifs des recettes"
+L["Show reagent shopping list (owned/required) for each tracked recipe. Includes a copy button to insert item links into chat."] = "Affiche la liste de réactifs (possédés/requis) pour chaque recette suivie. Inclut un bouton pour copier les liens d'objets dans le chat."
+L["Copy to chat"]                                       = "Copier dans le chat"
+L["Show recipe icons"]                                  = "Afficher les icônes de recettes"
+L["Show each recipe's icon next to the title. Requires 'Show quest type icons' in Display."] = "Affiche l'icône de chaque recette à côté du titre. Nécessite « Afficher les icônes de type de quête » dans Affichage."
 
 -- =====================================================================
 -- OptionsData.lua Features — Adventure Guide
@@ -625,6 +637,7 @@ L["RARE BOSSES"]       = "BOSS RARES"
 L["ACHIEVEMENTS"]      = "HAUTS FAITS"
 L["ENDEAVORS"]         = "INITIATIVES"
 L["DECOR"]             = "DÉCORATION"
+L["RECIPES"]           = "RECETTES"
 L["QUESTS"]            = "QUÊTES"
 L["READY TO TURN IN"]  = "À RENDRE"
 

@@ -109,6 +109,8 @@ addon.QUEST_COLORS = {
     ENDEAVOR   = { 0.45, 0.95, 0.75 },  -- mint green (housing/endeavor)
     ENDEAVORS  = { 0.45, 0.95, 0.75 },  -- mint green (color matrix group default)
     DECOR      = { 0.65, 0.55, 0.45 },  -- warm brown (housing decor)
+    RECIPE     = { 0.55, 0.75, 0.45 },  -- herb-like green (profession recipes)
+    RECIPES    = { 0.55, 0.75, 0.45 },  -- herb-like green (color matrix group default)
     ADVENTURE  = { 0.85, 0.70, 0.30 },  -- warm gold (Adventure Guide / Traveler's Log)
 }
 
@@ -158,6 +160,7 @@ addon.SECTION_LABELS = {
     ACHIEVEMENTS = "ACHIEVEMENTS",
     ENDEAVORS  = "ENDEAVORS",
     DECOR      = "DECOR",
+    RECIPES    = "RECIPES",
     ADVENTURE  = "ADVENTURE GUIDE",
     DEFAULT   = "QUESTS",
     COMPLETE  = "READY TO TURN IN",
@@ -180,18 +183,19 @@ addon.SECTION_COLORS = {
     ACHIEVEMENTS = { 0.78, 0.48, 0.22 },  -- bronze
     ENDEAVORS  = { 0.45, 0.95, 0.75 },  -- mint green (housing/endeavor)
     DECOR      = { 0.65, 0.55, 0.45 },  -- warm brown (housing decor)
+    RECIPES    = { 0.55, 0.75, 0.45 },  -- herb-like green (profession recipes)
     ADVENTURE  = { 0.85, 0.70, 0.30 },  -- warm gold (Adventure Guide)
     DEFAULT   = { 0.70, 0.70, 0.70 },
     COMPLETE  = { 0.20, 1.00, 0.40 },
 }
 
-addon.GROUP_ORDER = { "DELVES", "SCENARIO", "ACHIEVEMENTS", "ENDEAVORS", "DECOR", "ADVENTURE", "DUNGEON", "RAID", "NEARBY", "COMPLETE", "WORLD", "WEEKLY", "DAILY", "RARES", "AVAILABLE", "CAMPAIGN", "IMPORTANT", "LEGENDARY", "DEFAULT" }
+addon.GROUP_ORDER = { "DELVES", "SCENARIO", "ACHIEVEMENTS", "ENDEAVORS", "DECOR", "RECIPES", "ADVENTURE", "DUNGEON", "RAID", "NEARBY", "COMPLETE", "WORLD", "WEEKLY", "DAILY", "RARES", "AVAILABLE", "CAMPAIGN", "IMPORTANT", "LEGENDARY", "DEFAULT" }
 
 addon.GROUP_ORDER_PRESETS = {
-    ["Collection Focused"] = { "ACHIEVEMENTS", "ENDEAVORS", "DECOR", "ADVENTURE", "DELVES", "SCENARIO", "DUNGEON", "RAID", "NEARBY", "COMPLETE", "WORLD", "WEEKLY", "DAILY", "RARES", "AVAILABLE", "CAMPAIGN", "IMPORTANT", "LEGENDARY", "DEFAULT" },
-    ["Quest Focused"]      = { "COMPLETE", "NEARBY", "AVAILABLE", "DELVES", "SCENARIO", "DUNGEON", "RAID", "WORLD", "WEEKLY", "DAILY", "CAMPAIGN", "IMPORTANT", "LEGENDARY", "RARES", "ACHIEVEMENTS", "ENDEAVORS", "DECOR", "ADVENTURE", "DEFAULT" },
-    ["Campaign Focused"]   = { "CAMPAIGN", "IMPORTANT", "LEGENDARY", "COMPLETE", "NEARBY", "DELVES", "SCENARIO", "DUNGEON", "RAID", "AVAILABLE", "WORLD", "WEEKLY", "DAILY", "RARES", "ACHIEVEMENTS", "ENDEAVORS", "DECOR", "ADVENTURE", "DEFAULT" },
-    ["World / Rare Focused"] = { "WORLD", "WEEKLY", "DAILY", "RARES", "NEARBY", "COMPLETE", "AVAILABLE", "DELVES", "SCENARIO", "DUNGEON", "RAID", "CAMPAIGN", "IMPORTANT", "LEGENDARY", "ACHIEVEMENTS", "ENDEAVORS", "DECOR", "ADVENTURE", "DEFAULT" },
+    ["Collection Focused"] = { "ACHIEVEMENTS", "ENDEAVORS", "DECOR", "RECIPES", "ADVENTURE", "DELVES", "SCENARIO", "DUNGEON", "RAID", "NEARBY", "COMPLETE", "WORLD", "WEEKLY", "DAILY", "RARES", "AVAILABLE", "CAMPAIGN", "IMPORTANT", "LEGENDARY", "DEFAULT" },
+    ["Quest Focused"]      = { "COMPLETE", "NEARBY", "AVAILABLE", "DELVES", "SCENARIO", "DUNGEON", "RAID", "WORLD", "WEEKLY", "DAILY", "CAMPAIGN", "IMPORTANT", "LEGENDARY", "RARES", "ACHIEVEMENTS", "ENDEAVORS", "DECOR", "RECIPES", "ADVENTURE", "DEFAULT" },
+    ["Campaign Focused"]   = { "CAMPAIGN", "IMPORTANT", "LEGENDARY", "COMPLETE", "NEARBY", "DELVES", "SCENARIO", "DUNGEON", "RAID", "AVAILABLE", "WORLD", "WEEKLY", "DAILY", "RARES", "ACHIEVEMENTS", "ENDEAVORS", "DECOR", "RECIPES", "ADVENTURE", "DEFAULT" },
+    ["World / Rare Focused"] = { "WORLD", "WEEKLY", "DAILY", "RARES", "NEARBY", "COMPLETE", "AVAILABLE", "DELVES", "SCENARIO", "DUNGEON", "RAID", "CAMPAIGN", "IMPORTANT", "LEGENDARY", "ACHIEVEMENTS", "ENDEAVORS", "DECOR", "RECIPES", "ADVENTURE", "DEFAULT" },
 }
 
 -- Category keys (enum-style) for consistent string usage across modules.
@@ -201,6 +205,7 @@ addon.CATEGORY_KEYS = {
     DAILY = "DAILY", RARES = "RARES", RARE = "RARE",     ACHIEVEMENT = "ACHIEVEMENT", ACHIEVEMENTS = "ACHIEVEMENTS",
     ENDEAVOR = "ENDEAVOR", ENDEAVORS = "ENDEAVORS",
     DECOR = "DECOR",
+    RECIPE = "RECIPE", RECIPES = "RECIPES",
     ADVENTURE = "ADVENTURE",
     DEFAULT = "DEFAULT", COMPLETE = "COMPLETE", CALLING = "CALLING",
 }
@@ -229,6 +234,7 @@ addon.CATEGORY_TO_GROUP = {
     ACHIEVEMENT = "ACHIEVEMENTS",
     ENDEAVOR   = "ENDEAVORS",
     DECOR      = "DECOR",
+    RECIPE     = "RECIPES",
     ADVENTURE  = "ADVENTURE",
     DEFAULT   = "DEFAULT",
 }

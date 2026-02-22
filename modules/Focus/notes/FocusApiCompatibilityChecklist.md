@@ -25,6 +25,8 @@ Map of Focus module Blizzard API usage to [Blizzard_APIDocumentationGenerated](h
 | **C_UIWidgetManager** | GetAllWidgetsBySetID, GetScenarioHeaderDelvesWidgetVisualizationInfo, GetObjectiveTrackerWidgetSetID (fallback). Affix data: use widgetSetID from C_Scenario.GetStepInfo first; ObjectiveTracker set may be empty when tracker is hidden. | UIWidgetManagerDocumentation.lua | [UIWidgetManagerDocumentation.lua](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/UIWidgetManagerDocumentation.lua) |
 | **C_GossipInfo** | GetActiveDelveGossip, GetGossipDelveMapID | GossipInfoDocumentation.lua | [GossipInfoDocumentation.lua](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/GossipInfoDocumentation.lua) |
 | **C_PerksActivities** | GetTrackedPerksActivities, GetPerksActivityInfo, RemoveTrackedPerksActivity | PerksActivitiesDocumentation.lua | [PerksActivitiesDocumentation.lua](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/PerksActivitiesDocumentation.lua) |
+| **C_TradeSkillUI** | GetRecipesTracked, GetRecipeInfo, GetProfessionInfoByRecipeID, OpenRecipe, SetRecipeTracked, GetRecipeSchematic | TradeSkillUIDocumentation.lua | [TradeSkillUIDocumentation.lua](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/TradeSkillUIDocumentation.lua) |
+| **C_Item** | GetItemCount (recipe reagent owned counts: bags, bank, reagent bank, account/warband bank) | ItemDocumentation.lua or similar; guard with existence check for older clients | Verify in wow-ui-source TOC |
 
 ---
 

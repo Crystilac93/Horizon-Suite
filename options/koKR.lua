@@ -98,6 +98,7 @@ L["Mythic+"]                                            = "쐐기돌"
 L["Achievements"]                                       = "업적"
 L["Endeavors"]                                          = "활동 과제"
 L["Decor"]                                              = "장식"
+L["Recipes"]                                            = "제조법"
 L["Scenario & Delve"]                                   = "시나리오 및 심층 탐사"
 L["Font"]                                               = "글꼴"
 L["Text case"]                                          = "대소문자"
@@ -338,6 +339,17 @@ L["Show decor"]                                         = "장식 표시"
 L["Show tracked housing decor in the list."]            = "추적 중인 주택 장식을 목록에 표시합니다."
 L["Show decor icons"]                                   = "장식 아이콘 표시"
 L["Show each decor item's icon next to the title. Requires 'Show quest type icons' in Display."] = "각 장식 아이템의 아이콘을 제목 옆에 표시합니다. '퀘스트 유형 아이콘 표시' 옵션이 필요합니다."
+
+-- =====================================================================
+-- OptionsData.lua Features — Recipes
+-- =====================================================================
+L["Show recipes"]                                       = "제조법 표시"
+L["Show recipe reagents"]                               = "제조법 재료 표시"
+L["Show reagent shopping list (owned/required) for each tracked recipe. Includes a copy button to insert item links into chat."] = "추적 중인 제조법마다 재료 쇼핑 목록(보유/필요)을 표시합니다. 채팅에 아이템 링크를 삽입하는 복사 버튼이 포함됩니다."
+L["Copy to chat"]                                       = "채팅에 복사"
+L["Show tracked profession recipes in the list."]       = "추적 중인 전문 기술 제조법을 목록에 표시합니다."
+L["Show recipe icons"]                                 = "제조법 아이콘 표시"
+L["Show each recipe's icon next to the title. Requires 'Show quest type icons' in Display."] = "각 제조법의 아이콘을 제목 옆에 표시합니다. '퀘스트 유형 아이콘 표시' 옵션이 필요합니다."
 
 -- =====================================================================
 -- OptionsData.lua Features — Adventure Guide
@@ -625,6 +637,7 @@ L["RARE BOSSES"]       = "희귀 보스"
 L["ACHIEVEMENTS"]      = "업적"
 L["ENDEAVORS"]         = "활동 과제"
 L["DECOR"]             = "장식"
+L["RECIPES"]           = "제조법"
 L["QUESTS"]            = "퀘스트"
 L["READY TO TURN IN"]  = "보고 가능"
 
