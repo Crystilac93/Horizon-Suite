@@ -408,11 +408,11 @@ local function FullLayout()
                     local sec = addon.AcquireSectionHeader(grp.key, focusedGroupKey)
                     if sec then
                         sec:ClearAllPoints()
-                    local x = addon.GetScaledPadding()
-                    sec:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", x, yOff)
-                    sec.finalX, sec.finalY = x, yOff
-                    yOff = yOff - addon.GetSectionHeaderHeight() - addon.GetSectionToEntryGap()
-                end
+                        local x = addon.GetScaledPadding()
+                        sec:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", x, yOff)
+                        sec.finalX, sec.finalY = x, yOff
+                        yOff = yOff - addon.GetSectionHeaderHeight() - addon.GetSectionToEntryGap()
+                    end
             end
             local totalContentH = math.max(-yOff, 1)
             scrollChild:SetHeight(totalContentH)

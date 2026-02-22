@@ -16,7 +16,10 @@ local TICK_TEXT_GAP = " "
 -- Parented to UIParent so it stays visible even when the main tracker
 -- panel (addon.HS) is hidden by "Show in dungeon" being OFF.
 local mplusBlock = CreateFrame("Frame", nil, UIParent)
-mplusBlock:SetSize(addon.GetPanelWidth() - (addon.Scaled and addon.Scaled(addon.PADDING) or addon.PADDING) * 2, MPLUS_MIN_HEIGHT)
+do
+    local S = addon.Scaled or function(v) return v end
+    mplusBlock:SetSize(addon.GetPanelWidth() - S(addon.PADDING) * 2, S(MPLUS_MIN_HEIGHT))
+end
 mplusBlock:SetFrameStrata(addon.HS:GetFrameStrata())
 mplusBlock:SetFrameLevel(addon.HS:GetFrameLevel() + 5)
 mplusBlock:EnableMouse(true)
