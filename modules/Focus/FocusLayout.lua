@@ -917,9 +917,16 @@ function addon.ApplyFocusColors()
 
                         -- Live-update progress bar colors
                         if obj.progressBarFill and obj.progressBarFill:IsShown() then
-                            local pfc = addon.GetDB("progressBarFillColor", nil)
-                            if not pfc or type(pfc) ~= "table" then pfc = { 0.40, 0.65, 0.90 } end
-                            obj.progressBarFill:SetColorTexture(pfc[1], pfc[2], pfc[3], 0.85)
+                            local pfc
+                            if addon.GetDB("progressBarUseCategoryColor", true) then
+                                pfc = titleColor
+                            else
+                                pfc = addon.GetDB("progressBarFillColor", nil)
+                                if not pfc or type(pfc) ~= "table" then pfc = { 0.40, 0.65, 0.90 } end
+                            end
+                            if pfc and pfc[1] and pfc[2] and pfc[3] then
+                                obj.progressBarFill:SetColorTexture(pfc[1], pfc[2], pfc[3], 0.85)
+                            end
                         end
                         if obj.progressBarLabel and obj.progressBarLabel:IsShown() then
                             local ptc = addon.GetDB("progressBarTextColor", nil)

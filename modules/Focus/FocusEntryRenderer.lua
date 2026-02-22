@@ -133,9 +133,14 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
     local progBarFontSz = tonumber(addon.GetDB("progressBarFontSize", 10)) or 10
     local PROGRESS_BAR_HEIGHT = math.max(8, progBarFontSz + 4)
 
-    -- Progress bar colors from DB
-    local progFillColor = addon.GetDB("progressBarFillColor", nil)
-    if not progFillColor or type(progFillColor) ~= "table" then progFillColor = { 0.40, 0.65, 0.90 } end
+    -- Progress bar fill color: category color when option on, else custom from DB
+    local progFillColor
+    if addon.GetDB("progressBarUseCategoryColor", true) then
+        progFillColor = c or (addon.GetTitleColor and addon.GetTitleColor(effectiveCat)) or (addon.QUEST_COLORS and addon.QUEST_COLORS.DEFAULT) or { 0.90, 0.90, 0.90 }
+    else
+        progFillColor = addon.GetDB("progressBarFillColor", nil)
+        if not progFillColor or type(progFillColor) ~= "table" then progFillColor = { 0.40, 0.65, 0.90 } end
+    end
     local progTextColor = addon.GetDB("progressBarTextColor", nil)
     if not progTextColor or type(progTextColor) ~= "table" then progTextColor = { 0.95, 0.95, 0.95 } end
 
