@@ -867,8 +867,7 @@ local OptionCategories = {
         name = L["Blacklisted quests"],
         moduleKey = "focus",
         options = {
-            { type = "section", name = L["Permanently suppressed quests"], desc = L["Right-click untrack quests with 'Permanently suppress untracked quests' enabled to add them here."] },
-            { type = "blacklistGrid", name = L["Blacklisted quests"] },
+            { type = "blacklistGrid", name = L["Blacklisted quests"], desc = L["Right-click untrack quests with 'Permanently suppress untracked quests' enabled to add them here."] },
         },
     },
     {

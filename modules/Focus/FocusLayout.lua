@@ -100,6 +100,10 @@ local function ApplyShowAlpha()
         local pct = tonumber(addon.GetDB("fadeOnMouseoverOpacity", 10)) or 10
         local fadeAlpha = math.max(0, math.min(100, pct)) / 100
         addon.HS:SetAlpha(addon.IsFocusHoverActive and addon.IsFocusHoverActive() and 1 or fadeAlpha)
+    else
+        addon.HS:SetAlpha(1)
+        local floatingBtn = _G.HSFloatingQuestItem
+        if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(1) end
     end
 end
 

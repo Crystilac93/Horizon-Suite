@@ -163,11 +163,19 @@ local function GetFadeOnMouseoverAlpha()
 end
 
 --- Returns true if the mouse is over the frame or any of its descendants.
---- Needed because child frames (quest entries, etc.) have their own mouse handling,
---- so the parent HS receives OnLeave when the cursor moves onto a child.
+--- Uses GetMouseFocus() for reliable detection when cursor is over child frames
+--- (IsMouseOver can be unreliable for parent when mouse is on a child).
 local function IsMouseOverFrameOrDescendants(frame)
-    if not frame or not frame.IsMouseOver then return false end
-    if frame:IsMouseOver() then return true end
+    if not frame then return false end
+    local focus = GetMouseFocus and GetMouseFocus()
+    if focus then
+        local f = focus
+        while f do
+            if f == frame then return true end
+            f = f.GetParent and f:GetParent()
+        end
+    end
+    if frame.IsMouseOver and frame:IsMouseOver() then return true end
     if not frame.GetChildren then return false end
     local children = { frame:GetChildren() }
     for i = 1, #children do
@@ -957,6 +965,7 @@ function addon.EnsureFocusUpdateRunning()
             or addon.focus.collapse.animating
             or (addon.focus.combat and addon.focus.combat.fadeState ~= nil)
             or hoverFadeNeedsUpdate
+            or (addon.GetDB("showOnMouseoverOnly", false) and HS:IsShown() and not addon.focus.combat.fadeState)  -- Keep polling for hover when show-on-mouseover is on
             or (addon.focus.collapse.groups and next(addon.focus.collapse.groups) ~= nil)
             or (addon.focus.collapse.optionCollapseKeys and next(addon.focus.collapse.optionCollapseKeys) ~= nil)
             or addon.focus.collapse.sectionHeadersFadingOut

@@ -15,6 +15,7 @@ local Def = {
     OptionGap = 14,
     SectionGap = 24,
     CardPadding = 18,
+    CardBottomPadding = 26,
     BorderEdge = 1,
     CornerRadius = 8,
     LabelSize = 13,
@@ -28,6 +29,7 @@ local Def = {
     TextColorTitleBar = { 0.9, 0.92, 0.96, 1 },
     SectionCardBg = { 0.09, 0.09, 0.11, 0.96 },
     SectionCardBorder = { 0.18, 0.2, 0.24, 0.35 },
+    SectionCardHeaderHighlight = { 0.96, 0.97, 0.99, 0.015 },
     AccentColor = { 0.48, 0.58, 0.82, 0.9 },
     DividerColor = { 0.35, 0.4, 0.5, 0.25 },
     InputBg = { 0.07, 0.07, 0.1, 0.96 },
@@ -153,6 +155,7 @@ function OptionsWidgets_CreateToggleSwitch(parent, labelText, description, get, 
 
     btn:SetScript("OnClick", function()
         if disabledFn and disabledFn() == true then return end
+        if row.animStart then return end  -- Debounce: ignore clicks during animation (prevents double-click reverting)
         local next = not get()
         set(next)
         row.animStart = GetTime()
@@ -172,6 +175,50 @@ function OptionsWidgets_CreateToggleSwitch(parent, labelText, description, get, 
 
     row:Refresh()
     return row
+end
+
+--- Create a flat-styled action button with background, border, and hover state.
+--- @param parent table Parent frame
+--- @param labelText string Button label
+--- @param onClick function Callback on click
+--- @param opts table|nil Optional; opts.width, opts.height (default 100x22)
+--- @return table Button frame (caller sets position)
+function OptionsWidgets_CreateButton(parent, labelText, onClick, opts)
+    opts = opts or {}
+    local width = opts.width or 100
+    local height = opts.height or 22
+
+    local btn = CreateFrame("Button", nil, parent)
+    btn:SetSize(width, height)
+
+    local btnBg = btn:CreateTexture(nil, "BACKGROUND")
+    btnBg:SetPoint("TOPLEFT", btn, "TOPLEFT", 1, -1)
+    btnBg:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -1, 1)
+    btnBg:SetColorTexture(Def.InputBg[1], Def.InputBg[2], Def.InputBg[3], Def.InputBg[4])
+
+    addon.CreateBorder(btn, Def.InputBorder)
+
+    local hi = btn:CreateTexture(nil, "HIGHLIGHT")
+    hi:SetAllPoints(btn)
+    hi:SetColorTexture(1, 1, 1, 0.06)
+
+    local lbl = btn:CreateFontString(nil, "OVERLAY")
+    lbl:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+    SetTextColor(lbl, Def.TextColorLabel)
+    lbl:SetText(labelText or "")
+    lbl:SetPoint("CENTER", btn, "CENTER", 0, 0)
+
+    btn:SetScript("OnClick", function()
+        if onClick then onClick() end
+    end)
+    btn:SetScript("OnEnter", function()
+        SetTextColor(lbl, Def.TextColorHighlight)
+    end)
+    btn:SetScript("OnLeave", function()
+        SetTextColor(lbl, Def.TextColorLabel)
+    end)
+
+    return btn
 end
 
 -- Slider: slim rounded track + draggable thumb + numeric readout
@@ -219,14 +266,31 @@ function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, m
     thumbTex:SetAllPoints(thumb)
     thumbTex:SetColorTexture(Def.ThumbColor[1], Def.ThumbColor[2], Def.ThumbColor[3], Def.ThumbColor[4])
 
-    local edit = CreateFrame("EditBox", nil, row, "InputBoxTemplate")
-    edit:SetSize(44, 20)
-    edit:SetPoint("LEFT", track, "RIGHT", 8, 0)
+    local editWrap = CreateFrame("Frame", nil, row)
+    editWrap:SetSize(44, 20)
+    editWrap:SetPoint("LEFT", track, "RIGHT", 8, 0)
+    local editBg = editWrap:CreateTexture(nil, "BACKGROUND")
+    editBg:SetAllPoints(editWrap)
+    editBg:SetColorTexture(Def.InputBg[1], Def.InputBg[2], Def.InputBg[3], Def.InputBg[4])
+    local bt, bb, bl, br = addon.CreateBorder(editWrap, Def.InputBorder)
+    local function setEditBorderColor(c)
+        for _, tex in ipairs({ bt, bb, bl, br }) do
+            if tex then tex:SetColorTexture(c[1], c[2], c[3], c[4] or 1) end
+        end
+    end
+
+    local edit = CreateFrame("EditBox", nil, editWrap)
+    edit:SetPoint("TOPLEFT", editWrap, "TOPLEFT", 4, 0)
+    edit:SetPoint("BOTTOMRIGHT", editWrap, "BOTTOMRIGHT", -4, 0)
     edit:SetMaxLetters(6)
     edit:SetNumeric(true)
     edit:SetAutoFocus(false)
     edit:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+    local tc = Def.TextColorLabel
+    edit:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
     edit:SetScript("OnEscapePressed", function() edit:ClearFocus() end)
+    edit:SetScript("OnEditFocusGained", function() setEditBorderColor(Def.AccentColor) end)
+    edit:SetScript("OnEditFocusLost", function() setEditBorderColor(Def.InputBorder) end)
     edit:SetScript("OnEnterPressed", function()
         local v = tonumber(edit:GetText())
         if v ~= nil then
@@ -329,9 +393,15 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
     btn:SetPoint("RIGHT", row, "RIGHT", 0, 0)
 
     local btnBg = btn:CreateTexture(nil, "BACKGROUND")
-    btnBg:SetPoint("TOPLEFT", btn, "TOPLEFT", 2, -2)
-    btnBg:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -2, 2)
+    btnBg:SetPoint("TOPLEFT", btn, "TOPLEFT", 1, -1)
+    btnBg:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -1, 1)
     btnBg:SetColorTexture(Def.InputBg[1], Def.InputBg[2], Def.InputBg[3], Def.InputBg[4])
+
+    addon.CreateBorder(btn, Def.InputBorder)
+
+    local btnHi = btn:CreateTexture(nil, "HIGHLIGHT")
+    btnHi:SetAllPoints(btn)
+    btnHi:SetColorTexture(1, 1, 1, 0.06)
 
     local btnText = btn:CreateFontString(nil, "OVERLAY")
     btnText:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
@@ -346,15 +416,13 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
     chevron:SetText("v")
     chevron:SetPoint("RIGHT", btn, "RIGHT", -6, 0)
 
-    local list = CreateFrame("Frame", nil, UIParent)
+    local list = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
     list:SetFrameStrata("TOOLTIP")
     list:Hide()
     list:SetSize(200, 1)
-
-    local listBg = list:CreateTexture(nil, "BACKGROUND")
-    listBg:SetAllPoints(list)
-    listBg:SetColorTexture(Def.SectionCardBg[1], Def.SectionCardBg[2], Def.SectionCardBg[3], Def.SectionCardBg[4])
-    addon.CreateBorder(list, Def.SectionCardBorder)
+    list:SetBackdrop(SECTION_CARD_BACKDROP)
+    list:SetBackdropColor(Def.SectionCardBg[1], Def.SectionCardBg[2], Def.SectionCardBg[3], Def.SectionCardBg[4])
+    list:SetBackdropBorderColor(Def.SectionCardBorder[1], Def.SectionCardBorder[2], Def.SectionCardBorder[3], Def.SectionCardBorder[4])
 
     local searchEdit
     if searchable then
@@ -833,52 +901,42 @@ function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultT
     return row
 end
 
--- Search input: custom-styled, pill-shaped, search icon, integrated clear, focus state. onTextChanged(text) called on input.
+-- Search input: card-themed styling (SectionCardBg, SectionCardBorder), search icon, integrated clear, focus state.
+-- onTextChanged(text) called on input.
 local SEARCH_ICON_LEFT = 28
 local SEARCH_CLEAR_SIZE = 20
-local SEARCH_INSET = 6
+local SEARCH_CARD_INSET = 4
+local SEARCH_BAR_BACKDROP = {
+    bgFile   = "Interface\\ChatFrame\\ChatFrameBackground",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile     = true,
+    tileSize = 16,
+    edgeSize = 12,
+    insets   = { left = 3, right = 3, top = 3, bottom = 3 },
+}
 function OptionsWidgets_CreateSearchInput(parent, onTextChanged, placeholder)
     local row = CreateFrame("Frame", nil, parent)
     row:SetAllPoints(parent)
-    local edit = CreateFrame("EditBox", nil, row)
-    edit:SetHeight(28)
-    edit:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
-    edit:SetPoint("TOPRIGHT", row, "TOPRIGHT", -SEARCH_CLEAR_SIZE - 4, 0)
+    local editWrapper = CreateFrame("Frame", nil, row, "BackdropTemplate")
+    editWrapper:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+    editWrapper:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, 0)
+    editWrapper:SetHeight(32)
+    editWrapper:SetBackdrop(SEARCH_BAR_BACKDROP)
+    editWrapper:SetBackdropColor(Def.SectionCardBg[1], Def.SectionCardBg[2], Def.SectionCardBg[3], Def.SectionCardBg[4])
+    editWrapper:SetBackdropBorderColor(Def.SectionCardBorder[1], Def.SectionCardBorder[2], Def.SectionCardBorder[3], Def.SectionCardBorder[4])
+
+    local function setBorderColor(c)
+        editWrapper:SetBackdropBorderColor(c[1], c[2], c[3], c[4] or 1)
+    end
+
+    local edit = CreateFrame("EditBox", nil, editWrapper)
+    edit:SetAllPoints(editWrapper)
     edit:SetAutoFocus(false)
+    edit:EnableMouse(true)
     edit:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
-    edit:SetTextInsets(SEARCH_ICON_LEFT, SEARCH_CLEAR_SIZE + 4, 0, 0)
+    edit:SetTextInsets(SEARCH_ICON_LEFT, SEARCH_CLEAR_SIZE + 14, 0, 0)
     local tc = Def.TextColorLabel
     edit:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
-
-    local editBg = edit:CreateTexture(nil, "BACKGROUND")
-    editBg:SetPoint("TOPLEFT", edit, "TOPLEFT", SEARCH_INSET, -SEARCH_INSET)
-    editBg:SetPoint("BOTTOMRIGHT", edit, "BOTTOMRIGHT", -SEARCH_INSET, SEARCH_INSET)
-    editBg:SetColorTexture(Def.InputBg[1], Def.InputBg[2], Def.InputBg[3], Def.InputBg[4])
-
-    local borderTop = edit:CreateTexture(nil, "BORDER")
-    borderTop:SetHeight(1)
-    borderTop:SetPoint("TOPLEFT", edit, "TOPLEFT", 0, 0)
-    borderTop:SetPoint("TOPRIGHT", edit, "TOPRIGHT", 0, 0)
-    local borderBottom = edit:CreateTexture(nil, "BORDER")
-    borderBottom:SetHeight(1)
-    borderBottom:SetPoint("BOTTOMLEFT", edit, "BOTTOMLEFT", 0, 0)
-    borderBottom:SetPoint("BOTTOMRIGHT", edit, "BOTTOMRIGHT", 0, 0)
-    local borderLeft = edit:CreateTexture(nil, "BORDER")
-    borderLeft:SetWidth(1)
-    borderLeft:SetPoint("TOPLEFT", edit, "TOPLEFT", 0, 0)
-    borderLeft:SetPoint("BOTTOMLEFT", edit, "BOTTOMLEFT", 0, 0)
-    local borderRight = edit:CreateTexture(nil, "BORDER")
-    borderRight:SetWidth(1)
-    borderRight:SetPoint("TOPRIGHT", edit, "TOPRIGHT", 0, 0)
-    borderRight:SetPoint("BOTTOMRIGHT", edit, "BOTTOMRIGHT", 0, 0)
-    local function setBorderColor(r, g, b, a)
-        local c = { r or Def.InputBorder[1], g or Def.InputBorder[2], b or Def.InputBorder[3], a or Def.InputBorder[4] }
-        borderTop:SetColorTexture(c[1], c[2], c[3], c[4])
-        borderBottom:SetColorTexture(c[1], c[2], c[3], c[4])
-        borderLeft:SetColorTexture(c[1], c[2], c[3], c[4])
-        borderRight:SetColorTexture(c[1], c[2], c[3], c[4])
-    end
-    setBorderColor(Def.InputBorder[1], Def.InputBorder[2], Def.InputBorder[3], Def.InputBorder[4])
 
     local searchIcon = edit:CreateTexture(nil, "OVERLAY")
     searchIcon:SetSize(14, 14)
@@ -896,21 +954,21 @@ function OptionsWidgets_CreateSearchInput(parent, onTextChanged, placeholder)
         edit.placeholder = ph
         edit:SetScript("OnEditFocusGained", function()
             if ph then ph:Hide() end
-            setBorderColor(Def.AccentColor[1], Def.AccentColor[2], Def.AccentColor[3], 0.35)
+            setBorderColor(Def.AccentColor)
             if row.clearBtn then row.clearBtn:SetShown(edit:GetText() ~= "") end
         end)
         edit:SetScript("OnEditFocusLost", function()
             if ph and edit:GetText() == "" then ph:Show() end
-            setBorderColor(Def.InputBorder[1], Def.InputBorder[2], Def.InputBorder[3], Def.InputBorder[4])
+            setBorderColor(Def.SectionCardBorder)
             if row.clearBtn then row.clearBtn:SetShown(edit:GetText() ~= "") end
         end)
     else
         edit:SetScript("OnEditFocusGained", function()
-            setBorderColor(Def.AccentColor[1], Def.AccentColor[2], Def.AccentColor[3], 0.35)
+            setBorderColor(Def.AccentColor)
             if row.clearBtn then row.clearBtn:SetShown(edit:GetText() ~= "") end
         end)
         edit:SetScript("OnEditFocusLost", function()
-            setBorderColor(Def.InputBorder[1], Def.InputBorder[2], Def.InputBorder[3], Def.InputBorder[4])
+            setBorderColor(Def.SectionCardBorder)
             if row.clearBtn then row.clearBtn:SetShown(edit:GetText() ~= "") end
         end)
     end
@@ -936,7 +994,7 @@ function OptionsWidgets_CreateSearchInput(parent, onTextChanged, placeholder)
 
     local clearBtn = CreateFrame("Button", nil, row)
     clearBtn:SetSize(SEARCH_CLEAR_SIZE, SEARCH_CLEAR_SIZE)
-    clearBtn:SetPoint("RIGHT", edit, "RIGHT", -6, 0)
+    clearBtn:SetPoint("RIGHT", editWrapper, "RIGHT", -8, 0)
     clearBtn:EnableMouse(true)
     clearBtn:Hide()
     local clearText = clearBtn:CreateFontString(nil, "OVERLAY")
@@ -960,21 +1018,30 @@ function OptionsWidgets_CreateSearchInput(parent, onTextChanged, placeholder)
 end
 
 local CARD_HEADER_H = 24
+local CARD_EXPAND_ANIM_DUR = 0.22
 
--- Section card: soft cinematic background, subtle border, inset for softer edges.
+-- Rounded backdrop for section cards (uses Blizzard edge file for modern look).
+local SECTION_CARD_BACKDROP = {
+    bgFile   = "Interface\\ChatFrame\\ChatFrameBackground",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile     = true,
+    tileSize = 16,
+    edgeSize = 16,
+    insets   = { left = 4, right = 4, top = 4, bottom = 4 },
+}
+
+-- Section card: rounded corners via SetBackdrop, soft cinematic background.
 -- When sectionKey and getCollapsedFn/setCollapsedFn are provided, the card is collapsible.
 function OptionsWidgets_CreateSectionCard(parent, anchor, sectionKey, getCollapsedFn, setCollapsedFn)
-    local card = CreateFrame("Frame", nil, parent)
+    local card = CreateFrame("Frame", nil, parent, "BackdropTemplate")
     card:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -Def.SectionGap)
     card:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 0)
-    local inset = 1
-    local cardBg = card:CreateTexture(nil, "BACKGROUND")
-    cardBg:SetPoint("TOPLEFT", card, "TOPLEFT", inset, -inset)
-    cardBg:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -inset, inset)
-    cardBg:SetColorTexture(Def.SectionCardBg[1], Def.SectionCardBg[2], Def.SectionCardBg[3], Def.SectionCardBg[4])
-    addon.CreateBorder(card, Def.SectionCardBorder)
+    card:SetBackdrop(SECTION_CARD_BACKDROP)
+    card:SetBackdropColor(Def.SectionCardBg[1], Def.SectionCardBg[2], Def.SectionCardBg[3], Def.SectionCardBg[4])
+    card:SetBackdropBorderColor(Def.SectionCardBorder[1], Def.SectionCardBorder[2], Def.SectionCardBorder[3], Def.SectionCardBorder[4])
 
     if sectionKey and getCollapsedFn and setCollapsedFn then
+        card:SetClipsChildren(true)
         local contentContainer = CreateFrame("Frame", nil, card)
         contentContainer:SetPoint("TOPLEFT", card, "TOPLEFT", Def.CardPadding, -Def.CardPadding - CARD_HEADER_H)
         contentContainer:SetPoint("RIGHT", card, "RIGHT", -Def.CardPadding, 0)
@@ -991,6 +1058,29 @@ function OptionsWidgets_CreateSectionCard(parent, anchor, sectionKey, getCollaps
     return card
 end
 
+local function SetHeaderCollapsedAnchors(hdr, chevron, hdrLabel, collapsed, cw, lw, parent)
+    hdr:ClearAllPoints()
+    chevron:ClearAllPoints()
+    hdrLabel:ClearAllPoints()
+    if collapsed then
+        -- Fill full card for centered text
+        hdr:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
+        hdr:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", 0, 0)
+        local pad = Def.CardPadding
+        chevron:SetPoint("CENTER", hdr, "LEFT", pad + 6 + cw / 2, 0)
+        hdrLabel:SetPoint("LEFT", chevron, "RIGHT", 6, 0)
+        hdrLabel:SetPoint("CENTER", hdr, "LEFT", pad + 6 + cw + 6 + lw / 2, 0)
+    else
+        -- Inset header at top of card
+        hdr:SetPoint("TOPLEFT", parent, "TOPLEFT", Def.CardPadding, -Def.CardPadding)
+        hdr:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -Def.CardPadding, 0)
+        hdr:SetHeight(CARD_HEADER_H)
+        chevron:SetPoint("CENTER", hdr, "LEFT", 6 + cw / 2, 0)
+        hdrLabel:SetPoint("LEFT", chevron, "RIGHT", 6, 0)
+        hdrLabel:SetPoint("CENTER", hdr, "LEFT", 6 + cw + 6 + lw / 2, 0)
+    end
+end
+
 -- Section header: uppercase label, left-aligned. When sectionKey and getCollapsedFn/setCollapsedFn are
 -- provided, returns a clickable Button with chevron for collapse; otherwise returns a FontString.
 function OptionsWidgets_CreateSectionHeader(parent, text, sectionKey, getCollapsedFn, setCollapsedFn)
@@ -1000,21 +1090,18 @@ function OptionsWidgets_CreateSectionHeader(parent, text, sectionKey, getCollaps
 
     if sk and getFn and setFn then
         local hdr = CreateFrame("Button", nil, parent)
-        hdr:SetPoint("TOPLEFT", parent, "TOPLEFT", Def.CardPadding, -Def.CardPadding)
-        hdr:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -Def.CardPadding, 0)
-        hdr:SetHeight(CARD_HEADER_H)
         hdr:EnableMouse(true)
         hdr:SetFrameLevel(parent:GetFrameLevel() + 2)
 
         local hdrBg = hdr:CreateTexture(nil, "BACKGROUND")
         hdrBg:SetAllPoints(hdr)
-        hdrBg:SetColorTexture(0.10, 0.10, 0.12, 0.5)
+        hdrBg:SetColorTexture(0.10, 0.10, 0.12, 0.0)
 
         local chevron = hdr:CreateFontString(nil, "OVERLAY")
         chevron:SetFont(Def.FontPath, Def.LabelSize or 13, "OUTLINE")
         SetTextColor(chevron, Def.TextColorSection)
         chevron:SetText(getFn(sk) and "+" or "-")
-        chevron:SetPoint("LEFT", hdr, "LEFT", 6, 0)
+        local cw = chevron:GetStringWidth()
         hdr.chevron = chevron
         parent.header = hdr
 
@@ -1022,23 +1109,55 @@ function OptionsWidgets_CreateSectionHeader(parent, text, sectionKey, getCollaps
         hdrLabel:SetFont(Def.FontPath, Def.SectionSize + 1, "OUTLINE")
         SetTextColor(hdrLabel, Def.TextColorSection)
         hdrLabel:SetText(text and text:upper() or "")
-        hdrLabel:SetPoint("LEFT", chevron, "RIGHT", 6, 0)
         hdrLabel:SetJustifyH("LEFT")
+        local lw = hdrLabel:GetStringWidth()
+        SetHeaderCollapsedAnchors(hdr, chevron, hdrLabel, getFn(sk), cw, lw, parent)
 
-        local hdrHi = hdr:CreateTexture(nil, "HIGHLIGHT")
-        hdrHi:SetAllPoints(hdr)
-        hdrHi:SetColorTexture(1, 1, 1, 0.03)
+        -- Text glow on hover instead of full-card highlight
+        local glowColor = Def.AccentColor
+        hdr:SetScript("OnEnter", function()
+            SetTextColor(chevron, Def.TextColorHighlight)
+            SetTextColor(hdrLabel, Def.TextColorHighlight)
+            chevron:SetShadowColor(glowColor[1], glowColor[2], glowColor[3], 0.75)
+            chevron:SetShadowOffset(2, -2)
+            hdrLabel:SetShadowColor(glowColor[1], glowColor[2], glowColor[3], 0.75)
+            hdrLabel:SetShadowOffset(2, -2)
+        end)
+        hdr:SetScript("OnLeave", function()
+            SetTextColor(chevron, Def.TextColorSection)
+            SetTextColor(hdrLabel, Def.TextColorSection)
+            chevron:SetShadowColor(0, 0, 0, 0)
+            hdrLabel:SetShadowColor(0, 0, 0, 0)
+        end)
+
+        hdr.UpdateCollapsedAnchors = function()
+            SetHeaderCollapsedAnchors(hdr, chevron, hdrLabel, getFn(sk), cw, lw, parent)
+        end
 
         hdr:SetScript("OnClick", function()
             local collapsed = not getFn(sk)
             setFn(sk, collapsed)
             chevron:SetText(collapsed and "+" or "-")
+            SetHeaderCollapsedAnchors(hdr, chevron, hdrLabel, collapsed, cw, lw, parent)
             local cc = parent.contentContainer
+            local headerH = parent.headerHeight or CARD_HEADER_H + Def.CardPadding
+            local fullH = parent.contentHeight and (parent.contentHeight + (Def.CardBottomPadding or Def.CardPadding)) or headerH
+            local fromH = parent:GetHeight()
+            local toH = collapsed and headerH or fullH
             if cc then
                 cc:SetShown(not collapsed)
             end
-            local fullH = parent.contentHeight and (parent.contentHeight + Def.CardPadding) or (parent.headerHeight or 0)
-            parent:SetHeight(collapsed and (parent.headerHeight or CARD_HEADER_H + Def.CardPadding) or fullH)
+            if fromH == toH then return end
+            parent.animStart = GetTime()
+            parent.animFrom = fromH
+            parent.animTo = toH
+            parent:SetScript("OnUpdate", function(self)
+                local elapsed = GetTime() - self.animStart
+                local t = math.min(elapsed / CARD_EXPAND_ANIM_DUR, 1)
+                local h = self.animFrom + (self.animTo - self.animFrom) * easeOut(t)
+                self:SetHeight(math.max(headerH, h))
+                if t >= 1 then self:SetScript("OnUpdate", nil) end
+            end)
         end)
 
         return hdr
@@ -1102,13 +1221,13 @@ function OptionsWidgets_CreateReorderList(parent, anchor, opt, scrollFrameRef, p
 
     local function ensureGhost()
         if state.ghostFrame then return state.ghostFrame end
-        local ghost = CreateFrame("Frame", nil, UIParent)
+        local ghost = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
         ghost:SetFrameStrata("TOOLTIP")
         ghost:SetSize(240, REORDER_ROW_HEIGHT)
         ghost:SetAlpha(0.85)
-        local bg = ghost:CreateTexture(nil, "BACKGROUND")
-        bg:SetAllPoints(ghost)
-        bg:SetColorTexture(Def.SectionCardBg[1], Def.SectionCardBg[2], Def.SectionCardBg[3], 0.95)
+        ghost:SetBackdrop(SECTION_CARD_BACKDROP)
+        ghost:SetBackdropColor(Def.SectionCardBg[1], Def.SectionCardBg[2], Def.SectionCardBg[3], 0.95)
+        ghost:SetBackdropBorderColor(Def.SectionCardBorder[1], Def.SectionCardBorder[2], Def.SectionCardBorder[3], Def.SectionCardBorder[4])
         state.ghostFrame = ghost
         state.ghostLabel = ghost:CreateFontString(nil, "OVERLAY")
         state.ghostLabel:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
@@ -1162,8 +1281,11 @@ function OptionsWidgets_CreateReorderList(parent, anchor, opt, scrollFrameRef, p
         for idx, name in ipairs(presetOrder) do
             local presetOrderArr = presets[name]
             if presetOrderArr then
-                local btn = CreateFrame("Button", nil, presetRow)
-                btn:SetSize(btnW, btnH)
+                local btn = OptionsWidgets_CreateButton(presetRow, name:gsub(" / Rare", "/Rare"), function()
+                    if opt.set then opt.set(presetOrderArr) end
+                    if container.Refresh then container:Refresh() end
+                    if notifyMainAddonFn then notifyMainAddonFn() end
+                end, { width = btnW, height = btnH })
                 if idx == 1 then
                     btn:SetPoint("TOPLEFT", presetRow, "TOPLEFT", 0, 0)
                 elseif idx == 2 then
@@ -1174,19 +1296,6 @@ function OptionsWidgets_CreateReorderList(parent, anchor, opt, scrollFrameRef, p
                     btn:SetPoint("TOPLEFT", prevBtn, "TOPRIGHT", gapH, 0)
                 end
                 prevBtn = btn
-                local lab = btn:CreateFontString(nil, "OVERLAY")
-                lab:SetFont(Def.FontPath, Def.LabelSize - 1, "OUTLINE")
-                SetTextColor(lab, Def.TextColorLabel)
-                lab:SetText(name:gsub(" / Rare", "/Rare"))
-                lab:SetPoint("CENTER", btn, "CENTER", 0, 0)
-                lab:SetWordWrap(false)
-                btn:SetScript("OnClick", function()
-                    if opt.set then opt.set(presetOrderArr) end
-                    if container.Refresh then container:Refresh() end
-                    if notifyMainAddonFn then notifyMainAddonFn() end
-                end)
-                btn:SetScript("OnEnter", function() SetTextColor(lab, Def.TextColorHighlight) end)
-                btn:SetScript("OnLeave", function() SetTextColor(lab, Def.TextColorLabel) end)
             end
         end
     end
@@ -1340,25 +1449,16 @@ function OptionsWidgets_CreateReorderList(parent, anchor, opt, scrollFrameRef, p
     end
     state.rows = rows
 
-    local resetBtn = CreateFrame("Button", nil, container)
-    state.resetBtn = resetBtn
-    resetBtn:SetSize(100, 22)
-    resetBtn:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", 0, -6)
-    local resetLabel = resetBtn:CreateFontString(nil, "OVERLAY")
-    resetLabel:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
-    SetTextColor(resetLabel, Def.TextColorLabel)
-    resetLabel:SetText(L["Reset to default"])
-    resetLabel:SetPoint("CENTER", resetBtn, "CENTER", 0, 0)
-    resetBtn:SetScript("OnClick", function()
+    local resetBtn = OptionsWidgets_CreateButton(container, L["Reset to default"], function()
         if opt.set then opt.set(nil) end
         if addon.SetDB then addon.SetDB("groupOrder", nil) end
         local newKeys = opt.get and opt.get() or {}
         if type(newKeys) == "function" then newKeys = newKeys() end
         if type(newKeys) == "table" then repositionRows(newKeys) end
         if notifyMainAddonFn then notifyMainAddonFn() end
-    end)
-    resetBtn:SetScript("OnEnter", function() SetTextColor(resetLabel, Def.TextColorHighlight) end)
-    resetBtn:SetScript("OnLeave", function() SetTextColor(resetLabel, Def.TextColorLabel) end)
+    end, { width = 100, height = 22 })
+    state.resetBtn = resetBtn
+    resetBtn:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", 0, -6)
 
     local presetH = presetRow and (8 + 56) or 0
     local totalH = Def.CardPadding + 14 + presetH + (#keys * (REORDER_ROW_HEIGHT + REORDER_ROW_GAP)) + 6 + 22 + Def.CardPadding
@@ -1372,5 +1472,6 @@ function OptionsWidgets_CreateReorderList(parent, anchor, opt, scrollFrameRef, p
     return container
 end
 
--- Export Def for panel (font updates)
+-- Export Def and shared backdrop for panel (font updates, search dropdown)
 addon.OptionsWidgetsDef = Def
+addon.OptionsWidgetsSectionCardBackdrop = SECTION_CARD_BACKDROP

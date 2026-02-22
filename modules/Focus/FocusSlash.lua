@@ -163,6 +163,78 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
         if addon.FullLayout then addon.FullLayout() end
         HSPrint("M+ block debug preview: " .. (addon.mplusDebugPreview and "on" or "off"))
 
+    elseif cmd == "mplusaffixdebug" then
+        -- Debug affix data sources for M+ block (run in dungeon with active keystone)
+        local mapId = C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID and C_ChallengeMode.GetActiveChallengeMapID()
+        HSPrint("--- M+ Affix Debug ---")
+        HSPrint("GetActiveChallengeMapID: " .. (mapId and tostring(mapId) or "nil"))
+        if not mapId then
+            HSPrint("  (Not in an active challenge; run in M+ dungeon with key inserted)")
+            return
+        end
+        if C_ChallengeMode and C_ChallengeMode.GetMapUIInfo then
+            local name, _, timeLimit = C_ChallengeMode.GetMapUIInfo(mapId)
+            HSPrint("MapUIInfo: name=" .. tostring(name) .. " timeLimit=" .. tostring(timeLimit))
+        end
+        if C_ChallengeMode and C_ChallengeMode.GetActiveKeystoneInfo then
+            local ok, level, affixes, wasEnergized = pcall(C_ChallengeMode.GetActiveKeystoneInfo)
+            if ok then
+                HSPrint("GetActiveKeystoneInfo: level=" .. tostring(level) .. " wasEnergized=" .. tostring(wasEnergized))
+                if affixes and type(affixes) == "table" then
+                    local ids = {}
+                    for i = 1, #affixes do ids[#ids + 1] = tostring(affixes[i]) end
+                    HSPrint("  affixes (IDs): " .. (#ids > 0 and table.concat(ids, ", ") or "empty"))
+                    for i = 1, #affixes do
+                        local id = affixes[i]
+                        if id and type(id) == "number" and C_ChallengeMode.GetAffixInfo then
+                            local aOk, name, desc, iconFileID = pcall(C_ChallengeMode.GetAffixInfo, id)
+                            if aOk and name then
+                                HSPrint("    ID " .. tostring(id) .. " -> " .. tostring(name))
+                            else
+                                HSPrint("    ID " .. tostring(id) .. " -> GetAffixInfo error or empty")
+                            end
+                        end
+                    end
+                else
+                    HSPrint("  affixes: " .. (affixes == nil and "nil" or type(affixes)))
+                end
+            else
+                HSPrint("GetActiveKeystoneInfo error: " .. tostring(level))
+            end
+        end
+        if C_MythicPlus and C_MythicPlus.GetCurrentAffixes then
+            local ok, currentAffixes = pcall(C_MythicPlus.GetCurrentAffixes)
+            if ok and currentAffixes and type(currentAffixes) == "table" then
+                local parts = {}
+                for _, a in ipairs(currentAffixes) do
+                    local id = (a and type(a) == "table" and a.id) or (type(a) == "number" and a) or nil
+                    if id then parts[#parts + 1] = tostring(id) end
+                end
+                HSPrint("GetCurrentAffixes: " .. (#parts > 0 and table.concat(parts, ", ") or "empty"))
+            else
+                HSPrint("GetCurrentAffixes: " .. (ok and "empty/nil" or ("error: " .. tostring(currentAffixes))))
+            end
+        else
+            HSPrint("GetCurrentAffixes: API not available")
+        end
+        if addon.GetMplusData then
+            local data = addon.GetMplusData()
+            if data and data.affixes then
+                if #data.affixes > 0 then
+                    local names = {}
+                    for _, a in ipairs(data.affixes) do names[#names + 1] = a.name or "(nil)" end
+                    HSPrint("GetMplusData.affixes (final): " .. table.concat(names, ", "))
+                else
+                    HSPrint("GetMplusData.affixes: empty")
+                end
+            else
+                HSPrint("GetMplusData: nil or no affixes key")
+            end
+        else
+            HSPrint("GetMplusData: not available")
+        end
+        HSPrint("--- End M+ Affix Debug ---")
+
     elseif cmd == "test" then
         HSPrint("Showing test data (10 entries)...")
 
@@ -675,6 +747,7 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
         HSPrint("  /horizon nearbydebug     - Print Current Zone / Nearby map and quest debug info")
         HSPrint("  /horizon headercountdebug - Print header count (in-log) breakdown for debugging")
         HSPrint("  /horizon delvedebug      - Dump Delve/tier APIs (run inside a Delve to find tier number)")
+        HSPrint("  /horizon mplusaffixdebug - Dump M+ affix APIs (run in M+ dungeon with key inserted)")
         HSPrint("  /horizon endeavordebug   - Dump Endeavor APIs + GetInitiativeTaskInfo fields (for tooltip/rewards)")
         HSPrint("  /horizon unaccepted      - Show popup of unaccepted quests in current zone with type labels (test)")
         HSPrint("  /horizon clicktodebug    - Debug: list tracked quests and which are eligible for click-to-complete")

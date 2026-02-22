@@ -642,3 +642,4 @@ end
 
 addon.UpdateMplusBlock = UpdateMplusBlock
 addon.ApplyMplusTypography = ApplyMplusTypography
+addon.GetMplusData = GetMplusData
