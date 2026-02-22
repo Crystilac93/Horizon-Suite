@@ -279,6 +279,9 @@ function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, m
         end
     end
 
+    -- Pre-declare so edit scripts and drag handler can reference it before the body is assigned.
+    local updateFromValue
+
     local edit = CreateFrame("EditBox", nil, editWrap)
     edit:SetPoint("TOPLEFT", editWrap, "TOPLEFT", 4, 0)
     edit:SetPoint("BOTTOMRIGHT", editWrap, "BOTTOMRIGHT", -4, 0)
@@ -288,31 +291,40 @@ function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, m
     edit:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
     local tc = Def.TextColorLabel
     edit:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
-    edit:SetScript("OnEscapePressed", function() edit:ClearFocus() end)
+    edit:SetScript("OnEscapePressed", function()
+        updateFromValue(get())
+        edit:ClearFocus()
+    end)
     edit:SetScript("OnEditFocusGained", function()
         if disabledFn and disabledFn() == true then edit:ClearFocus(); return end
         setEditBorderColor(Def.AccentColor)
     end)
-    edit:SetScript("OnEditFocusLost", function() setEditBorderColor(Def.InputBorder) end)
+    edit:SetScript("OnEditFocusLost", function()
+        setEditBorderColor(Def.InputBorder)
+        if disabledFn and disabledFn() == true then return end
+        local v = tonumber(edit:GetText())
+        if v ~= nil then
+            v = math.max(minVal, math.min(maxVal, v))
+            set(v)
+            updateFromValue(v)
+        else
+            updateFromValue(get())
+        end
+    end)
     edit:SetScript("OnEnterPressed", function()
         if disabledFn and disabledFn() == true then edit:ClearFocus(); return end
         local v = tonumber(edit:GetText())
         if v ~= nil then
             v = math.max(minVal, math.min(maxVal, v))
             set(v)
-            edit:SetText(tostring(v))
+            updateFromValue(v)
+        else
+            updateFromValue(get())
         end
         edit:ClearFocus()
     end)
-    edit:SetScript("OnTextChanged", function(self, userInput)
-        if not userInput then return end
-        if disabledFn and disabledFn() == true then return end
-        local v = tonumber(self:GetText())
-        if v ~= nil then
-            v = math.max(minVal, math.min(maxVal, v))
-            set(v)
-        end
-    end)
+    -- OnTextChanged intentionally omitted: would call set() on every keystroke,
+    -- triggering heavy callbacks (refreshAllScaling → FullLayout) per character.
 
     local function valueToNorm(v)
         if maxVal <= minVal then return 0 end
@@ -324,7 +336,9 @@ function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, m
 
     local fillWidth = trackWidth - 2 * SLIDER_TRACK_INSET
     local thumbTravel = fillWidth - SLIDER_THUMB_SIZE
-    local function updateFromValue(v)
+
+    -- Now assign the body — all closures above that captured the upvalue slot will see this.
+    updateFromValue = function(v)
         v = math.max(minVal, math.min(maxVal, v))
         local n = valueToNorm(v)
         thumb:ClearAllPoints()
@@ -342,18 +356,32 @@ function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, m
         startNorm = valueToNorm(get())
         local scale = track:GetEffectiveScale()
         startX = GetCursorPosition() / scale
+        local lastCommittedInt = math.floor(normToValue(startNorm) + 0.5)
         thumb:GetParent():SetScript("OnUpdate", function()
             if not IsMouseButtonDown("LeftButton") then
                 thumb:GetParent():SetScript("OnUpdate", nil)
                 dragging = false
+                -- Commit final value on release so the DB is up-to-date.
+                local finalV = math.max(minVal, math.min(maxVal, normToValue(startNorm)))
+                local finalInt = math.floor(finalV + 0.5)
+                if finalInt ~= lastCommittedInt then
+                    set(finalInt)
+                end
                 return
             end
             local x = GetCursorPosition() / scale
             local delta = (x - startX) / fillWidth
             local n = math.max(0, math.min(1, startNorm + delta))
             local v = normToValue(n)
-            set(v)
+            -- Update visual every frame for smooth thumb movement.
             updateFromValue(v)
+            -- Only call set() when the rounded integer value changes — this prevents
+            -- refreshAllScaling (and its FullLayout) from running 60 times/second.
+            local intV = math.floor(v + 0.5)
+            if intV ~= lastCommittedInt then
+                lastCommittedInt = intV
+                set(intV)
+            end
             startNorm = n
             startX = x
         end)

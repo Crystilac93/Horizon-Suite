@@ -15,6 +15,18 @@ local sectionPool = addon.sectionPool
 local scrollChild = addon.scrollChild
 local scrollFrame = addon.scrollFrame
 
+--- Returns the maximum height the panel can grow to without pushing past the screen bottom.
+--- Uses the panel's current top position minus UIParent bottom (accounting for scale).
+--- Falls back to a large sentinel when the panel isn't yet visible.
+local function GetMaxPanelHeight()
+    if not addon.HS or not addon.HS.GetTop then return 99999 end
+    local top = addon.HS:GetTop()
+    if not top then return 99999 end
+    local uiBottom = UIParent and UIParent:GetBottom() or 0
+    local maxH = top - uiBottom
+    return (maxH > 0) and maxH or 99999
+end
+
 --- Player's current zone name from map API. Used to suppress redundant zone labels for in-zone quests.
 --- Schedule deferred refreshes when Endeavors or Decor have placeholder names (API data not yet loaded).
 local function SchedulePlaceholderRefreshes(quests)
@@ -410,7 +422,8 @@ local function FullLayout()
             local headerArea = addon.GetScaledPadding() + addon.GetHeaderHeight() + addon.GetScaledDividerHeight() + addon.GetHeaderToContentGap()
             local visibleH = math.min(totalContentH, addon.GetMaxContentHeight())
             local blockHeight = (hasMplus and addon.GetMplusBlockHeight and (addon.GetMplusBlockHeight() + gap * 2)) or 0
-            addon.focus.layout.targetHeight = math.max(addon.GetScaledMinHeight(), headerArea + visibleH + addon.GetScaledPadding() + blockHeight)
+            local desiredH = math.max(addon.GetScaledMinHeight(), headerArea + visibleH + addon.GetScaledPadding() + blockHeight)
+            addon.focus.layout.targetHeight = math.min(desiredH, GetMaxPanelHeight())
             else
                 scrollFrame:Hide()
                 addon.focus.layout.targetHeight = addon.GetCollapsedHeight()
@@ -832,7 +845,8 @@ local function FullLayout()
     local headerArea    = addon.GetScaledPadding() + addon.GetHeaderHeight() + addon.GetScaledDividerHeight() + addon.GetHeaderToContentGap()
     local visibleH      = math.min(totalContentH, addon.GetMaxContentHeight())
     local blockHeight   = (hasMplus and addon.GetMplusBlockHeight and (addon.GetMplusBlockHeight() + gap * 2)) or 0
-    addon.focus.layout.targetHeight  = math.max(addon.GetScaledMinHeight(), headerArea + visibleH + addon.GetScaledPadding() + blockHeight)
+    local desiredH      = math.max(addon.GetScaledMinHeight(), headerArea + visibleH + addon.GetScaledPadding() + blockHeight)
+    addon.focus.layout.targetHeight  = math.min(desiredH, GetMaxPanelHeight())
 
     if #quests > 0 then
         ApplyShowAlpha()

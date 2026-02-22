@@ -97,6 +97,19 @@ local COLOR_LIVE_KEYS = {
     progressBarUseCategoryColor = true,
 }
 
+-- Scale keys managed by debounced callbacks in the slider set lambdas.
+-- OptionsData_SetDB must NOT call OptionsData_NotifyMainAddon for these —
+-- doing so would trigger FullLayout synchronously on every integer drag step,
+-- defeating the debounce entirely.
+local SCALE_DEBOUNCE_KEYS = {
+    globalUIScale   = true,
+    focusUIScale    = true,
+    presenceUIScale = true,
+    vistaUIScale    = true,
+    insightUIScale  = true,
+    yieldUIScale    = true,
+}
+
 function OptionsData_GetDB(key, default)
     return addon.GetDB(key, default)
 end
@@ -140,6 +153,9 @@ function OptionsData_SetDB(key, value)
         OptionsData_NotifyMainAddon_Live()
         return
     end
+    -- Scale keys are handled by debounced callbacks in the slider set lambdas.
+    -- Do NOT call NotifyMainAddon here or FullLayout runs on every integer drag step.
+    if SCALE_DEBOUNCE_KEYS[key] then return end
     OptionsData_NotifyMainAddon()
 end
 
@@ -678,6 +694,21 @@ local OptionCategories = {
                 if addon.Yield and addon.Yield.ApplyScale then addon.Yield.ApplyScale() end
                 if _G.HorizonSuite_FullLayout and not InCombatLockdown() then _G.HorizonSuite_FullLayout() end
             end
+            -- Debounce: write DB immediately on every slider step, but delay the heavy
+            -- apply call (typography, dimensions, FullLayout) until the user pauses.
+            -- Each call cancels any in-flight timer and schedules a fresh one.
+            local scalingDebounceTimers = {}
+            local SCALE_DEBOUNCE = 0.15  -- seconds to wait after last change
+            local function debouncedRefresh(key, applyFn)
+                if scalingDebounceTimers[key] then
+                    scalingDebounceTimers[key]:Cancel()
+                    scalingDebounceTimers[key] = nil
+                end
+                scalingDebounceTimers[key] = C_Timer.NewTimer(SCALE_DEBOUNCE, function()
+                    scalingDebounceTimers[key] = nil
+                    applyFn()
+                end)
+            end
             local function isPerModule() return getDB("perModuleScaling", false) end
             local function isNotPerModule() return not isPerModule() end
             opts[#opts + 1] = { type = "slider", name = L["Global UI scale"], desc = L["Scale all sizes, spacings, and fonts by this factor (50–200%). Does not change your configured values."], dbKey = "globalUIScale_pct", min = 50, max = 200,
@@ -687,7 +718,7 @@ local OptionCategories = {
                 end, set = function(v)
                     local scale = math.max(50, math.min(200, v)) / 100
                     setDB("globalUIScale", scale)
-                    refreshAllScaling()
+                    debouncedRefresh("global", refreshAllScaling)
                 end }
             opts[#opts + 1] = { type = "toggle", name = L["Per-module scaling"], desc = L["Override the global scale with individual sliders for each module."], dbKey = "perModuleScaling", get = function() return isPerModule() end, set = function(v)
                 setDB("perModuleScaling", v)
@@ -701,7 +732,7 @@ local OptionCategories = {
                     return math.floor((tonumber(getDB("focusUIScale", 1)) or 1) * 100 + 0.5)
                 end, set = function(v)
                     setDB("focusUIScale", math.max(50, math.min(200, v)) / 100)
-                    refreshAllScaling()
+                    debouncedRefresh("focus", refreshAllScaling)
                 end }
             opts[#opts + 1] = { type = "slider", name = L["Presence scale"], desc = L["Scale for the Presence cinematic text (50–200%)."], dbKey = "presenceUIScale_pct", min = 50, max = 200,
                 disabled = isNotPerModule,
@@ -709,7 +740,9 @@ local OptionCategories = {
                     return math.floor((tonumber(getDB("presenceUIScale", 1)) or 1) * 100 + 0.5)
                 end, set = function(v)
                     setDB("presenceUIScale", math.max(50, math.min(200, v)) / 100)
-                    if addon.Presence and addon.Presence.ApplyPresenceOptions then addon.Presence.ApplyPresenceOptions() end
+                    debouncedRefresh("presence", function()
+                        if addon.Presence and addon.Presence.ApplyPresenceOptions then addon.Presence.ApplyPresenceOptions() end
+                    end)
                 end }
             opts[#opts + 1] = { type = "slider", name = L["Vista scale"], desc = L["Scale for the Vista minimap module (50–200%)."], dbKey = "vistaUIScale_pct", min = 50, max = 200,
                 disabled = isNotPerModule,
@@ -717,7 +750,9 @@ local OptionCategories = {
                     return math.floor((tonumber(getDB("vistaUIScale", 1)) or 1) * 100 + 0.5)
                 end, set = function(v)
                     setDB("vistaUIScale", math.max(50, math.min(200, v)) / 100)
-                    if addon.Vista and addon.Vista.ApplyScale then addon.Vista.ApplyScale() end
+                    debouncedRefresh("vista", function()
+                        if addon.Vista and addon.Vista.ApplyScale then addon.Vista.ApplyScale() end
+                    end)
                 end }
             opts[#opts + 1] = { type = "slider", name = L["Insight scale"], desc = L["Scale for the Insight tooltip module (50–200%)."], dbKey = "insightUIScale_pct", min = 50, max = 200,
                 disabled = isNotPerModule,
@@ -725,6 +760,7 @@ local OptionCategories = {
                     return math.floor((tonumber(getDB("insightUIScale", 1)) or 1) * 100 + 0.5)
                 end, set = function(v)
                     setDB("insightUIScale", math.max(50, math.min(200, v)) / 100)
+                    -- Insight has no heavy apply; no debounce needed.
                 end }
             opts[#opts + 1] = { type = "slider", name = L["Yield scale"], desc = L["Scale for the Yield loot toast module (50–200%)."], dbKey = "yieldUIScale_pct", min = 50, max = 200,
                 disabled = isNotPerModule,
@@ -732,7 +768,9 @@ local OptionCategories = {
                     return math.floor((tonumber(getDB("yieldUIScale", 1)) or 1) * 100 + 0.5)
                 end, set = function(v)
                     setDB("yieldUIScale", math.max(50, math.min(200, v)) / 100)
-                    if addon.Yield and addon.Yield.ApplyScale then addon.Yield.ApplyScale() end
+                    debouncedRefresh("yield", function()
+                        if addon.Yield and addon.Yield.ApplyScale then addon.Yield.ApplyScale() end
+                    end)
                 end }
             return opts
         end)(),

@@ -74,6 +74,11 @@ local function SetPanelHeight(h)
     end
     local topBefore = HS:GetTop()
     if not topBefore then return end
+    -- Clamp height so the panel bottom never goes below the screen edge.
+    -- This keeps the scroll-frame visible without repositioning the frame upward.
+    local uiBottom = UIParent:GetBottom() or 0
+    local maxH = topBefore - uiBottom
+    if maxH > 0 then h = math.min(h, maxH) end
     HS:SetHeight(h)
     local topAfter = HS:GetTop()
     if not topAfter then return end
