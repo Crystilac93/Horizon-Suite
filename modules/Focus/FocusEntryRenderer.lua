@@ -723,7 +723,9 @@ local function PopulateEntry(entry, questData, groupKey)
             entry.itemBtn:SetAttribute("item", nil)
         end
     end
-    entry:SetHitRectInsets(0, 0, 0, 0)
+    if not InCombatLockdown() then
+        entry:SetHitRectInsets(0, 0, 0, 0)
+    end
 
     if showLfgBtn then
         entry.lfgBtn:ClearAllPoints()

@@ -570,7 +570,9 @@ local function ClearEntry(entry, full)
     entry.isGroupQuest   = nil
     if full ~= false then
         entry:SetAlpha(0)
-        entry:SetHitRectInsets(0, 0, 0, 0)
+        if not InCombatLockdown() then
+            entry:SetHitRectInsets(0, 0, 0, 0)
+        end
         if entry.scenarioTimerBars then
             for _, bar in ipairs(entry.scenarioTimerBars) do
                 bar.duration = nil
