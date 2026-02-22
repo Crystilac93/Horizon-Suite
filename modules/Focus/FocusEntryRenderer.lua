@@ -145,6 +145,21 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
     if not progTextColor or type(progTextColor) ~= "table" then progTextColor = { 0.95, 0.95, 0.95 } end
 
     local shownObjs = 0
+    local entryKey = entry.entryKey
+    local optionalCollapsed = not (addon.focus.recipeOptionalCollapsed and entryKey and addon.focus.recipeOptionalCollapsed[entryKey] == false)
+    local finishingCollapsed = not (addon.focus.recipeFinishingCollapsed and entryKey and addon.focus.recipeFinishingCollapsed[entryKey] == false)
+    local finishingAnimating = addon.focus.recipeFinishingAnimating and entryKey and addon.focus.recipeFinishingAnimating[entryKey]
+    if entry.finishingHeaderBtn then entry.finishingHeaderBtn:Hide() end
+    if entry.optionalHeaderBtn then entry.optionalHeaderBtn:Hide() end
+    if entry.choiceSlotButtons then
+        for _, btn in ipairs(entry.choiceSlotButtons) do
+            btn:Hide()
+            btn._choiceSlotKey = nil
+        end
+    end
+    entry._finishingObjIndices = nil
+    local choiceSlotBtnIdx = 0
+
     for j = 1, addon.MAX_OBJECTIVES do
         local obj = entry.objectives[j]
         local oData = questData.objectives[j]
@@ -156,6 +171,36 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
             end
         end
 
+        -- Collapsible choice slot variants: skip when collapsed (default: collapsed)
+        local collapsed = addon.focus and addon.focus.recipeChoiceSlotCollapsed
+        local choiceSlotExpanded = oData and oData.isChoiceVariant and collapsed and collapsed[oData.choiceSlotKey] == false
+        if oData and oData.isChoiceVariant and not choiceSlotExpanded then
+            obj.text:Hide()
+            obj.shadow:Hide()
+            if obj.tick then obj.tick:Hide() end
+            if obj.copyBtn then obj.copyBtn:Hide() end
+            if obj.progressBarBg then obj.progressBarBg:Hide() end
+            if obj.progressBarFill then obj.progressBarFill:Hide() end
+            if obj.progressBarLabel then obj.progressBarLabel:Hide() end
+        -- Collapsible optional reagents: skip when collapsed
+        elseif oData and oData.isOptionalReagent and optionalCollapsed then
+            obj.text:Hide()
+            obj.shadow:Hide()
+            if obj.tick then obj.tick:Hide() end
+            if obj.copyBtn then obj.copyBtn:Hide() end
+            if obj.progressBarBg then obj.progressBarBg:Hide() end
+            if obj.progressBarFill then obj.progressBarFill:Hide() end
+            if obj.progressBarLabel then obj.progressBarLabel:Hide() end
+        -- Collapsible finishing reagents: skip finishing reagent objectives when collapsed
+        elseif oData and oData.isFinishingReagent and finishingCollapsed then
+            obj.text:Hide()
+            obj.shadow:Hide()
+            if obj.tick then obj.tick:Hide() end
+            if obj.copyBtn then obj.copyBtn:Hide() end
+            if obj.progressBarBg then obj.progressBarBg:Hide() end
+            if obj.progressBarFill then obj.progressBarFill:Hide() end
+            if obj.progressBarLabel then obj.progressBarLabel:Hide() end
+        else
         local effectiveObjWidth = objTextWidth
         if oData and oData.itemLink and obj.copyBtn then
             effectiveObjWidth = objTextWidth - 18  -- room for copy button (14px) + gap (4px)
@@ -164,14 +209,84 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
         obj.shadow:SetWidth(effectiveObjWidth)
 
         if oData then
+            -- Collapsible choice slot header (e.g. "Algari Missive (any)"): use choiceSlotButtons
+            if oData.isChoiceHeader and entry.choiceSlotButtons then
+                choiceSlotBtnIdx = choiceSlotBtnIdx + 1
+                local btn = entry.choiceSlotButtons[choiceSlotBtnIdx]
+                if btn then
+                    local key = oData.choiceSlotKey
+                    btn._choiceSlotKey = key
+                    local collapsed = not (addon.focus.recipeChoiceSlotCollapsed and addon.focus.recipeChoiceSlotCollapsed[key] == false)
+                    btn.chevron:SetText(collapsed and "+" or "-")
+                    local nF = oData.numFulfilled or 0
+                    local nR = oData.numRequired or 1
+                    btn.text:SetText((oData.text or "") .. " (" .. nF .. "/" .. nR .. ")")
+                    btn:ClearAllPoints()
+                    btn:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", OBJ_EXTRA_LEFT_PAD, -objSpacing)
+                    btn:SetWidth(textWidth or 200)
+                    btn:Show()
+                    local btnH = 14
+                    totalH = totalH + objSpacing + btnH
+                    prevAnchor = btn
+                    shownObjs = shownObjs + 1
+                    obj.text:Hide()
+                    obj.shadow:Hide()
+                    if obj.tick then obj.tick:Hide() end
+                    if obj.copyBtn then obj.copyBtn:Hide() end
+                    if obj.progressBarBg then obj.progressBarBg:Hide() end
+                    if obj.progressBarFill then obj.progressBarFill:Hide() end
+                    if obj.progressBarLabel then obj.progressBarLabel:Hide() end
+                end
+            -- Collapsible "Optional reagents" header: use optionalHeaderBtn instead of obj
+            elseif oData.isOptionalHeader and oData.isCollapsible and entry.optionalHeaderBtn then
+                entry.optionalHeaderBtn.text:SetText(oData.text or "")
+                entry.optionalHeaderBtn.chevron:SetText(optionalCollapsed and "+" or "-")
+                entry.optionalHeaderBtn:ClearAllPoints()
+                entry.optionalHeaderBtn:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", OBJ_EXTRA_LEFT_PAD, -objSpacing)
+                entry.optionalHeaderBtn:SetWidth(textWidth or 200)
+                entry.optionalHeaderBtn:Show()
+                local btnH = 14
+                totalH = totalH + objSpacing + btnH
+                prevAnchor = entry.optionalHeaderBtn
+                shownObjs = shownObjs + 1
+                obj.text:Hide()
+                obj.shadow:Hide()
+                if obj.tick then obj.tick:Hide() end
+                if obj.copyBtn then obj.copyBtn:Hide() end
+                if obj.progressBarBg then obj.progressBarBg:Hide() end
+                if obj.progressBarFill then obj.progressBarFill:Hide() end
+                if obj.progressBarLabel then obj.progressBarLabel:Hide() end
+            -- Collapsible "Finishing reagents" header: use finishingHeaderBtn instead of obj
+            elseif oData.isFinishingHeader and oData.isCollapsible and entry.finishingHeaderBtn then
+                entry.finishingHeaderBtn.text:SetText(oData.text or "")
+                entry.finishingHeaderBtn.chevron:SetText(finishingCollapsed and "+" or "-")
+                entry.finishingHeaderBtn:ClearAllPoints()
+                entry.finishingHeaderBtn:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", OBJ_EXTRA_LEFT_PAD, -objSpacing)
+                entry.finishingHeaderBtn:SetWidth(textWidth or 200)
+                entry.finishingHeaderBtn:Show()
+                local btnH = 14
+                totalH = totalH + objSpacing + btnH
+                prevAnchor = entry.finishingHeaderBtn
+                shownObjs = shownObjs + 1
+                obj.text:Hide()
+                obj.shadow:Hide()
+                if obj.copyBtn then obj.copyBtn:Hide() end
+            else
             local objText = oData.text or ""
             local nf, nr = oData.numFulfilled, oData.numRequired
             local thisObjHasBar = (progressBarObjIdx == j)
+            -- Choice header fallback (no button available): append (X/Y)
+            local isChoiceHeaderFallback = oData.isChoiceHeader
             -- Skip appending (X/Y) to objectives when the title already shows it (single-criterion numeric achievement).
             -- Also skip when a progress bar is shown for this objective.
             local titleShowsNumeric = questData.numericQuantity ~= nil and questData.numericRequired and type(questData.numericRequired) == "number" and questData.numericRequired > 1
             local singleObjective = questData.objectives and #questData.objectives == 1
-            if not thisObjHasBar and nf ~= nil and nr ~= nil and type(nf) == "number" and type(nr) == "number" and nr > 1 and not (titleShowsNumeric and singleObjective) then
+            if isChoiceHeaderFallback and nf ~= nil and nr ~= nil then
+                local pattern = tostring(nf) .. "/" .. tostring(nr)
+                if not objText:find(pattern, 1, true) then
+                    objText = objText .. (" (%d/%d)"):format(nf, nr)
+                end
+            elseif not thisObjHasBar and nf ~= nil and nr ~= nil and type(nf) == "number" and type(nr) == "number" and nr > 1 and not (titleShowsNumeric and singleObjective) then
                 local pattern = tostring(nf) .. "/" .. tostring(nr)
                 if not objText:find(pattern, 1, true) then
                     objText = objText .. (" (%d/%d)"):format(nf, nr)
@@ -198,22 +313,46 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
             if oData.finished and (not questData.isAchievement and not questData.isEndeavor) and addon.GetDB("questCompletedObjectiveDisplay", "off") == "fade" then
                 alpha = 0.4
             end
+            if oData.isFinishingReagent then
+                entry._finishingObjIndices = entry._finishingObjIndices or {}
+                entry._finishingObjIndices[#entry._finishingObjIndices + 1] = j
+                if finishingAnimating == "expand" then alpha = 0 end
+            end
             obj._hsFinished = oData.finished and true or false
             obj._hsAlpha = alpha
+            local effectiveObjColor = objColor
+            local effectiveObjDoneColor = effectiveDoneColor
+            if questData.isRecipe and addon.GetDB("recipeRarityColors", false) and oData.itemQuality and addon.GetQualityColorRGB then
+                local qr, qg, qb = addon.GetQualityColorRGB(oData.itemQuality)
+                if qr and qg and qb then
+                    local dim = (addon.GetDB("dimNonSuperTracked", false) and not questData.isSuperTracked) and 0.6 or 1
+                    effectiveObjColor = { qr * dim, qg * dim, qb * dim }
+                    effectiveObjDoneColor = effectiveObjColor
+                end
+            end
             if oData.finished then
                 if useTick then
-                    obj.text:SetTextColor(objColor[1], objColor[2], objColor[3], alpha)
+                    obj.text:SetTextColor(effectiveObjColor[1], effectiveObjColor[2], effectiveObjColor[3], alpha)
                 else
-                    obj.text:SetTextColor(effectiveDoneColor[1], effectiveDoneColor[2], effectiveDoneColor[3], alpha)
+                    obj.text:SetTextColor(effectiveObjDoneColor[1], effectiveObjDoneColor[2], effectiveObjDoneColor[3], alpha)
                 end
             else
-                obj.text:SetTextColor(objColor[1], objColor[2], objColor[3], alpha)
+                obj.text:SetTextColor(effectiveObjColor[1], effectiveObjColor[2], effectiveObjColor[3], alpha)
             end
 
             obj.text:ClearAllPoints()
             -- First objective gets inset from title; subsequent objectives align with it.
             local leftPad = (shownObjs == 0) and OBJ_EXTRA_LEFT_PAD or 0
             obj.text:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", leftPad, -objSpacing)
+            if oData.isFinishingReagent then
+                obj._slideAnchor = prevAnchor
+                obj._slideBaseX = leftPad
+                obj._slideBaseY = -objSpacing
+            else
+                obj._slideAnchor = nil
+                obj._slideBaseX = nil
+                obj._slideBaseY = nil
+            end
             obj.text:Show()
             obj.shadow:Show()
 
@@ -276,6 +415,7 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
             end
 
             shownObjs = shownObjs + 1
+            end
         else
             obj._hsFinished = nil
             obj._hsAlpha = nil
@@ -286,6 +426,7 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
             if obj.progressBarFill then obj.progressBarFill:Hide() end
             if obj.progressBarLabel then obj.progressBarLabel:Hide() end
             if obj.copyBtn then obj.copyBtn:Hide() obj.copyBtn._itemLink = nil end
+        end
         end
     end
 
@@ -695,6 +836,10 @@ local function PopulateEntry(entry, questData, groupKey)
     entry.titleShadow:SetText(displayTitle)
     local effectiveCat = (addon.GetEffectiveColorCategory and addon.GetEffectiveColorCategory(questData.category, groupKey, questData.baseCategory)) or questData.category
     local c = (addon.GetTitleColor and addon.GetTitleColor(effectiveCat)) or questData.color
+    if questData.isRecipe and addon.GetDB("recipeRarityColors", false) and questData.outputQuality and addon.GetQualityColorRGB then
+        local qr, qg, qb = addon.GetQualityColorRGB(questData.outputQuality)
+        if qr and qg and qb then c = { qr, qg, qb } end
+    end
     if not c or type(c) ~= "table" or not c[1] or not c[2] or not c[3] then
         c = addon.QUEST_COLORS and addon.QUEST_COLORS.DEFAULT or { 0.9, 0.9, 0.9 }
     end
@@ -840,8 +985,9 @@ local function PopulateEntry(entry, questData, groupKey)
     totalH, prevAnchor = ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, c, effectiveCat)
     totalH = ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor or entry.titleText, totalH)
 
-    entry.entryHeight = totalH + topPadding + bottomPadding
-    entry:SetHeight(totalH + topPadding + bottomPadding)
+    local entryH = totalH + topPadding + bottomPadding
+    entry.entryHeight = entryH
+    entry:SetHeight(entryH)
 
     ApplyShadowColors(entry, questData, highlightStyle, hc, ha)
 

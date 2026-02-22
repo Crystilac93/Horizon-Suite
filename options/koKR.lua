@@ -346,10 +346,22 @@ L["Show each decor item's icon next to the title. Requires 'Show quest type icon
 L["Show recipes"]                                       = "제조법 표시"
 L["Show recipe reagents"]                               = "제조법 재료 표시"
 L["Show reagent shopping list (owned/required) for each tracked recipe. Includes a copy button to insert item links into chat."] = "추적 중인 제조법마다 재료 쇼핑 목록(보유/필요)을 표시합니다. 채팅에 아이템 링크를 삽입하는 복사 버튼이 포함됩니다."
+L["Recipe reagent sections"]                           = "재료 섹션"
+L["Recipe display"]                                    = "제조법 표시"
+L["Show optional reagents"]                             = "선택 재료 표시"
+L["Show optional (modifying) reagents in a collapsible section. When off, optional reagents are hidden."] = "접을 수 있는 섹션에 선택(수정) 재료를 표시합니다. 끄면 선택 재료가 숨겨집니다."
+L["Show finishing reagents"]                            = "마무리 재료 표시"
+L["Show finishing reagents in a collapsible section. When off, finishing reagents are hidden."] = "접을 수 있는 섹션에 마무리 재료를 표시합니다. 끄면 마무리 재료가 숨겨집니다."
+L["Show choice slots"]                                 = "선택 슬롯 표시"
+L["Show choice slots (e.g. \"1 of any\" Algari Missive) as collapsible sections. When off, choice slots are shown as a flat list of variants."] = "선택 슬롯(예: \"1개 아무거나\" 알가리 서신)을 접을 수 있는 섹션으로 표시합니다. 끄면 변형 목록이 평면으로 표시됩니다."
 L["Copy to chat"]                                       = "채팅에 복사"
+L["Optional reagents"]                                  = "선택 재료"
+L["Finishing reagents"]                                 = "마무리 재료"
 L["Show tracked profession recipes in the list."]       = "추적 중인 전문 기술 제조법을 목록에 표시합니다."
 L["Show recipe icons"]                                 = "제조법 아이콘 표시"
 L["Show each recipe's icon next to the title. Requires 'Show quest type icons' in Display."] = "각 제조법의 아이콘을 제목 옆에 표시합니다. '퀘스트 유형 아이콘 표시' 옵션이 필요합니다."
+L["Color by item rarity"]                              = "아이템 등급별 색상"
+L["Color recipe names and reagents by their item quality (Poor, Common, Rare, Epic, etc.)."] = "제조법 이름과 재료를 아이템 품질(하급, 일반, 희귀, 영웅 등)에 따라 색상으로 표시합니다."
 
 -- =====================================================================
 -- OptionsData.lua Features — Adventure Guide

@@ -90,5 +90,15 @@ addon.focus = {
 
     -- M+ size restore: track when we were in M+ so we can restore overworld height on zone-out
     wasInMplusDungeon                 = false,
+
+    -- Recipe optional reagents: { [entryKey] = true } when collapsed (default: collapsed)
+    recipeOptionalCollapsed           = {},
+    -- Recipe finishing reagents: { [entryKey] = true } when collapsed (default: collapsed)
+    recipeFinishingCollapsed          = {},
+    -- Recipe finishing animation: { [entryKey] = "expand"|"collapse" } when animating
+    recipeFinishingAnimating          = {},
+    recipeFinishingAnimTime           = {},
+    -- Recipe choice slots (e.g. Algari Missive variants): { [choiceSlotKey] = true } when collapsed
+    recipeChoiceSlotCollapsed         = {},
 }
 

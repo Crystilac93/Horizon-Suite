@@ -278,6 +278,123 @@ local function CreateQuestEntry(parent, index)
         objShadow:Hide()
     end
 
+    -- Collapsible "Finishing reagents" header for recipe entries (click to expand/collapse).
+    e.finishingHeaderBtn = CreateFrame("Button", nil, e)
+    e.finishingHeaderBtn:SetHeight(14)
+    e.finishingHeaderBtn.chevron = e.finishingHeaderBtn:CreateFontString(nil, "OVERLAY")
+    e.finishingHeaderBtn.chevron:SetFontObject(addon.ObjFont)
+    e.finishingHeaderBtn.chevron:SetText("+")
+    e.finishingHeaderBtn.chevron:SetTextColor(0.7, 0.7, 0.7, 1)
+    e.finishingHeaderBtn.chevron:SetPoint("LEFT", e.finishingHeaderBtn, "LEFT", 0, 0)
+    e.finishingHeaderBtn.text = e.finishingHeaderBtn:CreateFontString(nil, "OVERLAY")
+    e.finishingHeaderBtn.text:SetFontObject(addon.ObjFont)
+    e.finishingHeaderBtn.text:SetTextColor(0.65, 0.65, 0.7, 1)
+    e.finishingHeaderBtn.text:SetPoint("LEFT", e.finishingHeaderBtn.chevron, "RIGHT", 4, 0)
+    e.finishingHeaderBtn:SetScript("OnClick", function(self)
+        local entry = self:GetParent()
+        local key = entry and entry.entryKey
+        if not key then return end
+        addon.focus.recipeFinishingCollapsed = addon.focus.recipeFinishingCollapsed or {}
+        addon.focus.recipeFinishingAnimating = addon.focus.recipeFinishingAnimating or {}
+        addon.focus.recipeFinishingAnimTime = addon.focus.recipeFinishingAnimTime or {}
+        local collapsed = addon.focus.recipeFinishingCollapsed[key]
+        if collapsed then
+            -- Expanding: toggle immediately, refresh; renderer will start fade-in
+            addon.focus.recipeFinishingCollapsed[key] = false
+            addon.focus.recipeFinishingAnimating[key] = "expand"
+            addon.focus.recipeFinishingAnimTime[key] = 0
+            if addon.ScheduleRefresh then addon.ScheduleRefresh() end
+            if addon.EnsureFocusUpdateRunning then addon.EnsureFocusUpdateRunning() end
+        else
+            -- Collapsing: start fade-out; toggle when animation completes
+            addon.focus.recipeFinishingAnimating[key] = "collapse"
+            addon.focus.recipeFinishingAnimTime[key] = 0
+            if addon.EnsureFocusUpdateRunning then addon.EnsureFocusUpdateRunning() end
+        end
+    end)
+    e.finishingHeaderBtn:SetScript("OnEnter", function(self)
+        if GameTooltip and GameTooltip.SetOwner then
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(addon.L and addon.L["Click to expand or collapse"] or "Click to expand or collapse", 0.8, 0.8, 0.8)
+            GameTooltip:Show()
+        end
+    end)
+    e.finishingHeaderBtn:SetScript("OnLeave", function(self)
+        if GameTooltip and GameTooltip:GetOwner() == self then GameTooltip:Hide() end
+    end)
+    e.finishingHeaderBtn:Hide()
+
+    -- Collapsible "Optional reagents" header for recipe entries (click to expand/collapse).
+    e.optionalHeaderBtn = CreateFrame("Button", nil, e)
+    e.optionalHeaderBtn:SetHeight(14)
+    e.optionalHeaderBtn.chevron = e.optionalHeaderBtn:CreateFontString(nil, "OVERLAY")
+    e.optionalHeaderBtn.chevron:SetFontObject(addon.ObjFont)
+    e.optionalHeaderBtn.chevron:SetText("+")
+    e.optionalHeaderBtn.chevron:SetTextColor(0.7, 0.7, 0.7, 1)
+    e.optionalHeaderBtn.chevron:SetPoint("LEFT", e.optionalHeaderBtn, "LEFT", 0, 0)
+    e.optionalHeaderBtn.text = e.optionalHeaderBtn:CreateFontString(nil, "OVERLAY")
+    e.optionalHeaderBtn.text:SetFontObject(addon.ObjFont)
+    e.optionalHeaderBtn.text:SetTextColor(0.65, 0.65, 0.7, 1)
+    e.optionalHeaderBtn.text:SetPoint("LEFT", e.optionalHeaderBtn.chevron, "RIGHT", 4, 0)
+    e.optionalHeaderBtn:SetScript("OnClick", function(self)
+        local entry = self:GetParent()
+        local key = entry and entry.entryKey
+        if not key then return end
+        addon.focus.recipeOptionalCollapsed = addon.focus.recipeOptionalCollapsed or {}
+        -- nil/true = collapsed; false = expanded. Toggle: set to false when expanding, true when collapsing.
+        addon.focus.recipeOptionalCollapsed[key] = (addon.focus.recipeOptionalCollapsed[key] == false)
+        if addon.ScheduleRefresh then addon.ScheduleRefresh() end
+    end)
+    e.optionalHeaderBtn:SetScript("OnEnter", function(self)
+        if GameTooltip and GameTooltip.SetOwner then
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(addon.L and addon.L["Click to expand or collapse"] or "Click to expand or collapse", 0.8, 0.8, 0.8)
+            GameTooltip:Show()
+        end
+    end)
+    e.optionalHeaderBtn:SetScript("OnLeave", function(self)
+        if GameTooltip and GameTooltip:GetOwner() == self then GameTooltip:Hide() end
+    end)
+    e.optionalHeaderBtn:Hide()
+
+    -- Collapsible choice slot headers (e.g. "Algari Missive (any)" with expandable variants)
+    local MAX_CHOICE_SLOTS = 5
+    e.choiceSlotButtons = {}
+    for i = 1, MAX_CHOICE_SLOTS do
+        local btn = CreateFrame("Button", nil, e)
+        btn:SetHeight(14)
+        btn:SetFrameLevel(e:GetFrameLevel() + 5)  -- Draw above objectives so chevron is visible and clickable
+        btn.chevron = btn:CreateFontString(nil, "OVERLAY")
+        btn.chevron:SetFontObject(addon.ObjFont)
+        btn.chevron:SetText("+")
+        btn.chevron:SetTextColor(0.7, 0.7, 0.7, 1)
+        btn.chevron:SetPoint("LEFT", btn, "LEFT", 0, 0)
+        btn.text = btn:CreateFontString(nil, "OVERLAY")
+        btn.text:SetFontObject(addon.ObjFont)
+        btn.text:SetTextColor(0.65, 0.65, 0.7, 1)
+        btn.text:SetPoint("LEFT", btn.chevron, "RIGHT", 4, 0)
+        btn:SetScript("OnClick", function(self)
+            local key = self._choiceSlotKey
+            if not key then return end
+            addon.focus.recipeChoiceSlotCollapsed = addon.focus.recipeChoiceSlotCollapsed or {}
+            -- nil/true = collapsed; false = expanded. Toggle: set to false when expanding, true when collapsing.
+            addon.focus.recipeChoiceSlotCollapsed[key] = (addon.focus.recipeChoiceSlotCollapsed[key] == false)
+            if addon.ScheduleRefresh then addon.ScheduleRefresh() end
+        end)
+        btn:SetScript("OnEnter", function(self)
+            if GameTooltip and GameTooltip.SetOwner then
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:AddLine(addon.L and addon.L["Click to expand or collapse"] or "Click to expand or collapse", 0.8, 0.8, 0.8)
+                GameTooltip:Show()
+            end
+        end)
+        btn:SetScript("OnLeave", function(self)
+            if GameTooltip and GameTooltip:GetOwner() == self then GameTooltip:Hide() end
+        end)
+        btn:Hide()
+        e.choiceSlotButtons[i] = btn
+    end
+
     e.wqTimerText = e:CreateFontString(nil, "OVERLAY")
     e.wqTimerText:SetFontObject(addon.ObjFont)
     e.wqTimerText:SetTextColor(1, 1, 1, 1)
@@ -629,6 +746,14 @@ local function ClearEntry(entry, full)
                         if obj.progressBarLabel then obj.progressBarLabel:Hide() end
                         if obj.copyBtn then obj.copyBtn:Hide() end
                     end
+                end
+            end
+            if entry.finishingHeaderBtn then entry.finishingHeaderBtn:Hide() end
+            if entry.optionalHeaderBtn then entry.optionalHeaderBtn:Hide() end
+            if entry.choiceSlotButtons then
+                for _, btn in ipairs(entry.choiceSlotButtons) do
+                    btn:Hide()
+                    btn._choiceSlotKey = nil
                 end
             end
         else

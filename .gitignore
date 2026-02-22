@@ -18,3 +18,4 @@ docs/plans/
 # Local dev tools
 tools/pipeline-viewer.html
 tools/serve-pipeline.ps1
+wowapi/

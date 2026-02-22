@@ -13,7 +13,7 @@
 ![Focus - Objective Tracker](https://raw.githubusercontent.com/Crystilac93/Horizon-Suite/main/docs/Focus.png)
 
 - **Smart zone tracking** – Nearby quests float to the top; list updates as you move. Delves, scenarios, raids, and world events get their own sections with progress bars and timers.
-- **Track what matters** – Achievements, Endeavors (housing), Decor, and Traveler's Log objectives appear in the tracker. Full achievement progress tracking with criteria parsing and quantity strings. One-click to open achievement panel, housing dashboard, decor catalog, or Adventure Guide.
+- **Track what matters** – Achievements, Endeavors (housing), Decor, recipes, and Traveler's Log objectives appear in the tracker. Full achievement progress tracking with criteria parsing and quantity strings. Recipe reagents shown as collapsible sections (optional reagents, finishing reagents, choice slots). Toggle optional and finishing reagent sections on or off in options. One-click to open achievement panel, housing dashboard, decor catalog, or Adventure Guide.
 - **Rare boss alerts** – Super-track nearby rares with one click and optional audio alerts.
 - **Live quest sync** – World quests, dailies, and weeklies update dynamically. Quests auto-track when you accept them. Choose a radar icon for auto-tracked in-zone entries.
 - **All The Things integration** – Collection data appears directly in your objectives.

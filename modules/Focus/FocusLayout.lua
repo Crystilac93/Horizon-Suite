@@ -405,15 +405,15 @@ local function FullLayout()
                         yOff = yOff - addon.GetSectionHeaderHeight() - addon.GetSectionToEntryGap()
                     end
                 end
-                local totalContentH = math.max(-yOff, 1)
+                local totalContentH = math.floor(math.max(-yOff, 1))
                 scrollChild:SetHeight(totalContentH)
                 scrollFrame:SetVerticalScroll(0)
                 addon.focus.layout.scrollOffset = 0
                 if addon.UpdateScrollIndicators then addon.UpdateScrollIndicators() end
                 local headerArea = addon.PADDING + addon.GetHeaderHeight() + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap()
-                local visibleH = math.min(totalContentH, addon.GetMaxContentHeight())
+                local visibleH = math.floor(math.min(totalContentH, addon.GetMaxContentHeight()))
                 local blockHeight = (hasMplus and addon.GetMplusBlockHeight and (addon.GetMplusBlockHeight() + gap * 2)) or 0
-                addon.focus.layout.targetHeight = math.max(addon.MIN_HEIGHT, headerArea + visibleH + addon.PADDING + blockHeight)
+                addon.focus.layout.targetHeight = math.floor(math.max(addon.MIN_HEIGHT, headerArea + visibleH + addon.PADDING + blockHeight))
             else
                 scrollFrame:Hide()
                 addon.focus.layout.targetHeight = addon.GetCollapsedHeight()
@@ -825,20 +825,22 @@ local function FullLayout()
 
     addon.UpdateHeaderQuestCount(#quests, addon.CountTrackedInLog(quests))
 
-    local totalContentH = math.max(-yOff, 1)
-    local prevScroll = addon.focus.layout.scrollOffset
+    local totalContentH = math.floor(math.max(-yOff, 1))
+    local prevScroll = addon.focus.layout.scrollOffset or 0
     scrollChild:SetHeight(totalContentH)
 
-    local frameH = scrollFrame:GetHeight() or 0
+    local frameH = math.floor(scrollFrame:GetHeight() or 0)
     local maxScr = math.max(totalContentH - frameH, 0)
-    addon.focus.layout.scrollOffset = math.min(prevScroll, maxScr)
+    -- When user was at bottom, stick to bottom to avoid jitter from dimension fluctuations.
+    local wasAtBottom = (maxScr > 0) and (prevScroll >= maxScr - 2)
+    addon.focus.layout.scrollOffset = wasAtBottom and maxScr or math.min(math.floor(prevScroll), maxScr)
     scrollFrame:SetVerticalScroll(addon.focus.layout.scrollOffset)
     if addon.UpdateScrollIndicators then addon.UpdateScrollIndicators() end
 
     local headerArea    = addon.PADDING + addon.GetHeaderHeight() + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap()
-    local visibleH      = math.min(totalContentH, addon.GetMaxContentHeight())
+    local visibleH      = math.floor(math.min(totalContentH, addon.GetMaxContentHeight()))
     local blockHeight   = (hasMplus and addon.GetMplusBlockHeight and (addon.GetMplusBlockHeight() + gap * 2)) or 0
-    addon.focus.layout.targetHeight  = math.max(addon.MIN_HEIGHT, headerArea + visibleH + addon.PADDING + blockHeight)
+    addon.focus.layout.targetHeight  = math.floor(math.max(addon.MIN_HEIGHT, headerArea + visibleH + addon.PADDING + blockHeight))
 
     if #quests > 0 then
         ApplyShowAlpha()

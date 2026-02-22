@@ -15,7 +15,8 @@ local function HideAllSectionHeaders(excludeGroupKeys)
     for i = 1, addon.SECTION_POOL_SIZE do
         local s = sectionPool[i]
         if excludeGroupKeys and s.groupKey and excludeGroupKeys[s.groupKey] then
-            -- Leave visible; will be faded out by UpdateSectionHeaderFadeOut
+            -- Leave visible for fade-out; disable mouse so it doesn't intercept clicks
+            s:EnableMouse(false)
         else
             s.active = false
             s:Hide()
@@ -78,11 +79,23 @@ local function AcquireSectionHeader(groupKey, focusedGroupKey)
     s:SetScript("OnEnter", nil)
     s:SetScript("OnLeave", nil)
 
+    -- Capture groupKey in closure so the correct category is toggled even if the frame
+    -- is reused or groupKey is overwritten before the click handler runs.
+    local capturedKey = groupKey
     s:SetScript("OnClick", function(self)
-        local key = self.groupKey
+        local key = capturedKey
         if not key then return end
 
         if addon.IsCategoryCollapsed(key) then
+            -- When expanding from collapsed panel, collapse all other categories first so
+            -- only the clicked category expands (avoids "expand all" when panel was collapsed).
+            if addon.focus.collapsed and addon.SetCategoryCollapsed and addon.SECTION_LABELS then
+                for otherKey in pairs(addon.SECTION_LABELS) do
+                    if otherKey ~= key then
+                        addon.SetCategoryCollapsed(otherKey, true)
+                    end
+                end
+            end
             if addon.PrepareGroupExpandSlideDown then addon.PrepareGroupExpandSlideDown(key) end
             addon.SetCategoryCollapsed(key, false)
             if self.chevron then
@@ -108,6 +121,11 @@ local function AcquireSectionHeader(groupKey, focusedGroupKey)
     end)
 
     s.active = true
+    s:EnableMouse(true)  -- Re-enable in case this frame was fading out previously
+    -- Ensure section headers are above entries so clicks hit the correct category.
+    local parentLevel = s:GetParent() and s:GetParent():GetFrameLevel() or 0
+    s:SetFrameLevel(parentLevel + 10)
+
     if addon.focus.collapse.sectionHeadersFadingIn and addon.GetDB("animations", true) then
         local staggerIdx = addon.focus.layout.sectionIdx - 1
         s.staggerDelay = staggerIdx * (addon.FOCUS_ANIM and addon.FOCUS_ANIM.stagger or 0.05)

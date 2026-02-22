@@ -347,9 +347,21 @@ L["Show recipes"]                                       = "Afficher les recettes
 L["Show tracked profession recipes in the list."]        = "Affiche les recettes de métier suivies dans la liste."
 L["Show recipe reagents"]                               = "Afficher les réactifs des recettes"
 L["Show reagent shopping list (owned/required) for each tracked recipe. Includes a copy button to insert item links into chat."] = "Affiche la liste de réactifs (possédés/requis) pour chaque recette suivie. Inclut un bouton pour copier les liens d'objets dans le chat."
+L["Recipe reagent sections"]                           = "Sections de réactifs"
+L["Recipe display"]                                    = "Affichage des recettes"
+L["Show optional reagents"]                             = "Afficher les réactifs optionnels"
+L["Show optional (modifying) reagents in a collapsible section. When off, optional reagents are hidden."] = "Affiche les réactifs optionnels (modificateurs) dans une section repliable. Désactivé, les réactifs optionnels sont masqués."
+L["Show finishing reagents"]                            = "Afficher les réactifs de finition"
+L["Show finishing reagents in a collapsible section. When off, finishing reagents are hidden."] = "Affiche les réactifs de finition dans une section repliable. Désactivé, les réactifs de finition sont masqués."
+L["Show choice slots"]                                 = "Afficher les emplacements de choix"
+L["Show choice slots (e.g. \"1 of any\" Algari Missive) as collapsible sections. When off, choice slots are shown as a flat list of variants."] = "Affiche les emplacements de choix (ex. « 1 parmi » Missive Algari) en sections repliables. Désactivé, affiche une liste plate des variantes."
 L["Copy to chat"]                                       = "Copier dans le chat"
+L["Optional reagents"]                                  = "Réactifs optionnels"
+L["Finishing reagents"]                                 = "Réactifs de finition"
 L["Show recipe icons"]                                  = "Afficher les icônes de recettes"
 L["Show each recipe's icon next to the title. Requires 'Show quest type icons' in Display."] = "Affiche l'icône de chaque recette à côté du titre. Nécessite « Afficher les icônes de type de quête » dans Affichage."
+L["Color by item rarity"]                               = "Couleur selon la rareté"
+L["Color recipe names and reagents by their item quality (Poor, Common, Rare, Epic, etc.)."] = "Colore les noms de recettes et les réactifs selon leur qualité d'objet (Médiocre, Commun, Rare, Épique, etc.)."
 
 -- =====================================================================
 -- OptionsData.lua Features — Adventure Guide

@@ -1094,9 +1094,9 @@ local function HandleScroll(delta)
     if InCombatLockdown() then return end
     local childH  = scrollChild:GetHeight() or 0
     local frameH  = scrollFrame:GetHeight() or 0
-    local maxScr  = math.max(childH - frameH, 0)
+    local maxScr  = math.max(math.floor(childH - frameH), 0)
     local lo = addon.focus.layout
-    lo.scrollOffset = math.max(0, math.min(lo.scrollOffset - delta * addon.SCROLL_STEP, maxScr))
+    lo.scrollOffset = math.floor(math.max(0, math.min((lo.scrollOffset or 0) - delta * addon.SCROLL_STEP, maxScr)))
     scrollFrame:SetVerticalScroll(lo.scrollOffset)
     if addon.UpdateScrollIndicators then addon.UpdateScrollIndicators() end
 end
@@ -1130,7 +1130,7 @@ arrowBottomFrame:SetScript("OnClick", function()
     if InCombatLockdown() then return end
     local childH = scrollChild:GetHeight() or 0
     local frameH = scrollFrame:GetHeight() or 0
-    local maxScr = math.max(childH - frameH, 0)
+    local maxScr = math.max(math.floor(childH - frameH), 0)
     local lo = addon.focus.layout
     lo.scrollOffset = maxScr
     scrollFrame:SetVerticalScroll(lo.scrollOffset)

@@ -725,6 +725,68 @@ local function UpdateSectionHeaderFadeIn(dt, useAnim)
     end
 end
 
+local function UpdateRecipeFinishingAnimations(dt, useAnim)
+    local animating = addon.focus.recipeFinishingAnimating
+    local animTime = addon.focus.recipeFinishingAnimTime
+    if not animating or not animTime or not next(animating) then return end
+
+    local dur = anim.dur
+    for key, mode in pairs(animating) do
+        local entry
+        for i = 1, addon.POOL_SIZE do
+            if pool[i].entryKey == key then
+                entry = pool[i]
+                break
+            end
+        end
+        -- Expand: layout runs next frame, so we may not have _finishingObjIndices yet; keep waiting.
+        -- Collapse: we don't refresh, so entry should have indices from last render; if missing, bail and toggle.
+        if not entry or not entry._finishingObjIndices then
+            if mode == "collapse" then
+                animating[key] = nil
+                animTime[key] = nil
+                addon.focus.recipeFinishingCollapsed = addon.focus.recipeFinishingCollapsed or {}
+                addon.focus.recipeFinishingCollapsed[key] = true
+                if addon.ScheduleRefresh then addon.ScheduleRefresh() end
+            end
+        else
+            animTime[key] = (animTime[key] or 0) + dt
+            local p = GetProgress(animTime[key], 0, dur)
+            local ep = useAnim and ((mode == "collapse") and addon.easeIn(p) or addon.easeOut(p)) or 1
+            local alpha = (mode == "collapse") and (1 - ep) or ep
+            -- Slide: collapse = slideOutX (right), expand = slideInX (from right to final)
+            local slideOffset = useAnim and ((mode == "collapse") and (ep * anim.slideOutX) or ((1 - ep) * anim.slideInX)) or 0
+
+            for _, j in ipairs(entry._finishingObjIndices) do
+                local obj = entry.objectives[j]
+                if obj and obj.text then
+                    local r, g, b = obj.text:GetTextColor()
+                    obj.text:SetTextColor(r, g, b, alpha)
+                    if obj.shadow then
+                        local sr, sg, sb = obj.shadow:GetTextColor()
+                        obj.shadow:SetTextColor(sr, sg, sb, alpha)
+                    end
+                    if obj.copyBtn then obj.copyBtn:SetAlpha(alpha) end
+                    if not InCombatLockdown() and obj._slideAnchor and obj._slideBaseX ~= nil and obj._slideBaseY ~= nil then
+                        obj.text:ClearAllPoints()
+                        obj.text:SetPoint("TOPLEFT", obj._slideAnchor, "BOTTOMLEFT", obj._slideBaseX + slideOffset, obj._slideBaseY)
+                    end
+                end
+            end
+
+            if p >= 1 then
+                animating[key] = nil
+                animTime[key] = nil
+                if mode == "collapse" then
+                    addon.focus.recipeFinishingCollapsed = addon.focus.recipeFinishingCollapsed or {}
+                    addon.focus.recipeFinishingCollapsed[key] = true
+                    if addon.ScheduleRefresh then addon.ScheduleRefresh() end
+                end
+            end
+        end
+    end
+end
+
 local function UpdateCollapseAnimations(dt)
     -- Section header fade-out runs independently (for WQ toggle, etc.) via main loop.
     if not addon.focus.collapse.animating then return end
@@ -937,6 +999,7 @@ function addon.EnsureFocusUpdateRunning()
         UpdateCombatFade(dt, useAnim)
         UpdateHoverFade(dt, useAnim)
         local anyEntryAnimating = UpdateEntryAnimations(dt, useAnim)
+        UpdateRecipeFinishingAnimations(dt, useAnim)
         UpdateSectionHeaderFadeOut(dt, useAnim)
         UpdateCollapseAnimations(dt)
         UpdateGroupCollapseCompletion()
@@ -960,6 +1023,7 @@ function addon.EnsureFocusUpdateRunning()
             hoverFadeNeedsUpdate = (addon.focus.hoverFade.fadeState ~= nil) or (math.abs(currentAlpha - targetAlpha) >= 0.01)
         end
 
+        local recipeFinishingAnimating = addon.focus.recipeFinishingAnimating and next(addon.focus.recipeFinishingAnimating or {})
         local stillAnimating = anyEntryAnimating
             or anySectionSliding
             or addon.focus.collapse.animating
@@ -970,6 +1034,7 @@ function addon.EnsureFocusUpdateRunning()
             or (addon.focus.collapse.optionCollapseKeys and next(addon.focus.collapse.optionCollapseKeys) ~= nil)
             or addon.focus.collapse.sectionHeadersFadingOut
             or addon.focus.collapse.sectionHeadersFadingIn
+            or recipeFinishingAnimating
         if not stillAnimating then
             addon._focusUpdateRunning = false
             addon.HS:SetScript("OnUpdate", nil)
