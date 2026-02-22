@@ -1,6 +1,11 @@
+--[[
+    Horizon Suite - Focus - Adventure Guide (Traveler's Log)
+    Direct provider for tracked Traveler's Log activities. Wraps C_PerksActivities.
+]]
+
 local addon = _G.HorizonSuite
 
-local DEFAULT_ADVENTURE_COLOR = { 0.85, 0.70, 0.30 }
+local DEFAULT_ADVENTURE_COLOR = { 0.85, 0.70, 0.30 }  -- warm gold
 
 --- Get display info for a Traveler's Log activity.
 --- @param activityID number

@@ -109,7 +109,7 @@ addon.QUEST_COLORS = {
     ENDEAVOR   = { 0.45, 0.95, 0.75 },  -- mint green (housing/endeavor)
     ENDEAVORS  = { 0.45, 0.95, 0.75 },  -- mint green (color matrix group default)
     DECOR      = { 0.65, 0.55, 0.45 },  -- warm brown (housing decor)
-    ADVENTURE  = { 0.85, 0.70, 0.30 },  -- teal-gold (Adventure Guide collectibles)
+    ADVENTURE  = { 0.85, 0.70, 0.30 },  -- warm gold (Adventure Guide / Traveler's Log)
 }
 
 -- Presence-only (no Focus category): boss emote alert, discovery line
@@ -178,7 +178,7 @@ addon.SECTION_COLORS = {
     ACHIEVEMENTS = { 0.78, 0.48, 0.22 },  -- bronze
     ENDEAVORS  = { 0.45, 0.95, 0.75 },  -- mint green (housing/endeavor)
     DECOR      = { 0.65, 0.55, 0.45 },  -- warm brown (housing decor)
-    ADVENTURE  = { 0.85, 0.70, 0.30 },  -- teal-gold (Adventure Guide)
+    ADVENTURE  = { 0.85, 0.70, 0.30 },  -- warm gold (Adventure Guide)
     DEFAULT   = { 0.70, 0.70, 0.70 },
     COMPLETE  = { 0.20, 1.00, 0.40 },
 }
