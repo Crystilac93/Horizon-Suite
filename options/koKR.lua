@@ -357,6 +357,15 @@ L["Height of scenario progress bar (4–8 px)."]          = "시나리오 진행
 -- OptionsData.lua Typography — Font
 -- =====================================================================
 L["Font family."]                                       = "글꼴."
+L["Title font"]                                         = "제목 글꼴"
+L["Zone font"]                                          = "지역 글꼴"
+L["Objective font"]                                     = "목표 글꼴"
+L["Section font"]                                       = "구역 글꼴"
+L["Use global font"]                                    = "전역 글꼴 사용"
+L["Font family for quest titles."]                      = "퀘스트 제목 글꼴."
+L["Font family for zone labels."]                       = "지역명 글꼴."
+L["Font family for objective text."]                    = "목표 텍스트 글꼴."
+L["Font family for section headers."]                    = "구역 헤더 글꼴."
 L["Header size"]                                        = "헤더 크기"
 L["Header font size."]                                  = "헤더 글꼴 크기."
 L["Title size"]                                         = "제목 크기"

@@ -361,6 +361,16 @@ function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, m
     return row
 end
 
+-- Rounded backdrop for section cards and dropdown popups (uses Blizzard edge file for modern look).
+local SECTION_CARD_BACKDROP = {
+    bgFile   = "Interface\\ChatFrame\\ChatFrameBackground",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile     = true,
+    tileSize = 16,
+    edgeSize = 16,
+    insets   = { left = 4, right = 4, top = 4, bottom = 4 },
+}
+
 -- Custom dropdown: button + popup list (no UIDropDownMenuTemplate)
 -- When searchable is true, adds an EditBox above the list to filter options by name (e.g. font dropdown).
 function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, options, get, set, displayFn, searchable, disabledFn)
@@ -1023,16 +1033,6 @@ end
 
 local CARD_HEADER_H = 24
 local CARD_EXPAND_ANIM_DUR = 0.22
-
--- Rounded backdrop for section cards (uses Blizzard edge file for modern look).
-local SECTION_CARD_BACKDROP = {
-    bgFile   = "Interface\\ChatFrame\\ChatFrameBackground",
-    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-    tile     = true,
-    tileSize = 16,
-    edgeSize = 16,
-    insets   = { left = 4, right = 4, top = 4, bottom = 4 },
-}
 
 -- Section card: rounded corners via SetBackdrop, soft cinematic background.
 -- When sectionKey and getCollapsedFn/setCollapsedFn are provided, the card is collapsible.

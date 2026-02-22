@@ -357,6 +357,15 @@ L["Height of scenario progress bar (4–8 px)."]          = "Altura da barra de 
 -- OptionsData.lua Typography — Font
 -- =====================================================================
 L["Font family."]                                       = "Família de fonte."
+L["Title font"]                                         = "Fonte dos títulos"
+L["Zone font"]                                          = "Fonte das zonas"
+L["Objective font"]                                     = "Fonte dos objetivos"
+L["Section font"]                                       = "Fonte das seções"
+L["Use global font"]                                    = "Usar fonte global"
+L["Font family for quest titles."]                      = "Família de fonte dos títulos de missão."
+L["Font family for zone labels."]                       = "Família de fonte dos rótulos de zona."
+L["Font family for objective text."]                    = "Família de fonte do texto dos objetivos."
+L["Font family for section headers."]                    = "Família de fonte dos cabeçalhos de seção."
 L["Header size"]                                        = "Tamanho do cabeçalho"
 L["Header font size."]                                  = "Tamanho da fonte do cabeçalho."
 L["Title size"]                                         = "Tamanho do título"
