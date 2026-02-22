@@ -489,6 +489,16 @@ local function RefreshContentInCombat()
                                 local pct = math.floor(100 * fraction)
                                 obj.progressBarLabel:SetText(("%d/%d (%d%%)"):format(nf, nr, pct))
                             end
+                            local barFillColor
+                            if addon.GetDB("progressBarUseCategoryColor", true) then
+                                barFillColor = titleColor
+                            else
+                                barFillColor = addon.GetDB("progressBarFillColor", nil)
+                                if not barFillColor or type(barFillColor) ~= "table" then barFillColor = { 0.40, 0.65, 0.90 } end
+                            end
+                            if barFillColor and barFillColor[1] and barFillColor[2] and barFillColor[3] then
+                                obj.progressBarFill:SetColorTexture(barFillColor[1], barFillColor[2], barFillColor[3], 0.85)
+                            end
                         end
                     end
                 end

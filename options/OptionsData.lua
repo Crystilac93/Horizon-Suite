@@ -94,6 +94,7 @@ local COLOR_LIVE_KEYS = {
     mplusAffixColorR = true, mplusAffixColorG = true, mplusAffixColorB = true,
     mplusBossColorR = true, mplusBossColorG = true, mplusBossColorB = true,
     progressBarFillColor = true, progressBarTextColor = true,
+    progressBarUseCategoryColor = true,
 }
 
 function OptionsData_GetDB(key, default)
@@ -726,6 +727,7 @@ local OptionCategories = {
             { type = "toggle", name = L["Show entry numbers"], desc = L["Prefix quest titles with 1., 2., 3. within each category."], dbKey = "showCategoryEntryNumbers", get = function() return getDB("showCategoryEntryNumbers", true) end, set = function(v) setDB("showCategoryEntryNumbers", v) end },
             { type = "toggle", name = L["Show completed count"], desc = L["Show X/Y progress in quest title."], dbKey = "showCompletedCount", get = function() return getDB("showCompletedCount", false) end, set = function(v) setDB("showCompletedCount", v) end },
             { type = "toggle", name = L["Show objective progress bar"], desc = L["Show a progress bar under objectives that have numeric progress (e.g. 3/250). Only applies to entries with a single arithmetic objective where the required amount is greater than 1."], dbKey = "showObjectiveProgressBar", get = function() return getDB("showObjectiveProgressBar", false) end, set = function(v) setDB("showObjectiveProgressBar", v) end },
+            { type = "toggle", name = L["Use category color for progress bar"], desc = L["When on, the progress bar matches the quest/achievement category color. When off, uses the custom fill color below."], dbKey = "progressBarUseCategoryColor", get = function() return getDB("progressBarUseCategoryColor", true) end, set = function(v) setDB("progressBarUseCategoryColor", v) end, disabled = function() return not getDB("showObjectiveProgressBar", false) end },
             { type = "dropdown", name = L["Completed objectives"], desc = L["For multi-objective quests, how to display objectives you've completed (e.g. 1/1)."], dbKey = "questCompletedObjectiveDisplay", options = { { L["Show all"], "off" }, { L["Fade completed"], "fade" }, { L["Hide completed"], "hide" } }, get = function() return getDB("questCompletedObjectiveDisplay", "off") end, set = function(v) setDB("questCompletedObjectiveDisplay", v) end },
             { type = "toggle", name = L["Use tick for completed objectives"], desc = L["When on, completed objectives show a checkmark (✓) instead of green color."], dbKey = "useTickForCompletedObjectives", get = function() return getDB("useTickForCompletedObjectives", false) end, set = function(v) setDB("useTickForCompletedObjectives", v) end },
             { type = "toggle", name = L["Show quest type icons"], desc = L["Show quest type icon in the Focus tracker (quest accept/complete, world quest, quest update)."], dbKey = "showQuestTypeIcons", get = function() return getDB("showQuestTypeIcons", false) end, set = function(v) setDB("showQuestTypeIcons", v) end },

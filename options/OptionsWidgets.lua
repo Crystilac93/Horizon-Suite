@@ -824,7 +824,8 @@ end
 
 -- Color swatch row: label + clickable swatch (for colorMatrix/colorGroup in options panel).
 -- defaultTbl: {r,g,b} or nil (nil => {0.5,0.5,0.5}). getTbl() returns current color or nil. setKeyVal({r,g,b}), notify() on change.
-function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultTbl, getTbl, setKeyVal, notify)
+-- disabledFn: optional function() return boolean end; when true, greys out and disables the swatch.
+function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultTbl, getTbl, setKeyVal, notify, disabledFn)
     local row = CreateFrame("Frame", nil, parent)
     row:SetSize(280, 24)
     row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -4)
@@ -862,6 +863,7 @@ function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultT
         tex:SetColorTexture(r, g, b, 1)
     end
     swatch:SetScript("OnClick", function()
+        if disabledFn and disabledFn() then return end
         if not ColorPickerFrame or not ColorPickerFrame.SetupColorPickerAndShow then return end
         local r, g, b = def[1], def[2], def[3]
         if getTbl then
@@ -910,7 +912,21 @@ function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultT
         })
         EnsureHexBoxHooked()
     end)
-    row.Refresh = function() swatch:Refresh() end
+    row.Refresh = function()
+        swatch:Refresh()
+        if disabledFn then
+            local disabled = disabledFn()
+            if disabled then
+                swatch:Disable()
+                lab:SetAlpha(0.5)
+                swatch:SetAlpha(0.5)
+            else
+                swatch:Enable()
+                lab:SetAlpha(1)
+                swatch:SetAlpha(1)
+            end
+        end
+    end
     row:Refresh()
     return row
 end
