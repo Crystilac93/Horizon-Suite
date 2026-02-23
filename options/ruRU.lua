@@ -1,0 +1,693 @@
+if GetLocale() ~= "ruRU" then return end
+
+local addon = _G.HorizonSuite
+if not addon then return end
+
+local L = setmetatable({}, { __index = function(t, k) return k end })
+addon.L = L
+addon.StandardFont = UNIT_NAME_FONT
+
+-- =====================================================================
+-- OptionsPanel.lua — Title
+-- =====================================================================
+L["HORIZON SUITE"]                                                  = "HORIZON SUITE"
+
+-- =====================================================================
+-- OptionsPanel.lua — Sidebar module group labels
+-- =====================================================================
+L["Focus"]                                                          = "Фокус"
+L["Presence"]                                                       = "Присутствие"
+L["Other"]                                                          = "Прочее"
+
+-- =====================================================================
+-- OptionsPanel.lua — Section headers
+-- =====================================================================
+L["Quest types"]                                                    = "Типы заданий"
+L["Element overrides"]                                              = "Цвета по элементам"
+L["Per category"]                                                   = "Цвета по категориям"
+L["Grouping Overrides"]                                             = "Пользовательские цвета"
+L["Other colors"]                                                   = "Прочие цвета"
+
+-- =====================================================================
+-- OptionsPanel.lua — Color row labels (collapsible group sub-rows)
+-- =====================================================================
+L["Section"]                                                        = "Секция"
+L["Title"]                                                          = "Заголовок"
+L["Zone"]                                                           = "Зона"
+L["Objective"]                                                      = "Цель"
+
+-- =====================================================================
+-- OptionsPanel.lua — Toggle switch labels & tooltips
+-- =====================================================================
+L["Ready to Turn In overrides base colours"]                        = "Отдельные цвета для раздела «Готово к сдаче»"
+L["Ready to Turn In uses its colours for quests in that section."]  = "Задания, готовые к сдаче, используют свои цвета в этом разделе."
+L["Current Zone overrides base colours"]                            = "Отдельные цвета для раздела «Текущая зона»"
+L["Current Zone uses its colours for quests in that section."]      = "Задания текущей зоны используют свои цвета в этом разделе."
+L["Use distinct color for completed objectives"]                     = "Отдельный цвет для выполненных целей"
+L["When on, completed objectives (e.g. 1/1) use the color below; when off, they use the same color as incomplete objectives."] = "Вкл.: выполненные цели (напр. 1/1) используют цвет ниже. Выкл.: тот же цвет, что и у невыполненных."
+L["Completed objective"]                                           = "Выполненная цель"
+
+-- =====================================================================
+-- OptionsPanel.lua — Button labels
+-- =====================================================================
+L["Reset"]                                                          = "Сбросить"
+L["Reset quest types"]                                              = "Сбросить типы заданий"
+L["Reset overrides"]                                                = "Сбросить пользовательские цвета"
+L["Reset to defaults"]                                              = "Сбросить на значения по умолчанию"
+L["Reset to default"]                                               = "Сбросить на значение по умолчанию"
+
+-- =====================================================================
+-- OptionsPanel.lua — Search bar placeholder
+-- =====================================================================
+L["Search settings..."]                                             = "Поиск настроек..."
+L["Search fonts..."]                                                 = "Поиск шрифта..."
+
+-- =====================================================================
+-- OptionsPanel.lua — Resize handle tooltip
+-- =====================================================================
+L["Drag to resize"]                                                 = "Перетащите для изменения размера"
+
+-- =====================================================================
+-- OptionsData.lua Category names (sidebar)
+-- =====================================================================
+L["Modules"]                                            = "Модули"
+L["Layout"]                                             = "Расположение"
+L["Visibility"]                                         = "Видимость"
+L["Display"]                                            = "Отображение"
+L["Features"]                                           = "Функции"
+L["Typography"]                                         = "Типографика"
+L["Appearance"]                                         = "Внешний вид"
+L["Colors"]                                             = "Цвета"
+L["Organization"]                                       = "Организация"
+
+-- =====================================================================
+-- OptionsData.lua Section headers
+-- =====================================================================
+L["Panel behaviour"]                                    = "Поведение панели"
+L["Dimensions"]                                         = "Размеры"
+L["Instance"]                                           = "Подземелье"
+L["Combat"]                                             = "Бой"
+L["Filtering"]                                          = "Фильтры"
+L["Header"]                                             = "Заголовок"
+L["List"]                                               = "Список"
+L["Spacing"]                                            = "Интервалы"
+L["Rare bosses"]                                        = "Редкие боссы"
+L["World quests"]                                       = "Локальные задания"
+L["Floating quest item"]                                = "Плавающая кнопка предмета"
+L["Mythic+"]                                            = "Эпохальный+"
+L["Achievements"]                                       = "Достижения"
+L["Endeavors"]                                          = "Начинания"
+L["Decor"]                                              = "Украшения"
+L["Scenario & Delve"]                                   = "Сценарий и Подземелье"
+L["Font"]                                               = "Шрифт"
+L["Text case"]                                          = "Регистр"
+L["Shadow"]                                             = "Тень"
+L["Panel"]                                              = "Панель"
+L["Highlight"]                                          = "Выделение"
+L["Color matrix"]                                       = "Цветовая матрица"
+L["Focus order"]                                        = "Порядок фокуса"
+L["Sort"]                                               = "Сортировка"
+L["Behaviour"]                                          = "Поведение"
+L["Content Types"]                                      = "Типы контента"
+L["Delves"]                                             = "Подземелья"
+L["Interactions"]                                       = "Взаимодействия"
+L["Tracking"]                                           = "Отслеживание"
+L["Scenario Bar"]                                       = "Панель сценария"
+
+-- =====================================================================
+-- OptionsData.lua Modules
+-- =====================================================================
+L["Enable Focus module"]                                = "Включить модуль Фокус"
+L["Show the objective tracker for quests, world quests, rares, achievements, and scenarios."] = "Отображает трекер целей для заданий, локальных заданий, редких боссов, достижений и сценариев."
+L["Enable Presence module"]                             = "Включить модуль Присутствие"
+L["Cinematic zone text and notifications (zone changes, level up, boss emotes, achievements, quest updates)."] = "Кинематографический текст зоны и уведомления (смена зоны, повышение уровня, эмоции боссов, достижения, обновления заданий)."
+L["Enable Yield module"]                                = "Включить модуль Yield"
+L["Cinematic loot notifications (items, money, currency, reputation)."] = "Кинематографические уведомления о добыче (предметы, золото, валюта, репутация)."
+L["Enable Vista module"]                                = "Включить модуль Vista"
+L["Cinematic square minimap with zone text, coordinates, and button collector."] = "Кинематографическая квадратная миникарта с текстом зоны, координатами и коллектором кнопок."
+L["Beta"]                                               = "Бета"
+L["Scaling"]                                            = "Масштабирование"
+L["Global UI scale"]                                    = "Глобальный масштаб интерфейса"
+L["Scale all sizes, spacings, and fonts by this factor (50–200%). Does not change your configured values."] = "Масштабирует все размеры, интервалы и шрифты (50–200%). Не изменяет ваши настройки."
+L["Per-module scaling"]                                 = "Масштаб по модулям"
+L["Override the global scale with individual sliders for each module."] = "Заменяет глобальный масштаб отдельными ползунками для каждого модуля."
+L["Focus scale"]                                        = "Масштаб Фокуса"
+L["Scale for the Focus objective tracker (50–200%)."]   = "Масштаб трекера целей Фокуса (50–200%)."
+L["Presence scale"]                                     = "Масштаб Присутствия"
+L["Scale for the Presence cinematic text (50–200%)."]   = "Масштаб кинематографического текста Присутствия (50–200%)."
+L["Vista scale"]                                        = "Масштаб Vista"
+L["Scale for the Vista minimap module (50–200%)."]      = "Масштаб модуля миникарты Vista (50–200%)."
+L["Insight scale"]                                      = "Масштаб Insight"
+L["Scale for the Insight tooltip module (50–200%)."]    = "Масштаб модуля подсказок Insight (50–200%)."
+L["Yield scale"]                                        = "Масштаб Yield"
+L["Scale for the Yield loot toast module (50–200%)."]   = "Масштаб модуля уведомлений о добыче Yield (50–200%)."
+L["Enable Horizon Insight module"]                      = "Включить модуль Horizon Insight"
+L["Cinematic tooltips with class colors, spec display, and faction icons."] = "Кинематографические подсказки с цветами классов, специализацией и иконками фракций."
+L["Horizon Insight"]                                    = "Horizon Insight"
+L["Insight"]                                            = "Insight"
+L["Tooltip anchor mode"]                                = "Режим привязки подсказок"
+L["Where tooltips appear: follow cursor or fixed position."] = "Где отображаются подсказки: следовать за курсором или фиксированная позиция."
+L["Cursor"]                                             = "Курсор"
+L["Fixed"]                                              = "Фиксировано"
+L["Show anchor to move"]                                = "Показать якорь для перемещения"
+L["Show draggable frame to set fixed tooltip position. Drag, then right-click to confirm."] = "Показывает перетаскиваемый фрейм для фиксированной позиции. Перетащите и нажмите ПКМ для подтверждения."
+L["Reset tooltip position"]                             = "Сбросить позицию подсказок"
+L["Reset fixed position to default."]                   = "Сбросить фиксированную позицию по умолчанию."
+L["Yield"]                                              = "Yield"
+L["General"]                                            = "Общие"
+L["Position"]                                           = "Позиция"
+L["Reset position"]                                     = "Сбросить позицию"
+L["Reset loot toast position to default."]              = "Сбросить позицию уведомлений о добыче."
+
+-- =====================================================================
+-- OptionsData.lua Layout
+-- =====================================================================
+L["Lock position"]                                      = "Заблокировать позицию"
+L["Prevent dragging the tracker."]                      = "Запрещает перетаскивание трекера."
+L["Grow upward"]                                        = "Рост вверх"
+L["Anchor at bottom so the list grows upward."]         = "Привязка снизу, список растёт вверх."
+L["Start collapsed"]                                    = "Свёрнуто по умолчанию"
+L["Start with only the header shown until you expand."] = "Показывать только заголовок до раскрытия."
+L["Panel width"]                                        = "Ширина панели"
+L["Tracker width in pixels."]                           = "Ширина трекера в пикселях."
+L["Max content height"]                                 = "Макс. высота контента"
+L["Max height of the scrollable list (pixels)."]        = "Максимальная высота прокручиваемого списка (пиксели)."
+
+-- =====================================================================
+-- OptionsData.lua Visibility
+-- =====================================================================
+L["Always show M+ block"]                                           = "Всегда показывать блок Эпохального+"
+L["Show the M+ block whenever an active keystone is running"]       = "Показывать блок Эпохального+ при активном ключе."
+L["Show in dungeon"]                                    = "Показывать в подземелье"
+L["Show tracker in party dungeons."]                    = "Показывать трекер в групповых подземельях."
+L["Show in raid"]                                       = "Показывать в рейде"
+L["Show tracker in raids."]                            = "Показывать трекер в рейдах."
+L["Show in battleground"]                               = "Показывать на поле боя"
+L["Show tracker in battlegrounds."]                     = "Показывать трекер на полях боя."
+L["Show in arena"]                                      = "Показывать на арене"
+L["Show tracker in arenas."]                            = "Показывать трекер на аренах."
+L["Hide in combat"]                                     = "Скрывать в бою"
+L["Hide tracker and floating quest item in combat."]    = "Скрывает трекер и плавающую кнопку предмета в бою."
+L["Combat visibility"]                                  = "Видимость в бою"
+L["How the tracker behaves in combat: show, fade to reduced opacity, or hide."] = "Поведение трекера в бою: показывать, затемнять или скрывать."
+L["Show"]                                               = "Показывать"
+L["Fade"]                                               = "Затемнять"
+L["Hide"]                                               = "Скрывать"
+L["Combat fade opacity"]                                = "Прозрачность в бою (затемнение)"
+L["How visible the tracker is when faded in combat (0 = invisible). Only applies when Combat visibility is Fade."] = "Видимость трекера при затемнении в бою (0 = невидим). Только при режиме «Затемнять»."
+L["Mouseover"]                                          = "Наведение"
+L["Show only on mouseover"]                             = "Показывать только при наведении"
+L["Fade tracker when not hovering; move mouse over it to show."] = "Затемняет трекер без наведения; наведите курсор для отображения."
+L["Faded opacity"]                                      = "Прозрачность при затемнении"
+L["How visible the tracker is when faded (0 = invisible)."] = "Видимость трекера при затемнении (0 = невидим)."
+L["Only show quests in current zone"]                   = "Только задания текущей зоны"
+L["Hide quests outside your current zone."]             = "Скрывает задания вне текущей зоны."
+
+-- =====================================================================
+-- OptionsData.lua Display — Header
+-- =====================================================================
+L["Show quest count"]                                   = "Показывать количество заданий"
+L["Show quest count in header."]                        = "Показывает количество заданий в заголовке."
+L["Header count format"]                                = "Формат счётчика заданий"
+L["Tracked/in-log or in-log/max-slots. Tracked excludes world/live-in-zone quests."] = "Отслеживаемые/в журнале или в журнале/макс. слотов. Отслеживаемые не включают локальные задания."
+L["Show header divider"]                                = "Показывать разделитель заголовка"
+L["Show the line below the header."]                    = "Показывает линию под заголовком."
+L["Super-minimal mode"]                                 = "Супер-минимальный режим"
+L["Hide header for a pure text list."]                  = "Скрывает заголовок для чистого текстового списка."
+L["Show options button"]                               = "Показывать кнопку настроек"
+L["Show the Options button in the tracker header."]     = "Показывает кнопку настроек в заголовке трекера."
+L["Header color"]                                       = "Цвет заголовка"
+L["Color of the OBJECTIVES header text."]               = "Цвет текста заголовка ЦЕЛИ."
+L["Header height"]                                      = "Высота заголовка"
+L["Height of the header bar in pixels (18–48)."]        = "Высота полосы заголовка в пикселях (18–48)."
+
+-- =====================================================================
+-- OptionsData.lua Display — List
+-- =====================================================================
+L["Show section headers"]                               = "Показывать заголовки секций"
+L["Show category labels above each group."]             = "Показывает названия категорий над каждой группой."
+L["Show category headers when collapsed"]               = "Заголовки категорий при свёрнутом виде"
+L["Keep section headers visible when collapsed; click to expand a category."] = "Сохраняет заголовки видимыми при свёрнутом виде; клик для раскрытия."
+L["Show Nearby (Current Zone) group"]                   = "Показывать группу «Текущая зона»"
+L["Show in-zone quests in a dedicated Current Zone section. When off, they appear in their normal category."] = "Показывает задания зоны в отдельной секции. Выкл.: в обычной категории."
+L["Show zone labels"]                                   = "Показывать названия зон"
+L["Show zone name under each quest title."]             = "Показывает название зоны под каждым заданием."
+L["Active quest highlight"]                             = "Выделение активного задания"
+L["How the focused quest is highlighted."]              = "Способ выделения отслеживаемого задания."
+L["Show quest item buttons"]                            = "Показывать кнопки предметов заданий"
+L["Show usable quest item button next to each quest."]  = "Показывает кнопку используемого предмета рядом с каждым заданием."
+L["Show objective numbers"]                             = "Показывать номера целей"
+L["Prefix objectives with 1., 2., 3."]                  = "Добавляет 1., 2., 3. перед целями."
+L["Show completed count"]                               = "Показывать счётчик выполненных"
+L["Show X/Y progress in quest title."]                  = "Показывает прогресс X/Y в названии задания."
+L["Show objective progress bar"]                        = "Показывать полосу прогресса целей"
+L["Show a progress bar under objectives that have numeric progress (e.g. 3/250). Only applies to entries with a single arithmetic objective where the required amount is greater than 1."] = "Показывает полосу под целями с числовым прогрессом (напр. 3/250). Только для одной арифметической цели с требуемым количеством > 1."
+L["Use category color for progress bar"]                = "Использовать цвет категории для полосы"
+L["When on, the progress bar matches the quest/achievement category color. When off, uses the custom fill color below."] = "Вкл.: полоса использует цвет категории. Выкл.: пользовательский цвет ниже."
+L["Use tick for completed objectives"]                  = "Галочка для выполненных целей"
+L["When on, completed objectives show a checkmark (✓) instead of green color."] = "Вкл.: выполненные цели показывают галочку (✓) вместо зелёного цвета."
+L["Show entry numbers"]                                 = "Показывать нумерацию заданий"
+L["Prefix quest titles with 1., 2., 3. within each category."] = "Добавляет 1., 2., 3. перед заданиями в каждой категории."
+L["Completed objectives"]                               = "Выполненные цели"
+L["For multi-objective quests, how to display objectives you've completed (e.g. 1/1)."] = "Как отображать выполненные цели в заданиях с несколькими целями (напр. 1/1)."
+L["Show all"]                                           = "Показывать все"
+L["Fade completed"]                                     = "Затемнять выполненные"
+L["Hide completed"]                                     = "Скрывать выполненные"
+L["Show icon for in-zone auto-tracking"]                = "Показывать иконку автоотслеживания в зоне"
+L["Display an icon next to auto-tracked world quests and weeklies/dailies that are not yet in your quest log (in-zone only)."] = "Показывает иконку у автоотслеживаемых локальных и еженедельных/ежедневных заданий, ещё не в журнале (только в зоне)."
+L["Auto-track icon"]                                    = "Иконка автоотслеживания"
+L["Choose which icon to display next to auto-tracked in-zone entries."] = "Выберите иконку для автоотслеживаемых заданий в зоне."
+L["Append ** to world quests and weeklies/dailies that are not yet in your quest log (in-zone only)."] = "Добавляет ** к локальным и еженедельным/ежедневным заданиям, ещё не в журнале (только в зоне)." -- deprecated, kept for compat
+
+-- =====================================================================
+-- OptionsData.lua Display — Spacing
+-- =====================================================================
+L["Compact mode"]                                       = "Компактный режим"
+L["Preset: sets entry and objective spacing to 4 and 1 px."] = "Пресет: интервалы заданий и целей 4 и 1 px."
+L["Spacing between quest entries (px)"]                 = "Интервал между заданиями (px)"
+L["Vertical gap between quest entries."]                = "Вертикальный интервал между заданиями."
+L["Spacing before category header (px)"]                = "Интервал перед заголовком (px)"
+L["Gap between last entry of a group and the next category label."] = "Интервал между последним заданием группы и следующей категорией."
+L["Spacing after category header (px)"]                 = "Интервал после заголовка (px)"
+L["Gap between category label and first quest entry below it."] = "Интервал между заголовком и первым заданием ниже."
+L["Spacing between objectives (px)"]                    = "Интервал между целями (px)"
+L["Vertical gap between objective lines within a quest."] = "Вертикальный интервал между целями в задании."
+L["Spacing below header (px)"]                          = "Интервал под заголовком (px)"
+L["Vertical gap between the objectives bar and the quest list."] = "Вертикальный интервал между полосой целей и списком заданий."
+L["Reset spacing"]                                      = "Сбросить интервалы"
+
+-- =====================================================================
+-- OptionsData.lua Display — Other
+-- =====================================================================
+L["Show quest level"]                                   = "Показывать уровень задания"
+L["Show quest level next to title."]                    = "Показывает уровень задания рядом с названием."
+L["Dim non-focused quests"]                             = "Затемнять неактивные задания"
+L["Slightly dim title, zone, objectives, and section headers that are not focused."] = "Слегка затемняет неактивные названия, зоны, цели и заголовки."
+
+-- =====================================================================
+-- Features — Rare bosses
+-- =====================================================================
+L["Show rare bosses"]                                   = "Показывать редких боссов"
+L["Show rare boss vignettes in the list."]              = "Показывает редких боссов в списке."
+L["Rare added sound"]                                   = "Звук при добавлении редкого"
+L["Play a sound when a rare is added."]                 = "Воспроизводит звук при добавлении редкого."
+
+-- =====================================================================
+-- OptionsData.lua Features — World quests
+-- =====================================================================
+L["Show in-zone world quests"]                          = "Показывать локальные задания зоны"
+L["Auto-add world quests in your current zone. When off, only quests you've tracked or world quests you're in close proximity to appear (Blizzard default)."] = "Автоматически добавляет локальные задания текущей зоны. Выкл.: только отслеживаемые или рядом (по умолчанию Blizzard)."
+
+-- =====================================================================
+-- OptionsData.lua Features — Floating quest item
+-- =====================================================================
+L["Show floating quest item"]                           = "Показывать плавающую кнопку предмета"
+L["Show quick-use button for the focused quest's usable item."] = "Показывает кнопку быстрого использования предмета отслеживаемого задания."
+L["Lock floating quest item position"]                  = "Заблокировать позицию кнопки предмета"
+L["Prevent dragging the floating quest item button."]   = "Запрещает перетаскивание кнопки предмета."
+L["Floating quest item source"]                         = "Источник предмета"
+L["Which quest's item to show: super-tracked first, or current zone first."] = "Чей предмет показывать: сначала отслеживаемое или текущая зона."
+L["Super-tracked, then first"]                          = "Сначала отслеживаемое"
+L["Current zone first"]                                 = "Сначала текущая зона"
+
+-- =====================================================================
+-- OptionsData.lua Features — Mythic+
+-- =====================================================================
+L["Show Mythic+ block"]                                 = "Показывать блок Эпохального+"
+L["Show timer, completion %, and affixes in Mythic+ dungeons."] = "Показывает таймер, % выполнения и модификаторы в Эпохальных+ подземельях."
+L["M+ block position"]                                  = "Позиция блока Эпохального+"
+L["Position of the Mythic+ block relative to the quest list."] = "Позиция блока Эпохального+ относительно списка заданий."
+L["Show affix icons"]                                    = "Показывать иконки модификаторов"
+L["Show affix icons next to modifier names in the M+ block."] = "Показывает иконки модификаторов в блоке Эпохального+."
+L["Show affix descriptions in tooltip"]                  = "Описания модификаторов в подсказке"
+L["Show affix descriptions when hovering over the M+ block."] = "Показывает описания модификаторов при наведении на блок."
+L["M+ completed boss display"]                         = "Отображение побеждённых боссов"
+L["How to show defeated bosses: checkmark icon or green color."] = "Как показывать побеждённых боссов: иконка галочки или зелёный цвет."
+L["Checkmark"]                                          = "Галочка"
+L["Green color"]                                        = "Зелёный цвет"
+
+-- =====================================================================
+-- OptionsData.lua Features — Achievements
+-- =====================================================================
+L["Show achievements"]                                  = "Показывать достижения"
+L["Show tracked achievements in the list."]             = "Показывает отслеживаемые достижения в списке."
+L["Show completed achievements"]                        = "Показывать выполненные достижения"
+L["Include completed achievements in the tracker. When off, only in-progress tracked achievements are shown."] = "Включает выполненные достижения. Выкл.: только в процессе."
+L["Show achievement icons"]                             = "Показывать иконки достижений"
+L["Show each achievement's icon next to the title. Requires 'Show quest type icons' in Display."] = "Показывает иконку каждого достижения. Требуется «Показывать иконки типов заданий»."
+L["Only show missing requirements"]                     = "Показывать только недостающие критерии"
+L["Show only criteria you haven't completed for each tracked achievement. When off, all criteria are shown."] = "Показывает только невыполненные критерии. Выкл.: все критерии."
+
+-- =====================================================================
+-- OptionsData.lua Features — Endeavors
+-- =====================================================================
+L["Show endeavors"]                                     = "Показывать начинания"
+L["Show tracked Endeavors (Player Housing) in the list."] = "Показывает отслеживаемые начинания (жилище) в списке."
+L["Show completed endeavors"]                           = "Показывать выполненные начинания"
+L["Include completed Endeavors in the tracker. When off, only in-progress tracked Endeavors are shown."] = "Включает выполненные начинания. Выкл.: только в процессе."
+
+-- =====================================================================
+-- OptionsData.lua Features — Decor
+-- =====================================================================
+L["Show decor"]                                         = "Показывать украшения"
+L["Show tracked housing decor in the list."]            = "Показывает отслеживаемые украшения жилища в списке."
+L["Show decor icons"]                                   = "Показывать иконки украшений"
+L["Show each decor item's icon next to the title. Requires 'Show quest type icons' in Display."] = "Показывает иконку каждого украшения. Требуется «Показывать иконки типов заданий»."
+
+-- =====================================================================
+-- OptionsData.lua Features — Adventure Guide
+-- =====================================================================
+L["Adventure Guide"]                                    = "Путеводитель"
+L["Show Traveler's Log"]                                = "Показывать журнал путешественника"
+L["Show tracked Traveler's Log objectives (Shift+click in Adventure Guide) in the list."] = "Показывает отслеживаемые цели журнала (Shift+клик в Путеводителе) в списке."
+L["Auto-remove completed activities"]                   = "Автоудаление выполненных активностей"
+L["Automatically stop tracking Traveler's Log activities once they have been completed."] = "Автоматически прекращает отслеживание выполненных активностей журнала."
+
+-- =====================================================================
+-- OptionsData.lua Features — Scenario & Delve
+-- =====================================================================
+L["Show scenario events"]                               = "Показывать события сценария"
+L["Show active scenario and Delve activities. Delves appear in DELVES; other scenarios in SCENARIO EVENTS."] = "Показывает активные сценарии и подземелья. Подземелья в ПОДЗЕМЕЛЬЯ; прочие в СОБЫТИЯ СЦЕНАРИЯ."
+L["Hide other categories in Delve or Dungeon"]          = "Скрывать другие категории в подземелье"
+L["In Delves or party dungeons, show only the Delve/Dungeon section."] = "В подземельях показывать только соответствующую секцию."
+L["Use delve name as section header"]                    = "Использовать название подземелья как заголовок"
+L["When in a Delve, show the delve name, tier, and affixes as the section header instead of a separate banner. Disable to show the Delve block above the list."] = "В подземелье: название, уровень и модификаторы в заголовке. Выкл.: блок над списком."
+L["Show affix names in Delves"]                         = "Показывать названия модификаторов в подземельях"
+L["Show season affix names on the first Delve entry. Requires Blizzard's objective tracker widgets to be populated; may not show when using a full tracker replacement."] = "Показывает сезонные модификаторы на первой записи. Требуются виджеты Blizzard."
+L["Cinematic scenario bar"]                             = "Кинематографическая панель сценария"
+L["Show timer and progress bar for scenario entries."]  = "Показывает таймер и полосу прогресса для сценариев."
+L["Scenario bar opacity"]                               = "Прозрачность панели сценария"
+L["Opacity of scenario timer/progress bar (0–1)."]      = "Прозрачность таймера/полосы сценария (0–1)."
+L["Scenario bar height"]                                = "Высота панели сценария"
+L["Height of scenario progress bar (4–8 px)."]          = "Высота полосы прогресса сценария (4–8 px)."
+
+-- =====================================================================
+-- OptionsData.lua Typography — Font
+-- =====================================================================
+L["Font family."]                                       = "Семейство шрифта."
+L["Title font"]                                         = "Шрифт заголовков"
+L["Zone font"]                                          = "Шрифт зон"
+L["Objective font"]                                     = "Шрифт целей"
+L["Section font"]                                       = "Шрифт секций"
+L["Use global font"]                                    = "Использовать глобальный шрифт"
+L["Font family for quest titles."]                      = "Семейство шрифта для названий заданий."
+L["Font family for zone labels."]                       = "Семейство шрифта для названий зон."
+L["Font family for objective text."]                    = "Семейство шрифта для текста целей."
+L["Font family for section headers."]                    = "Семейство шрифта для заголовков секций."
+L["Header size"]                                        = "Размер заголовка"
+L["Header font size."]                                  = "Размер шрифта заголовка."
+L["Title size"]                                         = "Размер названия"
+L["Quest title font size."]                             = "Размер шрифта названий заданий."
+L["Objective size"]                                     = "Размер целей"
+L["Objective text font size."]                          = "Размер шрифта текста целей."
+L["Zone size"]                                          = "Размер зон"
+L["Zone label font size."]                              = "Размер шрифта названий зон."
+L["Section size"]                                       = "Размер секций"
+L["Section header font size."]                          = "Размер шрифта заголовков секций."
+L["Progress bar font"]                                  = "Шрифт полосы прогресса"
+L["Font family for the progress bar label."]            = "Семейство шрифта для подписи полосы."
+L["Progress bar text size"]                             = "Размер текста полосы прогресса"
+L["Font size for the progress bar label. Also adjusts bar height."] = "Размер шрифта подписи полосы. Также регулирует высоту."
+L["Progress bar fill"]                                  = "Заливка полосы прогресса"
+L["Progress bar text"]                                  = "Текст полосы прогресса"
+L["Outline"]                                            = "Контур"
+L["Font outline style."]                                = "Стиль контура шрифта."
+
+-- =====================================================================
+-- OptionsData.lua Typography — Text case
+-- =====================================================================
+L["Header text case"]                                   = "Регистр заголовка"
+L["Display case for header."]                           = "Регистр отображения заголовка."
+L["Section header case"]                                = "Регистр заголовков секций"
+L["Display case for category labels."]                  = "Регистр отображения категорий."
+L["Quest title case"]                                   = "Регистр названий заданий"
+L["Display case for quest titles."]                     = "Регистр отображения названий заданий."
+
+-- =====================================================================
+-- OptionsData.lua Typography — Shadow
+-- =====================================================================
+L["Show text shadow"]                                   = "Показывать тень текста"
+L["Enable drop shadow on text."]                        = "Включает тень текста."
+L["Shadow X"]                                           = "Тень X"
+L["Horizontal shadow offset."]                          = "Горизонтальное смещение тени."
+L["Shadow Y"]                                           = "Тень Y"
+L["Vertical shadow offset."]                            = "Вертикальное смещение тени."
+L["Shadow alpha"]                                       = "Прозрачность тени"
+L["Shadow opacity (0–1)."]                              = "Прозрачность тени (0–1)."
+
+-- =====================================================================
+-- OptionsData.lua Typography — Mythic+ Typography
+-- =====================================================================
+L["Mythic+ Typography"]                                  = "Типографика Эпохального+"
+L["Dungeon name size"]                                   = "Размер названия подземелья"
+L["Font size for dungeon name (8–32 px)."]              = "Размер шрифта названия подземелья (8–32 px)."
+L["Dungeon name color"]                                  = "Цвет названия подземелья"
+L["Text color for dungeon name."]                        = "Цвет текста названия подземелья."
+L["Timer size"]                                         = "Размер таймера"
+L["Font size for timer (8–32 px)."]                     = "Размер шрифта таймера (8–32 px)."
+L["Timer color"]                                        = "Цвет таймера"
+L["Text color for timer (in time)."]                    = "Цвет таймера (в пределах времени)."
+L["Timer overtime color"]                               = "Цвет таймера (время вышло)"
+L["Text color for timer when over the time limit."]      = "Цвет таймера при превышении времени."
+L["Progress size"]                                      = "Размер прогресса"
+L["Font size for enemy forces (8–32 px)."]               = "Размер шрифта сил противника (8–32 px)."
+L["Progress color"]                                     = "Цвет прогресса"
+L["Text color for enemy forces."]                        = "Цвет текста сил противника."
+L["Bar fill color"]                                     = "Цвет заливки полосы"
+L["Progress bar fill color (in progress)."]             = "Цвет заливки полосы (в процессе)."
+L["Bar complete color"]                                 = "Цвет завершённой полосы"
+L["Progress bar fill color when enemy forces are at 100%."] = "Цвет заливки при 100% сил противника."
+L["Affix size"]                                         = "Размер модификаторов"
+L["Font size for affixes (8–32 px)."]                   = "Размер шрифта модификаторов (8–32 px)."
+L["Affix color"]                                        = "Цвет модификаторов"
+L["Text color for affixes."]                             = "Цвет текста модификаторов."
+L["Boss size"]                                          = "Размер имён боссов"
+L["Font size for boss names (8–32 px)."]                = "Размер шрифта имён боссов (8–32 px)."
+L["Boss color"]                                         = "Цвет имён боссов"
+L["Text color for boss names."]                          = "Цвет текста имён боссов."
+L["Reset Mythic+ typography"]                           = "Сбросить типографику Эпохального+"
+
+-- =====================================================================
+-- OptionsData.lua Appearance
+-- =====================================================================
+L["Backdrop opacity"]                                   = "Прозрачность фона"
+L["Panel background opacity (0–1)."]                    = "Прозрачность фона панели (0–1)."
+L["Show border"]                                        = "Показывать границу"
+L["Show border around the tracker."]                    = "Показывает рамку вокруг трекера."
+L["Show scroll indicator"]                              = "Показывать индикатор прокрутки"
+L["Show a visual hint when the list has more content than is visible."] = "Показывает подсказку при наличии скрытого контента."
+L["Scroll indicator style"]                             = "Стиль индикатора прокрутки"
+L["Choose between a fade-out gradient or a small arrow to indicate scrollable content."] = "Градиент или стрелка для обозначения прокручиваемого контента."
+L["Arrow"]                                              = "Стрелка"
+L["Highlight alpha"]                                    = "Прозрачность выделения"
+L["Opacity of focused quest highlight (0–1)."]          = "Прозрачность выделения активного задания (0–1)."
+L["Bar width"]                                          = "Ширина полосы"
+L["Width of bar-style highlights (2–6 px)."]            = "Ширина полосы выделения (2–6 px)."
+
+-- =====================================================================
+-- OptionsData.lua Organization
+-- =====================================================================
+L["Focus category order"]                               = "Порядок категорий Фокуса"
+L["Drag to reorder categories. DELVES and SCENARIO EVENTS stay first."] = "Перетащите для изменения порядка. ПОДЗЕМЕЛЬЯ и СОБЫТИЯ СЦЕНАРИЯ остаются первыми."
+L["Focus sort mode"]                                    = "Режим сортировки Фокуса"
+L["Order of entries within each category."]             = "Порядок записей в каждой категории."
+L["Auto-track accepted quests"]                         = "Автоотслеживание принятых заданий"
+L["When you accept a quest (quest log only, not world quests), add it to the tracker automatically."] = "Автоматически добавляет принятые задания в трекер (кроме локальных)."
+L["Require Ctrl for focus & remove"]                    = "Требовать Ctrl для отслеживания/снятия"
+L["Require Ctrl for focus/add (Left) and unfocus/untrack (Right) to prevent misclicks."] = "Требует Ctrl для добавления (ЛКМ) и снятия (ПКМ) отслеживания."
+L["Animations"]                                         = "Анимации"
+L["Enable slide and fade for quests."]                  = "Включает анимацию появления и исчезновения заданий."
+L["Objective progress flash"]                           = "Вспышка при выполнении цели"
+L["Show flash when an objective completes."]            = "Показывает вспышку при выполнении цели."
+L["Flash intensity"]                                   = "Интенсивность вспышки"
+L["How noticeable the objective-complete flash is."]    = "Заметность вспышки при выполнении цели."
+L["Flash color"]                                        = "Цвет вспышки"
+L["Color of the objective-complete flash."]             = "Цвет вспышки при выполнении цели."
+L["Subtle"]                                             = "Лёгкая"
+L["Medium"]                                             = "Средняя"
+L["Strong"]                                             = "Сильная"
+L["Require Ctrl for click to complete"]                 = "Требовать Ctrl для завершения кликом"
+L["When on, requires Ctrl+Left-click to complete auto-complete quests. When off, plain Left-click completes them (Blizzard default). Only affects quests that can be completed by click (no NPC turn-in needed)."] = "Вкл.: Ctrl+ЛКМ для завершения. Выкл.: ЛКМ (по умолчанию Blizzard). Только для заданий, завершаемых кликом."
+L["Suppress untracked until reload"]                     = "Скрывать снятые до перезагрузки"
+L["When on, right-click untrack on world quests and in-zone weeklies/dailies hides them until you reload or start a new session. When off, they reappear when you return to the zone."] = "Вкл.: снятые с отслеживания скрыты до перезагрузки. Выкл.: появляются при возврате в зону."
+L["Permanently suppress untracked quests"]               = "Постоянно скрывать снятые с отслеживания"
+L["When on, right-click untracked world quests and in-zone weeklies/dailies are hidden permanently (persists across reloads). Takes priority over 'Suppress until reload'. Accepting a suppressed quest removes it from the blacklist."] = "Вкл.: снятые скрыты постоянно. Приоритет над «Скрывать до перезагрузки». Принятие снимает с чёрного списка."
+L["Keep campaign quests in category"]                    = "Оставлять кампанийные задания в категории"
+L["When on, campaign quests that are ready to turn in remain in the Campaign category instead of moving to Complete."] = "Вкл.: готовые к сдаче кампанийные остаются в категории Кампания."
+L["Keep important quests in category"]                   = "Оставлять важные задания в категории"
+L["When on, important quests that are ready to turn in remain in the Important category instead of moving to Complete."] = "Вкл.: готовые к сдаче важные остаются в категории Важные."
+
+-- =====================================================================
+-- OptionsData.lua Blacklist
+-- =====================================================================
+L["Blacklisted quests"]                                  = "Задания в чёрном списке"
+L["Permanently suppressed quests"]                       = "Постоянно скрытые задания"
+L["Right-click untrack quests with 'Permanently suppress untracked quests' enabled to add them here."] = "ПКМ снять с отслеживания при включённой опции «Постоянно скрывать» для добавления сюда."
+
+-- =====================================================================
+-- OptionsData.lua Presence
+-- =====================================================================
+L["Show quest type icons"]                              = "Показывать иконки типов заданий"
+L["Show quest type icon in the Focus tracker (quest accept/complete, world quest, quest update)."] = "Показывает иконки в трекере (принятие/завершение, локальные, обновление)."
+L["Show quest type icons on toasts"]                    = "Показывать иконки типов на уведомлениях"
+L["Show quest type icon on Presence toasts (quest accept/complete, world quest, quest update)."] = "Показывает иконки типов на уведомлениях Присутствия."
+L["Toast icon size"]                                    = "Размер иконок на уведомлениях"
+L["Quest icon size on Presence toasts (16–36 px). Default 24."] = "Размер иконок заданий на уведомлениях (16–36 px). По умолчанию 24."
+L["Show discovery line"]                                = "Показывать строку «Обнаружено»"
+L["Show 'Discovered' under zone/subzone when entering a new area."] = "Показывает «Обнаружено» под зоной/подзоной при входе в новую область."
+L["Frame vertical position"]                            = "Вертикальная позиция фрейма"
+L["Vertical offset of the Presence frame from center (-300 to 0)."] = "Вертикальное смещение фрейма от центра (-300 до 0)."
+L["Frame scale"]                                        = "Масштаб фрейма"
+L["Scale of the Presence frame (0.5–1.5)."]             = "Масштаб фрейма Присутствия (0.5–1.5)."
+L["Boss emote color"]                                   = "Цвет эмоций боссов"
+L["Color of raid and dungeon boss emote text."]          = "Цвет текста эмоций боссов в рейдах и подземельях."
+L["Discovery line color"]                               = "Цвет строки «Обнаружено»"
+L["Color of the 'Discovered' line under zone text."]     = "Цвет строки «Обнаружено» под текстом зоны."
+L["Notification types"]                                 = "Типы уведомлений"
+L["Show zone changes"]                                  = "Показывать смену зон"
+L["Show zone and subzone change notifications."]        = "Показывает уведомления о смене зоны и подзоны."
+L["Hide zone name for subzone changes"]                 = "Скрывать название зоны при смене подзоны"
+L["When moving between subzones within the same zone, only show the subzone name. The zone name still appears when entering a new zone."] = "При переходе между подзонами показывать только подзону. Название зоны при входе в новую зону."
+L["Suppress zone changes in Mythic+"]                   = "Скрывать смену зон в Эпохальном+"
+L["In Mythic+, only show boss emotes, achievements, and level-up. Hide zone, quest, and scenario notifications."] = "В Эпохальном+: только эмоции боссов, достижения и повышение уровня."
+L["Show level up"]                                      = "Показывать повышение уровня"
+L["Show level-up notification."]                        = "Показывает уведомление о повышении уровня."
+L["Show boss emotes"]                                   = "Показывать эмоции боссов"
+L["Show raid and dungeon boss emote notifications."]    = "Показывает уведомления об эмоциях боссов в рейдах и подземельях."
+L["Show achievements"]                                  = "Показывать достижения"
+L["Show achievement earned notifications."]            = "Показывает уведомления о полученных достижениях."
+L["Show quest events"]                                  = "Показывать события заданий"
+L["Show quest accept, complete, and progress notifications."] = "Показывает уведомления о принятии, завершении и прогрессе заданий."
+L["Animation"]                                          = "Анимация"
+L["Enable animations"]                                  = "Включить анимации"
+L["Enable entrance and exit animations for Presence notifications."] = "Включает анимации появления и исчезновения уведомлений."
+L["Entrance duration"]                                  = "Длительность появления"
+L["Duration of the entrance animation in seconds (0.2–1.5)."] = "Длительность анимации появления в секундах (0.2–1.5)."
+L["Exit duration"]                                      = "Длительность исчезновения"
+L["Duration of the exit animation in seconds (0.2–1.5)."] = "Длительность анимации исчезновения в секундах (0.2–1.5)."
+L["Hold duration scale"]                                = "Множитель времени показа"
+L["Multiplier for how long each notification stays on screen (0.5–2)."] = "Множитель времени показа уведомлений (0.5–2)."
+L["Typography"]                                         = "Типографика"
+L["Main title size"]                                    = "Размер основного заголовка"
+L["Font size for the main title (24–72 px)."]            = "Размер шрифта основного заголовка (24–72 px)."
+L["Subtitle size"]                                      = "Размер подзаголовка"
+L["Font size for the subtitle (12–40 px)."]             = "Размер шрифта подзаголовка (12–40 px)."
+
+-- =====================================================================
+-- OptionsData.lua Dropdown options — Outline
+-- =====================================================================
+L["None"]                                               = "Нет"
+L["Thick Outline"]                                      = "Толстый контур"
+
+-- =====================================================================
+-- OptionsData.lua Dropdown options — Highlight style
+-- =====================================================================
+L["Bar (left edge)"]                                    = "Полоса (слева)"
+L["Bar (right edge)"]                                   = "Полоса (справа)"
+L["Bar (top edge)"]                                     = "Полоса (сверху)"
+L["Bar (bottom edge)"]                                  = "Полоса (снизу)"
+L["Outline only"]                                       = "Только контур"
+L["Soft glow"]                                          = "Мягкое свечение"
+L["Dual edge bars"]                                     = "Двойные полосы"
+L["Pill left accent"]                                   = "Акцент слева"
+
+-- =====================================================================
+-- OptionsData.lua Dropdown options — M+ position
+-- =====================================================================
+L["Top"]                                                = "Сверху"
+L["Bottom"]                                             = "Снизу"
+
+-- =====================================================================
+-- OptionsData.lua Dropdown options — Text case
+-- =====================================================================
+L["Lower Case"]                                         = "Строчные"
+L["Upper Case"]                                         = "Заглавные"
+L["Proper"]                                             = "С заглавной буквы"
+
+-- =====================================================================
+-- OptionsData.lua Dropdown options — Header count format
+-- =====================================================================
+L["Tracked / in log"]                                   = "Отслеживаемые / в журнале"
+L["In log / max slots"]                                 = "В журнале / макс. слотов"
+
+-- =====================================================================
+-- OptionsData.lua Dropdown options — Sort mode
+-- =====================================================================
+L["Alphabetical"]                                       = "По алфавиту"
+L["Quest Type"]                                         = "По типу задания"
+L["Quest Level"]                                        = "По уровню задания"
+
+-- =====================================================================
+-- OptionsData.lua Misc
+-- =====================================================================
+L["Custom"]                                             = "Пользовательский"
+L["Order"]                                              = "Порядок"
+
+-- =====================================================================
+-- Tracker section labels (SECTION_LABELS)
+-- =====================================================================
+L["DUNGEON"]           = "ПОДЗЕМЕЛЬЕ"
+L["RAID"]              = "РЕЙД"
+L["DELVES"]            = "ПОДЗЕМЕЛЬЯ"
+L["SCENARIO EVENTS"]   = "СОБЫТИЯ СЦЕНАРИЯ"
+L["AVAILABLE IN ZONE"] = "ДОСТУПНО В ЗОНЕ"
+L["CURRENT ZONE"]      = "ТЕКУЩАЯ ЗОНА"
+L["CAMPAIGN"]          = "КАМПАНИЯ"
+L["IMPORTANT"]         = "ВАЖНЫЕ"
+L["LEGENDARY"]         = "ЛЕГЕНДАРНЫЕ"
+L["WORLD QUESTS"]      = "ЛОКАЛЬНЫЕ ЗАДАНИЯ"
+L["WEEKLY QUESTS"]     = "ЕЖЕНЕДЕЛЬНЫЕ"
+L["DAILY QUESTS"]      = "ЕЖЕДНЕВНЫЕ"
+L["RARE BOSSES"]       = "РЕДКИЕ БОССЫ"
+L["ACHIEVEMENTS"]      = "ДОСТИЖЕНИЯ"
+L["ENDEAVORS"]         = "НАЧИНАНИЯ"
+L["DECOR"]             = "УКРАШЕНИЯ"
+L["QUESTS"]            = "ЗАДАНИЯ"
+L["READY TO TURN IN"]  = "ГОТОВО К СДАЧЕ"
+
+-- =====================================================================
+-- Core.lua, FocusLayout.lua, PresenceCore.lua, FocusUnacceptedPopup.lua
+-- =====================================================================
+L["OBJECTIVES"]                                                                                    = "ЦЕЛИ"
+L["Options"]                                                                                       = "Настройки"
+L["Discovered"]                                                                                    = "Обнаружено"
+L["Refresh"]                                                                                       = "Обновить"
+L["Best-effort only. Some unaccepted quests are not exposed until you interact with NPCs or meet phasing conditions."] = "Поиск приблизительный. Некоторые непринятые задания не отображаются до взаимодействия с НИП или условий фазы."
+L["Unaccepted Quests - %s (map %s) - %d match(es)"]                                                  = "Непринятые задания - %s (карта %s) - %d совпадений"
+
+L["LEVEL UP"]                                                                                      = "ПОВЫШЕНИЕ УРОВНЯ"
+L["You have reached level 80"]                                                                     = "Вы достигли 80 уровня"
+L["You have reached level %s"]                                                                     = "Вы достигли %s уровня"
+L["ACHIEVEMENT EARNED"]                                                                            = "ДОСТИЖЕНИЕ ПОЛУЧЕНО"
+L["Exploring the Midnight Isles"]                                                                  = "Исследование Полуночных островов"
+L["Exploring Khaz Algar"]                                                                          = "Исследование Каз Алгара"
+L["QUEST COMPLETE"]                                                                                = "ЗАДАНИЕ ВЫПОЛНЕНО"
+L["Objective Secured"]                                                                             = "Цель достигнута"
+L["Aiding the Accord"]                                                                             = "Помощь Согласию"
+L["WORLD QUEST"]                                                                                   = "ЛОКАЛЬНОЕ ЗАДАНИЕ"
+L["Azerite Mining"]                                                                                = "Добыча азерита"
+L["WORLD QUEST ACCEPTED"]                                                                          = "ЛОКАЛЬНОЕ ЗАДАНИЕ ПРИНЯТО"
+L["QUEST ACCEPTED"]                                                                                = "ЗАДАНИЕ ПРИНЯТО"
+L["The Fate of the Horde"]                                                                         = "Судьба Орды"
+L["New Quest"]                                                                                     = "Новое задание"
+L["QUEST UPDATE"]                                                                                  = "ОБНОВЛЕНИЕ ЗАДАНИЯ"
+L["Boar Pelts: 7/10"]                                                                              = "Шкуры кабана: 7/10"
+L["Dragon Glyphs: 3/5"]                                                                            = "Драконьи руны: 3/5"
+
+L["Presence test commands:"]                                                                       = "Тестовые команды Присутствия:"
+L["  /horizon presence         - Show help + test current zone"]                                   = "  /horizon presence         - Справка + тест текущей зоны"
+L["  /horizon presence zone     - Test Zone Change"]                                               = "  /horizon presence zone     - Тест смены зоны"
+L["  /horizon presence subzone  - Test Subzone Change"]                                            = "  /horizon presence subzone  - Тест смены подзоны"
+L["  /horizon presence discover - Test Zone Discovery"]                                            = "  /horizon presence discover - Тест обнаружения зоны"
+L["  /horizon presence level    - Test Level Up"]                                                  = "  /horizon presence level    - Тест повышения уровня"
+L["  /horizon presence boss     - Test Boss Emote"]                                                = "  /horizon presence boss     - Тест эмоции босса"
+L["  /horizon presence ach      - Test Achievement"]                                               = "  /horizon presence ach      - Тест достижения"
+L["  /horizon presence accept   - Test Quest Accepted"]                                            = "  /horizon presence accept   - Тест принятия задания"
+L["  /horizon presence wqaccept - Test World Quest Accepted"]                                      = "  /horizon presence wqaccept - Тест принятия локального задания"
+L["  /horizon presence scenario - Test Scenario Start"]                                            = "  /horizon presence scenario - Тест начала сценария"
+L["  /horizon presence quest    - Test Quest Complete"]                                            = "  /horizon presence quest    - Тест завершения задания"
+L["  /horizon presence wq       - Test World Quest"]                                               = "  /horizon presence wq       - Тест локального задания"
+L["  /horizon presence update   - Test Quest Update"]                                              = "  /horizon presence update   - Тест обновления задания"
+L["  /horizon presence all      - Demo reel (all types)"]                                          = "  /horizon presence all      - Демо (все типы)"
+L["  /horizon presence debug    - Dump state to chat"]                                             = "  /horizon presence debug    - Вывод состояния в чат"
+L["  /horizon presence debuglive - Toggle live debug panel (log as events happen)"]                = "  /horizon presence debuglive - Вкл/выкл панель отладки (логирование событий)"

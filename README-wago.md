@@ -103,6 +103,7 @@ The options panel is localized for:
 - **French (frFR)** — `options/frFR.lua`
 - **Korean (koKR)** — `options/koKR.lua`
 - **Brazilian Portuguese (ptBR)** — `options/ptBR.lua`
+- **Russian (ruRU)** — `options/ruRU.lua`
 
 Contributions for additional locales are welcome via discord request.
 

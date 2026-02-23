@@ -68,6 +68,7 @@ modules/Insight/InsightModule.lua
 options/koKR.lua
 options/frFR.lua
 options/ptBR.lua
+options/ruRU.lua
 options/OptionsWidgets.lua
 options/OptionsData.lua
 options/OptionsPanel.lua
