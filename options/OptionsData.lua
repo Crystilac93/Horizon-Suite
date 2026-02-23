@@ -42,11 +42,19 @@ local PRESENCE_KEYS = {
     presenceBossEmoteColor = true,
     presenceDiscoveryColor = true,
     presenceZoneChange = true,
+    presenceSubzoneChange = true,
     presenceSuppressZoneInMplus = true,
     presenceLevelUp = true,
     presenceBossEmote = true,
     presenceAchievement = true,
     presenceQuestEvents = true,
+    presenceQuestAccept = true,
+    presenceWorldQuestAccept = true,
+    presenceQuestComplete = true,
+    presenceWorldQuest = true,
+    presenceQuestUpdate = true,
+    presenceScenarioStart = true,
+    presenceScenarioUpdate = true,
     presenceAnimations = true,
     presenceEntranceDur = true,
     presenceExitDur = true,
@@ -115,6 +123,9 @@ local VISTA_KEYS = {
     vistaTimeFontPath = true, vistaTimeFontSize = true,
     vistaShowZoneText = true, vistaShowCoordText = true, vistaShowTimeText = true,
     vistaShowDefaultMinimapButtons = true,  -- legacy key kept for compatibility
+    vistaLock = true,
+    vistaPoint = true, vistaRelPoint = true, vistaX = true, vistaY = true,
+    vistaDrawerBtnX = true, vistaDrawerBtnY = true,
     vistaShowTracking = true, vistaMouseoverTracking = true,
     vistaShowCalendar = true, vistaMouseoverCalendar = true,
     vistaShowZoomBtns = true, vistaMouseoverZoomBtns = true,
@@ -205,14 +216,24 @@ function OptionsData_SetDB(key, value)
     if MPLUS_TYPOGRAPHY_KEYS[key] and addon.ApplyMplusTypography then
         addon.ApplyMplusTypography()
     end
-    if PRESENCE_KEYS[key] and addon.Presence and addon.Presence.ApplyPresenceOptions then
-        addon.Presence.ApplyPresenceOptions()
+    if PRESENCE_KEYS[key] and addon.Presence then
+        if addon.Presence.ApplyPresenceOptions then addon.Presence.ApplyPresenceOptions() end
+        if addon.Presence.ApplyBlizzardSuppression then addon.Presence.ApplyBlizzardSuppression() end
     end
     if INSIGHT_KEYS[key] and addon.Insight and addon.Insight.ApplyInsightOptions then
         addon.Insight.ApplyInsightOptions()
     end
-    if VISTA_KEYS[key] and addon.Vista and addon.Vista.ApplyOptions then
-        addon.Vista.ApplyOptions()
+    if VISTA_KEYS[key] and addon.Vista then
+        if addon._colorPickerLive and VISTA_COLOR_LIVE_KEYS[key] then
+            if addon.Vista.ApplyColors then addon.Vista.ApplyColors() end
+        elseif addon.Vista.ApplyOptions then
+            local fn = addon.Vista.ApplyOptions
+            if C_Timer and C_Timer.After then
+                C_Timer.After(0, fn)
+            else
+                fn()
+            end
+        end
     end
     if key == "lockPosition" and addon.UpdateResizeHandleVisibility then
         addon.UpdateResizeHandleVisibility()
@@ -237,6 +258,7 @@ function OptionsData_NotifyMainAddon_Live()
     if addon.ApplyBackdropOpacity then addon.ApplyBackdropOpacity() end
     if addon.ApplyBorderVisibility then addon.ApplyBorderVisibility() end
     if addon.ApplyFocusColors then addon.ApplyFocusColors() end
+    if addon.Vista and addon.Vista.ApplyColors then addon.Vista.ApplyColors() end
 end
 
 function OptionsData_NotifyMainAddon()
@@ -1129,13 +1151,20 @@ local OptionCategories = {
         moduleKey = "presence",
         options = {
             { type = "section", name = L["Notification types"] },
-            { type = "toggle", name = L["Show zone changes"], desc = L["Show zone and subzone change notifications."], dbKey = "presenceZoneChange", get = function() return getDB("presenceZoneChange", true) end, set = function(v) setDB("presenceZoneChange", v) end },
+            { type = "toggle", name = L["Show zone entry"], desc = L["Show zone change when entering a new area."], dbKey = "presenceZoneChange", get = function() return getDB("presenceZoneChange", true) end, set = function(v) setDB("presenceZoneChange", v) end },
+            { type = "toggle", name = L["Show subzone changes"], desc = L["Show subzone change when moving within the same zone."], dbKey = "presenceSubzoneChange", get = function() local v = getDB("presenceSubzoneChange", nil); if v ~= nil then return v end; return getDB("presenceZoneChange", true) end, set = function(v) setDB("presenceSubzoneChange", v) end },
             { type = "toggle", name = L["Hide zone name for subzone changes"], desc = L["When moving between subzones within the same zone, only show the subzone name. The zone name still appears when entering a new zone."], dbKey = "presenceHideZoneForSubzone", get = function() return getDB("presenceHideZoneForSubzone", false) end, set = function(v) setDB("presenceHideZoneForSubzone", v) end },
             { type = "toggle", name = L["Suppress zone changes in Mythic+"], desc = L["In Mythic+, only show boss emotes, achievements, and level-up. Hide zone, quest, and scenario notifications."], dbKey = "presenceSuppressZoneInMplus", get = function() return getDB("presenceSuppressZoneInMplus", true) end, set = function(v) setDB("presenceSuppressZoneInMplus", v) end },
             { type = "toggle", name = L["Show level up"], desc = L["Show level-up notification."], dbKey = "presenceLevelUp", get = function() return getDB("presenceLevelUp", true) end, set = function(v) setDB("presenceLevelUp", v) end },
             { type = "toggle", name = L["Show boss emotes"], desc = L["Show raid and dungeon boss emote notifications."], dbKey = "presenceBossEmote", get = function() return getDB("presenceBossEmote", true) end, set = function(v) setDB("presenceBossEmote", v) end },
             { type = "toggle", name = L["Show achievements"], desc = L["Show achievement earned notifications."], dbKey = "presenceAchievement", get = function() return getDB("presenceAchievement", true) end, set = function(v) setDB("presenceAchievement", v) end },
-            { type = "toggle", name = L["Show quest events"], desc = L["Show quest accept, complete, and progress notifications."], dbKey = "presenceQuestEvents", get = function() return getDB("presenceQuestEvents", true) end, set = function(v) setDB("presenceQuestEvents", v) end },
+            { type = "toggle", name = L["Show quest accept"], desc = L["Show notification when accepting a quest."], dbKey = "presenceQuestAccept", get = function() local v = getDB("presenceQuestAccept", nil); if v ~= nil then return v end; return getDB("presenceQuestEvents", true) end, set = function(v) setDB("presenceQuestAccept", v) end },
+            { type = "toggle", name = L["Show world quest accept"], desc = L["Show notification when accepting a world quest."], dbKey = "presenceWorldQuestAccept", get = function() local v = getDB("presenceWorldQuestAccept", nil); if v ~= nil then return v end; return getDB("presenceQuestEvents", true) end, set = function(v) setDB("presenceWorldQuestAccept", v) end },
+            { type = "toggle", name = L["Show quest complete"], desc = L["Show notification when completing a quest."], dbKey = "presenceQuestComplete", get = function() local v = getDB("presenceQuestComplete", nil); if v ~= nil then return v end; return getDB("presenceQuestEvents", true) end, set = function(v) setDB("presenceQuestComplete", v) end },
+            { type = "toggle", name = L["Show world quest complete"], desc = L["Show notification when completing a world quest."], dbKey = "presenceWorldQuest", get = function() local v = getDB("presenceWorldQuest", nil); if v ~= nil then return v end; return getDB("presenceQuestEvents", true) end, set = function(v) setDB("presenceWorldQuest", v) end },
+            { type = "toggle", name = L["Show quest progress"], desc = L["Show notification when quest objectives update."], dbKey = "presenceQuestUpdate", get = function() local v = getDB("presenceQuestUpdate", nil); if v ~= nil then return v end; return getDB("presenceQuestEvents", true) end, set = function(v) setDB("presenceQuestUpdate", v) end },
+            { type = "toggle", name = L["Show scenario start"], desc = L["Show notification when entering a scenario or Delve."], dbKey = "presenceScenarioStart", get = function() local v = getDB("presenceScenarioStart", nil); if v ~= nil then return v end; return getDB("showScenarioEvents", true) end, set = function(v) setDB("presenceScenarioStart", v) end },
+            { type = "toggle", name = L["Show scenario progress"], desc = L["Show notification when scenario or Delve objectives update."], dbKey = "presenceScenarioUpdate", get = function() local v = getDB("presenceScenarioUpdate", nil); if v ~= nil then return v end; return getDB("showScenarioEvents", true) end, set = function(v) setDB("presenceScenarioUpdate", v) end },
         },
     },
     {
@@ -1199,13 +1228,13 @@ local OptionCategories = {
               desc = L["Prevent dragging the minimap."] or "Prevent dragging the minimap.",
               dbKey = "vistaLock",
               get = function() return getDB("vistaLock", false) end,
-              set = function(v) setDB("vistaLock", v); if addon.Vista and addon.Vista.ApplyOptions then addon.Vista.ApplyOptions() end end },
+              set = function(v) setDB("vistaLock", v) end },
             { type = "button", name = L["Reset minimap position"] or "Reset minimap position",
               desc = L["Reset minimap to its default position (top-right)."] or "Reset minimap to its default position (top-right).",
               onClick = function()
-                  setDB("vistaPoint", nil); setDB("vistaRelPoint", nil)
-                  setDB("vistaX", nil);     setDB("vistaY", nil)
-                  if addon.Vista and addon.Vista.ApplyOptions then addon.Vista.ApplyOptions() end
+                  if addon.Vista and addon.Vista.ResetMinimapPosition then
+                      addon.Vista.ResetMinimapPosition()
+                  end
               end },
             { type = "section", name = L["Auto Zoom"] or "Auto Zoom" },
             { type = "slider", name = L["Auto zoom-out delay"] or "Auto zoom-out delay",
@@ -1362,17 +1391,17 @@ local OptionCategories = {
               get = function() return getDB("vistaShowTracking", true) end,
               set = function(v)
                   setDB("vistaShowTracking", v)
-                  if addon.Vista and addon.Vista.ApplyOptions then addon.Vista.ApplyOptions() end
-                  if addon.OptionsPanel_Refresh then addon.OptionsPanel_Refresh() end
+                  if addon.OptionsPanel_Refresh and C_Timer and C_Timer.After then
+                      C_Timer.After(0, addon.OptionsPanel_Refresh)
+                  elseif addon.OptionsPanel_Refresh then
+                      addon.OptionsPanel_Refresh()
+                  end
               end },
             { type = "toggle", name = L["Tracking button on mouseover only"] or "Tracking button on mouseover only",
               desc = L["Hide tracking button until you hover over the minimap."] or "Hide tracking button until you hover over the minimap.",
               dbKey = "vistaMouseoverTracking",
               get = function() return getDB("vistaMouseoverTracking", false) end,
-              set = function(v)
-                  setDB("vistaMouseoverTracking", v)
-                  if addon.Vista and addon.Vista.ApplyOptions then addon.Vista.ApplyOptions() end
-              end,
+              set = function(v) setDB("vistaMouseoverTracking", v) end,
               disabled = function() return not getDB("vistaShowTracking", true) end },
             -- Calendar
             { type = "toggle", name = L["Show calendar button"] or "Show calendar button",
@@ -1381,17 +1410,17 @@ local OptionCategories = {
               get = function() return getDB("vistaShowCalendar", true) end,
               set = function(v)
                   setDB("vistaShowCalendar", v)
-                  if addon.Vista and addon.Vista.ApplyOptions then addon.Vista.ApplyOptions() end
-                  if addon.OptionsPanel_Refresh then addon.OptionsPanel_Refresh() end
+                  if addon.OptionsPanel_Refresh and C_Timer and C_Timer.After then
+                      C_Timer.After(0, addon.OptionsPanel_Refresh)
+                  elseif addon.OptionsPanel_Refresh then
+                      addon.OptionsPanel_Refresh()
+                  end
               end },
             { type = "toggle", name = L["Calendar button on mouseover only"] or "Calendar button on mouseover only",
               desc = L["Hide calendar button until you hover over the minimap."] or "Hide calendar button until you hover over the minimap.",
               dbKey = "vistaMouseoverCalendar",
               get = function() return getDB("vistaMouseoverCalendar", false) end,
-              set = function(v)
-                  setDB("vistaMouseoverCalendar", v)
-                  if addon.Vista and addon.Vista.ApplyOptions then addon.Vista.ApplyOptions() end
-              end,
+              set = function(v) setDB("vistaMouseoverCalendar", v) end,
               disabled = function() return not getDB("vistaShowCalendar", true) end },
             -- Zoom buttons
             { type = "toggle", name = L["Show zoom buttons"] or "Show zoom buttons",
@@ -1400,17 +1429,17 @@ local OptionCategories = {
               get = function() return getDB("vistaShowZoomBtns", true) end,
               set = function(v)
                   setDB("vistaShowZoomBtns", v)
-                  if addon.Vista and addon.Vista.ApplyOptions then addon.Vista.ApplyOptions() end
-                  if addon.OptionsPanel_Refresh then addon.OptionsPanel_Refresh() end
+                  if addon.OptionsPanel_Refresh and C_Timer and C_Timer.After then
+                      C_Timer.After(0, addon.OptionsPanel_Refresh)
+                  elseif addon.OptionsPanel_Refresh then
+                      addon.OptionsPanel_Refresh()
+                  end
               end },
             { type = "toggle", name = L["Zoom buttons on mouseover only"] or "Zoom buttons on mouseover only",
               desc = L["Hide zoom buttons until you hover over the minimap."] or "Hide zoom buttons until you hover over the minimap.",
               dbKey = "vistaMouseoverZoomBtns",
               get = function() return getDB("vistaMouseoverZoomBtns", false) end,
-              set = function(v)
-                  setDB("vistaMouseoverZoomBtns", v)
-                  if addon.Vista and addon.Vista.ApplyOptions then addon.Vista.ApplyOptions() end
-              end,
+              set = function(v) setDB("vistaMouseoverZoomBtns", v) end,
               disabled = function() return not getDB("vistaShowZoomBtns", true) end },
         },
     },
@@ -1450,26 +1479,17 @@ local OptionCategories = {
               desc = L["When on, the zone text cannot be dragged."] or "When on, the zone text cannot be dragged.",
               dbKey = "vistaLocked_zone",
               get = function() return getDB("vistaLocked_zone", false) end,
-              set = function(v)
-                  setDB("vistaLocked_zone", v)
-                  if addon.Vista and addon.Vista.ApplyOptions then addon.Vista.ApplyOptions() end
-              end },
+              set = function(v) setDB("vistaLocked_zone", v) end },
             { type = "toggle", name = L["Lock coordinates position"] or "Lock coordinates position",
               desc = L["When on, the coordinates text cannot be dragged."] or "When on, the coordinates text cannot be dragged.",
               dbKey = "vistaLocked_coord",
               get = function() return getDB("vistaLocked_coord", false) end,
-              set = function(v)
-                  setDB("vistaLocked_coord", v)
-                  if addon.Vista and addon.Vista.ApplyOptions then addon.Vista.ApplyOptions() end
-              end },
+              set = function(v) setDB("vistaLocked_coord", v) end },
             { type = "toggle", name = L["Lock time position"] or "Lock time position",
               desc = L["When on, the time text cannot be dragged."] or "When on, the time text cannot be dragged.",
               dbKey = "vistaLocked_time",
               get = function() return getDB("vistaLocked_time", false) end,
-              set = function(v)
-                  setDB("vistaLocked_time", v)
-                  if addon.Vista and addon.Vista.ApplyOptions then addon.Vista.ApplyOptions() end
-              end },
+              set = function(v) setDB("vistaLocked_time", v) end },
             { type = "section", name = L["Button Positions"] or "Button Positions" },
             { type = "header", name = L["Drag buttons to reposition them. Lock to prevent movement."] or "Drag buttons to reposition them. Lock to prevent movement." },
             { type = "toggle", name = L["Lock Zoom In button"] or "Lock Zoom In button",
@@ -1503,50 +1523,32 @@ local OptionCategories = {
               desc = L["Size of the tracking button (pixels)."] or "Size of the tracking button (pixels).",
               dbKey = "vistaTrackingBtnSize", min = 14, max = 40,
               get = function() return math.max(14, math.min(40, tonumber(getDB("vistaTrackingBtnSize", 22)) or 22)) end,
-              set = function(v)
-                  setDB("vistaTrackingBtnSize", math.max(14, math.min(40, v)))
-                  if addon.Vista and addon.Vista.ApplyOptions then addon.Vista.ApplyOptions() end
-              end },
+              set = function(v) setDB("vistaTrackingBtnSize", math.max(14, math.min(40, v))) end },
             { type = "slider", name = L["Calendar button size"] or "Calendar button size",
               desc = L["Size of the calendar button (pixels)."] or "Size of the calendar button (pixels).",
               dbKey = "vistaCalendarBtnSize", min = 14, max = 40,
               get = function() return math.max(14, math.min(40, tonumber(getDB("vistaCalendarBtnSize", 22)) or 22)) end,
-              set = function(v)
-                  setDB("vistaCalendarBtnSize", math.max(14, math.min(40, v)))
-                  if addon.Vista and addon.Vista.ApplyOptions then addon.Vista.ApplyOptions() end
-              end },
+              set = function(v) setDB("vistaCalendarBtnSize", math.max(14, math.min(40, v))) end },
             { type = "slider", name = L["Queue button size"] or "Queue button size",
               desc = L["Size of the queue status button (pixels)."] or "Size of the queue status button (pixels).",
               dbKey = "vistaQueueBtnSize", min = 14, max = 40,
               get = function() return math.max(14, math.min(40, tonumber(getDB("vistaQueueBtnSize", 22)) or 22)) end,
-              set = function(v)
-                  setDB("vistaQueueBtnSize", math.max(14, math.min(40, v)))
-                  if addon.Vista and addon.Vista.ApplyOptions then addon.Vista.ApplyOptions() end
-              end },
+              set = function(v) setDB("vistaQueueBtnSize", math.max(14, math.min(40, v))) end },
             { type = "slider", name = L["Zoom button size"] or "Zoom button size",
               desc = L["Size of the zoom in / zoom out buttons (pixels)."] or "Size of the zoom in / zoom out buttons (pixels).",
               dbKey = "vistaZoomBtnSize", min = 10, max = 32,
               get = function() return math.max(10, math.min(32, tonumber(getDB("vistaZoomBtnSize", 16)) or 16)) end,
-              set = function(v)
-                  setDB("vistaZoomBtnSize", math.max(10, math.min(32, v)))
-                  if addon.Vista and addon.Vista.ApplyOptions then addon.Vista.ApplyOptions() end
-              end },
+              set = function(v) setDB("vistaZoomBtnSize", math.max(10, math.min(32, v))) end },
             { type = "slider", name = L["Mail indicator size"] or "Mail indicator size",
               desc = L["Size of the new mail icon (pixels)."] or "Size of the new mail icon (pixels).",
               dbKey = "vistaMailIconSize", min = 14, max = 40,
               get = function() return math.max(14, math.min(40, tonumber(getDB("vistaMailIconSize", 20)) or 20)) end,
-              set = function(v)
-                  setDB("vistaMailIconSize", math.max(14, math.min(40, v)))
-                  if addon.Vista and addon.Vista.ApplyOptions then addon.Vista.ApplyOptions() end
-              end },
+              set = function(v) setDB("vistaMailIconSize", math.max(14, math.min(40, v))) end },
             { type = "slider", name = L["Addon button size"] or "Addon button size",
               desc = L["Size of collected addon minimap buttons (pixels)."] or "Size of collected addon minimap buttons (pixels).",
               dbKey = "vistaAddonBtnSize", min = 16, max = 48,
               get = function() return math.max(16, math.min(48, tonumber(getDB("vistaAddonBtnSize", 26)) or 26)) end,
-              set = function(v)
-                  setDB("vistaAddonBtnSize", math.max(16, math.min(48, v)))
-                  if addon.Vista and addon.Vista.ApplyOptions then addon.Vista.ApplyOptions() end
-              end },
+              set = function(v) setDB("vistaAddonBtnSize", math.max(16, math.min(48, v))) end },
         },
     },
     {
@@ -1568,9 +1570,11 @@ local OptionCategories = {
                   get = function() return getDB("vistaHandleAddonButtons", true) end,
                   set = function(v)
                       setDB("vistaHandleAddonButtons", v)
-                      if addon.Vista and addon.Vista.ApplyOptions then addon.Vista.ApplyOptions() end
-                      -- Refresh sibling widgets so dropdown/lock visually update disabled state
-                      if addon.OptionsPanel_Refresh then addon.OptionsPanel_Refresh() end
+                      if addon.OptionsPanel_Refresh and C_Timer and C_Timer.After then
+                          C_Timer.After(0, addon.OptionsPanel_Refresh)
+                      elseif addon.OptionsPanel_Refresh then
+                          addon.OptionsPanel_Refresh()
+                      end
                   end },
                 { type = "dropdown", name = L["Button mode"] or "Button mode",
                   desc = L["How addon buttons are presented: hover bar below minimap, panel on right-click, or floating drawer button."] or "How addon buttons are presented: hover bar below minimap, panel on right-click, or floating drawer button.",
@@ -1580,9 +1584,11 @@ local OptionCategories = {
                   set = function(v)
                       if not getDB("vistaHandleAddonButtons", true) then return end
                       setDB("vistaButtonMode", v)
-                      if addon.Vista and addon.Vista.ApplyOptions then addon.Vista.ApplyOptions() end
-                      -- Refresh sibling widgets so lock toggle visually updates disabled state
-                      if addon.OptionsPanel_Refresh then addon.OptionsPanel_Refresh() end
+                      if addon.OptionsPanel_Refresh and C_Timer and C_Timer.After then
+                          C_Timer.After(0, addon.OptionsPanel_Refresh)
+                      elseif addon.OptionsPanel_Refresh then
+                          addon.OptionsPanel_Refresh()
+                      end
                   end,
                   disabled = function() return not getDB("vistaHandleAddonButtons", true) end },
                 { type = "toggle", name = L["Lock drawer button position"] or "Lock drawer button position",

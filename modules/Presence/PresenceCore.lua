@@ -905,6 +905,10 @@ local function DumpDebug()
         p("Current zone: " .. tostring(GetZoneText()) .. " / " .. tostring(GetSubZoneText()))
     end
 
+    if addon.Presence.DumpBlizzardSuppression then
+        addon.Presence.DumpBlizzardSuppression(p)
+    end
+
     p("|cFF00CCFF--- End Presence debug ---|r")
 end
 

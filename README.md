@@ -27,6 +27,7 @@
 ![Presence - Zone Text & Notifications](https://raw.githubusercontent.com/Crystilac93/Horizon-Suite/main/docs/Presence.gif)
 
 - **Cinematic notifications** – Zone text, subzone changes, "Discovered" lines. Level-up, boss emotes, achievements, quest accept/complete, scenario start, and objective progress in delves/scenarios appear as styled toasts with smooth animations.
+- **Per-type toggles** – Turn each notification type on or off individually: zone entry, subzone, level-up, boss emotes, achievements, quest accept/complete/progress, and scenario start/progress.
 
 ## 💎 Yield (Loot Toasts) - BETA
 

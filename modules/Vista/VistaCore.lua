@@ -402,6 +402,7 @@ end
 
 local decor
 local borderTextures = {}   -- top, bottom, left, right
+local circularBorderFrame   -- ring shown instead of rect borders when circular mode is active
 local zoneText,  zoneShadow
 local diffText,  diffShadow
 local coordText, coordShadow
@@ -556,9 +557,32 @@ end
 
 local function ApplyBorderTextures()
     if not decor then return end
-    local show = GetBorderShow()
-    local bw   = GetBorderW()
+    local show       = GetBorderShow()
+    local bw         = GetBorderW()
     local r, g, b, a = GetBorderColor()
+    local isCircular = GetCircular()
+
+    if isCircular and circularBorderFrame then
+        -- Hide the four rectangular border lines
+        for _, tex in pairs(borderTextures) do
+            if tex then tex:Hide() end
+        end
+        -- Show/update the circular ring border
+        if show then
+            local sz = GetMapSize()
+            circularBorderFrame:SetSize(sz + bw * 2, sz + bw * 2)
+            circularBorderFrame:ClearAllPoints()
+            circularBorderFrame:SetPoint("CENTER", Minimap, "CENTER", 0, 0)
+            circularBorderFrame._tex:SetColorTexture(r, g, b, a)
+            circularBorderFrame:Show()
+        else
+            circularBorderFrame:Hide()
+        end
+        return
+    end
+
+    -- Square mode: hide circular ring, show rect borders
+    if circularBorderFrame then circularBorderFrame:Hide() end
 
     for _, tex in pairs(borderTextures) do
         if tex then
@@ -608,6 +632,29 @@ local function CreateDecor()
         return t
     end
     MakeBorderTex("top"); MakeBorderTex("bottom"); MakeBorderTex("left"); MakeBorderTex("right")
+
+    -- Circular border ring is rendered as a masked color circle behind Minimap.
+    -- The inside is covered by Minimap itself, leaving a clean visible rim outside.
+    -- Parent to Minimap's parent so we're not clipped by Minimap's circular mask.
+    local minimapParent = Minimap:GetParent()
+    if minimapParent then
+        circularBorderFrame = CreateFrame("Frame", "HorizonSuiteVistaCircularBorder", minimapParent)
+        circularBorderFrame:SetFrameStrata(Minimap:GetFrameStrata())
+        circularBorderFrame:SetFrameLevel(math.max((Minimap:GetFrameLevel() or 1) - 1, 0))
+        circularBorderFrame:SetPoint("CENTER", Minimap, "CENTER", 0, 0)
+        circularBorderFrame:SetSize(GetMapSize(), GetMapSize())
+        local cbt = circularBorderFrame:CreateTexture(nil, "OVERLAY")
+        cbt:SetColorTexture(1, 1, 1, 1)
+        cbt:SetAllPoints()
+        local mask = circularBorderFrame:CreateMaskTexture(nil, "OVERLAY")
+        mask:SetTexture(MASK_CIRCULAR, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        mask:SetAllPoints(cbt)
+        cbt:AddMaskTexture(mask)
+        circularBorderFrame._tex = cbt
+        circularBorderFrame._mask = mask
+        circularBorderFrame:Hide()
+    end
+
     ApplyBorderTextures()
 
     -- Draggable minimap
@@ -948,9 +995,12 @@ end
 -- ============================================================================
 
 local function CreateZoomButtons()
+    -- Parent to UIParent so zoom buttons work when minimap is locked (Minimap:SetMovable(false)
+    -- can block child input; UIParent children are unaffected)
+    local zoomParent = UIParent
     local function makeZoomBtn(lockKey, defaultXOff, zoomDelta)
         local label = zoomDelta > 0 and "+" or "-"
-        local btn = CreateFrame("Button", nil, decor)
+        local btn = CreateFrame("Button", nil, zoomParent)
         btn:SetSize(GetZoomBtnSize(), GetZoomBtnSize())
         btn:SetFrameLevel(decor:GetFrameLevel() + 10)
 
@@ -1820,7 +1870,7 @@ end
 
 local function CreateCollectorBar()
     collectorBar = CreateFrame("Frame", "HorizonSuiteVistaButtonBar", decor)
-    collectorBar:SetPoint("TOP", Minimap, "BOTTOM", 0, -4)
+    collectorBar:SetPoint("TOP", diffText, "BOTTOM", 0, -4)
     collectorBar:SetSize(1, GetAddonBtnSize())
     collectorBar:SetAlpha(0)
     collectorBar:Show()
@@ -2258,6 +2308,37 @@ local function OnHoverUpdate(_, elapsed)
 end
 
 -- ============================================================================
+-- APPLY COLORS  (lightweight; called during live color-picker drags)
+-- ============================================================================
+
+function Vista.ApplyColors()
+    if not decor then return end
+    ApplyBorderTextures()
+    if zoneText  then zoneText:SetTextColor(GetZoneColor())   end
+    if coordText then coordText:SetTextColor(GetCoordColor()) end
+    if timeText  then timeText:SetTextColor(GetTimeColor())   end
+    if diffText  then diffText:SetTextColor(GetDiffColor())   end
+    if drawerButton then
+        if drawerButton._bg     then drawerButton._bg:SetColorTexture(GetPanelBgColor())     end
+        if drawerButton._border then drawerButton._border:SetColorTexture(GetPanelBorderColor()) end
+    end
+    local bgR, bgG, bgB, bgA = GetPanelBgColor()
+    local brR, brG, brB, brA = GetPanelBorderColor()
+    if drawerPanel and drawerPanel._bgTex then
+        drawerPanel._bgTex:SetColorTexture(bgR, bgG, bgB, bgA)
+    end
+    if drawerPanel and drawerPanel._borderTextures then
+        for _, tex in ipairs(drawerPanel._borderTextures) do tex:SetColorTexture(brR, brG, brB, brA) end
+    end
+    if rightClickPanel and rightClickPanel._bgTex then
+        rightClickPanel._bgTex:SetColorTexture(bgR, bgG, bgB, bgA)
+    end
+    if rightClickPanel and rightClickPanel._borderTextures then
+        for _, tex in ipairs(rightClickPanel._borderTextures) do tex:SetColorTexture(brR, brG, brB, brA) end
+    end
+end
+
+-- ============================================================================
 -- APPLY OPTIONS  (called whenever any Vista DB key changes)
 -- ============================================================================
 
@@ -2336,10 +2417,10 @@ function Vista.ApplyOptions()
         diffText:SetTextColor(GetDiffColor())
     end
 
-    -- Collector bar position tracks map bottom
+    -- Collector bar anchors below zone/diff text (location name)
     if collectorBar then
         collectorBar:ClearAllPoints()
-        collectorBar:SetPoint("TOP", Minimap, "BOTTOM", 0, -4)
+        collectorBar:SetPoint("TOP", diffText, "BOTTOM", 0, -4)
     end
 
     -- Rebuild default button proxies (tracking, calendar) — show/hide based on per-button toggles
@@ -2656,6 +2737,19 @@ end
 -- ============================================================================
 
 SLASH_HORIZONSUITEVISTA1 = "/mmm"
+--- Reset minimap to default position (top-right) and clear saved position from DB.
+--- Call from options Reset button or slash command.
+function Vista.ResetMinimapPosition()
+    if not InCombatLockdown() then
+        proxy.ClearAllPoints(Minimap)
+        proxy.SetPoint(Minimap, DEFAULT_POINT, UIParent, DEFAULT_RELPOINT, DEFAULT_X, DEFAULT_Y)
+    end
+    SetDB("vistaPoint", nil)
+    SetDB("vistaRelPoint", nil)
+    SetDB("vistaX", nil)
+    SetDB("vistaY", nil)
+end
+
 SLASH_HORIZONSUITEVISTA2 = "/modernminimap"
 
 SlashCmdList["HORIZONSUITEVISTA"] = function(msg)
@@ -2666,12 +2760,7 @@ SlashCmdList["HORIZONSUITEVISTA"] = function(msg)
     local cmd = (msg or ""):trim():lower()
 
     if cmd == "reset" then
-        if not InCombatLockdown() then
-            proxy.ClearAllPoints(Minimap)
-            proxy.SetPoint(Minimap, DEFAULT_POINT, UIParent, DEFAULT_RELPOINT, DEFAULT_X, DEFAULT_Y)
-        end
-        SetDB("vistaPoint", nil); SetDB("vistaRelPoint", nil)
-        SetDB("vistaX", nil);     SetDB("vistaY", nil)
+        Vista.ResetMinimapPosition()
         print("|cFF00CCFFHorizon Suite Vista:|r Position reset.")
     elseif cmd == "toggle" then
         if InCombatLockdown() then return end

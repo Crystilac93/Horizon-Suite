@@ -20,6 +20,16 @@ local function HandlePresenceSlash(msg)
         return true
     end
 
+    if cmd == "debugtypes" then
+        local p = HSPrint
+        if addon.Presence.DumpBlizzardSuppression then
+            addon.Presence.DumpBlizzardSuppression(p)
+        else
+            HSPrint("DumpBlizzardSuppression not available")
+        end
+        return true
+    end
+
     if cmd == "debuglive" then
         local on = addon.Presence.ToggleDebugLive and addon.Presence.ToggleDebugLive()
         HSPrint("Presence live debug: " .. (on and "on" or "off"))
@@ -104,6 +114,7 @@ local function HandlePresenceSlash(msg)
         HSPrint(L["  /horizon presence update   - Test Quest Update"])
         HSPrint(L["  /horizon presence all      - Demo reel (all types)"])
         HSPrint(L["  /horizon presence debug    - Dump state to chat"])
+        HSPrint(L["  /horizon presence debugtypes - Dump notification toggles and Blizzard suppression state"])
         HSPrint(L["  /horizon presence debuglive - Toggle live debug panel (log as events happen)"])
         addon.Presence.QueueOrPlay("ZONE_CHANGE", GetZoneText() or "Unknown Zone", GetSubZoneText() or "")
     else
