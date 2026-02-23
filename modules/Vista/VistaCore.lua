@@ -30,6 +30,7 @@ local SHADOW_OY = -2
 local SHADOW_A  = 0.8
 
 local MAP_SIZE_DEFAULT = 200
+local MINIMAP_BASE_SIZE = 256  -- Blizzard's minimap texture size; we scale this to vistaMapSize
 
 local BTN_SIZE = 26
 local BTN_GAP  = 4
@@ -509,6 +510,7 @@ local function ScheduleAutoZoom()
         end
     end)
 end
+Vista.ScheduleAutoZoom = ScheduleAutoZoom
 
 -- ============================================================================
 -- MINIMAP SETUP
@@ -522,7 +524,8 @@ local function SetupMinimap()
     local scale = DB("vistaScale",    1.0)
 
     local sz = GetMapSize()
-    Minimap:SetSize(sz, sz)
+    local mapScale = sz / MINIMAP_BASE_SIZE
+    Minimap:SetSize(MINIMAP_BASE_SIZE, MINIMAP_BASE_SIZE)
     Minimap:SetMaskTexture(GetCircular() and MASK_CIRCULAR or MASK_SQUARE)
 
     if pt then
@@ -546,7 +549,7 @@ local function SetupMinimap()
     end
 
     local moduleScale = (addon.GetModuleScale and addon.GetModuleScale("vista")) or 1
-    proxy.SetScale(Minimap, (scale or 1.0) * moduleScale)
+    proxy.SetScale(Minimap, (scale or 1.0) * moduleScale * mapScale)
     Minimap:Show()
     Minimap:SetAlpha(1)
 end
@@ -2348,15 +2351,19 @@ function Vista.ApplyOptions()
     -- Lock state
     Minimap:SetMovable(not DB("vistaLock", false))
 
-    -- Map size  — resize Minimap itself, not just the decor overlay
+    -- Map size  — use base size + scale so the map texture scales with the frame
     local sz = GetMapSize()
-    Minimap:SetSize(sz, sz)
+    local mapScale = sz / MINIMAP_BASE_SIZE
+    Minimap:SetSize(MINIMAP_BASE_SIZE, MINIMAP_BASE_SIZE)
     Minimap:SetMaskTexture(GetCircular() and MASK_CIRCULAR or MASK_SQUARE)
     -- Force the map texture to redraw immediately by re-setting the current zoom level.
     pcall(function()
         local zoom = Minimap:GetZoom()
         if zoom then Minimap:SetZoom(zoom) end
     end)
+    local vistaScale = DB("vistaScale", 1.0) or 1.0
+    local moduleScale = (addon.GetModuleScale and addon.GetModuleScale("vista")) or 1
+    proxy.SetScale(Minimap, vistaScale * moduleScale * mapScale)
     -- decor is SetAllPoints(Minimap) so it follows automatically
 
     -- Border
@@ -2549,6 +2556,11 @@ function Vista.Init()
 
     decor:SetScript("OnUpdate", OnHoverUpdate)
 
+    -- Re-apply options one frame after init so profile/scale are fully ready
+    if C_Timer and C_Timer.After and Vista.ApplyOptions then
+        C_Timer.After(0, Vista.ApplyOptions)
+    end
+
     Minimap:HookScript("OnEnter", function()
         if GetButtonMode() == BTN_MODE_MOUSEOVER then
             hoverTarget = 1; hoverElapsed = 0
@@ -2652,7 +2664,8 @@ function Vista.ApplyScale()
     if not Minimap then return end
     local scale = DB("vistaScale", 1.0) or 1.0
     local moduleScale = (addon.GetModuleScale and addon.GetModuleScale("vista")) or 1
-    proxy.SetScale(Minimap, scale * moduleScale)
+    local mapScale = GetMapSize() / MINIMAP_BASE_SIZE
+    proxy.SetScale(Minimap, scale * moduleScale * mapScale)
 end
 
 -- Convert PascalCase / camelCase to a human-readable string.
@@ -2733,12 +2746,11 @@ function Vista.GetButtonDisplayName(frameName)
 end
 
 -- ============================================================================
--- SLASH COMMANDS
+-- MINIMAP POSITION
 -- ============================================================================
 
-SLASH_HORIZONSUITEVISTA1 = "/mmm"
 --- Reset minimap to default position (top-right) and clear saved position from DB.
---- Call from options Reset button or slash command.
+--- Called from options Reset button and slash command.
 function Vista.ResetMinimapPosition()
     if not InCombatLockdown() then
         proxy.ClearAllPoints(Minimap)
@@ -2748,48 +2760,6 @@ function Vista.ResetMinimapPosition()
     SetDB("vistaRelPoint", nil)
     SetDB("vistaX", nil)
     SetDB("vistaY", nil)
-end
-
-SLASH_HORIZONSUITEVISTA2 = "/modernminimap"
-
-SlashCmdList["HORIZONSUITEVISTA"] = function(msg)
-    if not addon:IsModuleEnabled("vista") then
-        print("|cFF00CCFFHorizon Suite:|r Vista module is disabled.")
-        return
-    end
-    local cmd = (msg or ""):trim():lower()
-
-    if cmd == "reset" then
-        Vista.ResetMinimapPosition()
-        print("|cFF00CCFFHorizon Suite Vista:|r Position reset.")
-    elseif cmd == "toggle" then
-        if InCombatLockdown() then return end
-        local show = not (DB("vistaShowMinimap", true) ~= false)
-        SetDB("vistaShowMinimap", show)
-        if show then Minimap:Show() else Minimap:Hide() end
-    elseif cmd == "lock" then
-        local lock = not DB("vistaLock", false)
-        SetDB("vistaLock", lock)
-        Minimap:SetMovable(not lock)
-    elseif cmd:find("^scale") then
-        local val = tonumber(cmd:match("scale%s+(.+)"))
-        if val then
-            SetDB("vistaScale", math.max(0.5, math.min(2.0, val)))
-            Vista.ApplyScale()
-        end
-    elseif cmd:find("^autozoom") then
-        local val = tonumber(cmd:match("autozoom%s+(.+)"))
-        if val then
-            SetDB("vistaAutoZoom", math.max(0, math.min(30, math.floor(val))))
-            ScheduleAutoZoom()
-        end
-    elseif cmd == "buttons" then
-        local n = Vista.CollectButtons()
-        print("|cFF00CCFFHorizon Suite Vista:|r Buttons found: " .. n)
-    else
-        print("|cFF00CCFFHorizon Suite Vista Commands:|r")
-        print("  /mmm lock · /mmm scale X · /mmm autozoom X · /mmm reset · /mmm toggle · /mmm buttons")
-    end
 end
 
 addon.Vista = Vista

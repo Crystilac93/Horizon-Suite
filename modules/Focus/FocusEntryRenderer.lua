@@ -174,8 +174,11 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
                     objText = objText .. (" (%d/%d)"):format(nf, nr)
                 end
             end
-            if addon.GetDB("showObjectiveNumbers", false) then
+            local prefixStyle = addon.GetDB("objectivePrefixStyle", "none")
+            if prefixStyle == "numbers" then
                 objText = ("%d. %s"):format(j, objText)
+            elseif prefixStyle == "hyphens" then
+                objText = "- " .. objText
             end
             local useTick = oData.finished and addon.GetDB("useTickForCompletedObjectives", false) and not questData.isComplete
             obj.text:SetText(objText)
@@ -277,7 +280,9 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
         local isAutoComplete = questData.isAutoComplete and true or false
         local firstLineText = isAutoComplete
             and (_G.QUEST_WATCH_QUEST_COMPLETE or "Quest Complete")
-            or (addon.GetDB("showObjectiveNumbers", false) and "1. Ready to turn in" or "Ready to turn in")
+            or (addon.GetDB("objectivePrefixStyle", "none") == "numbers" and "1. Ready to turn in"
+                or addon.GetDB("objectivePrefixStyle", "none") == "hyphens" and "- Ready to turn in"
+                or "Ready to turn in")
         obj.text:SetText(firstLineText)
         obj.shadow:SetText(firstLineText)
         obj._hsFinished = true

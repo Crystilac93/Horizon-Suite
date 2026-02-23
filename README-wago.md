@@ -26,8 +26,24 @@
 
 ![Presence - Zone Text & Notifications](https://raw.githubusercontent.com/Crystilac93/Horizon-Suite/main/docs/Presence.gif)
 
-- **Cinematic notifications** – Zone text, subzone changes, "Discovered" lines. Level-up, boss emotes, achievements, quest accept/complete, scenario start, and objective progress in delves/scenarios appear as styled toasts with smooth animations.
-- **Per-type toggles** – Turn each notification type on or off individually: zone entry, subzone, level-up, boss emotes, achievements, quest accept/complete/progress, and scenario start/progress.
+- **Cinematic notifications** – Replaces Blizzard's default zone text, level-up banner, boss emote frame, and achievement alerts with styled toasts: smooth entrance and exit animations, a dividing line between title and subtitle, and an optional "Discovered!" third line on first visits.
+- **Full notification coverage** – Zone entry, subzone changes, level-up, boss emotes, achievements, quest accepted/complete/progress, world quest accepted/complete, scenario start, and scenario or delve objective updates — 12 types in total.
+- **Per-type toggles** – Enable or disable each notification type individually. Mythic+ suppression silences zone, quest, and scenario notifications while inside a keystone dungeon.
+- **Prioritised queue** – Up to five notifications queue when one is already playing; higher-priority events (level-up, boss emotes, achievements) play ahead of routine quest updates.
+- **Visual customisation** – Vertical screen position, frame scale, and independent font types and sizes for title and subtitle. Entrance speed, exit speed, and hold-duration multiplier are all adjustable.
+
+## 🗺️ Vista (Minimap)
+
+![Vista - Minimap](https://raw.githubusercontent.com/Crystilac93/Horizon-Suite/main/docs/Vista.gif)
+
+- **Square or circular minimap** – Choose a square or circular mask. Adjust size (100–400px), lock position, or drag to relocate. Optional auto zoom-out after zooming.
+- **Zone text, coordinates, and time** – Zone name, player coordinates, and game time below the minimap. Each element has its own font, size, and colour; show or hide individually. Click the time to open the stopwatch.
+- **Instance difficulty** – Difficulty name and Mythic+ keystone level shown when in an instance.
+- **Mail and queue indicators** – New mail icon and queue status button appear automatically when relevant.
+- **Built-in buttons** – Tracking, calendar, and zoom (+/−) buttons. Show always or on mouseover. Each is draggable and resizable; lock to prevent accidental movement.
+- **Addon button collector** – Minimap buttons from other addons are grouped and presented in one of three modes: mouseover bar below the minimap, right-click panel, or floating drawer button. Per-addon filter to show only selected buttons.
+- **Customizable appearance** – Border (thickness, colour, opacity), panel background and border colours for button panels, and per-element typography. SharedMedia support for fonts.
+- **Mouse wheel zoom** – Scroll over the minimap to zoom in and out.
 
 ## 💎 Yield (Loot Toasts) - BETA
 
@@ -40,12 +56,6 @@
 
 - **Cinematic tooltips** – Dark backdrop, class-colored player names and borders, faction icons, spec/role display, and fade-in animation.
 - **Profile-backed settings** – Anchor mode (cursor or fixed) and position stored per profile.
-- **Quick options** – `/insight` for anchor toggle, move, reset, and test.
-
-## 🗺️ Vista (Minimap) - BETA
-
-- **Cinematic square minimap** – Zone text, coordinates, instance difficulty, mail indicator, and button collector. Draggable, scalable, with optional auto-zoom.
-- **Quick options** – `/mmm` for position reset, show/hide, and button collection.
 
 ## 🎨 Visuals & UI Design
 
@@ -61,7 +71,7 @@
 
 ## 📦 Modules & Roadmap
 
-**Focus** is the objective tracker. **Presence** adds cinematic zone text and notifications. **Insight** adds cinematic tooltips with class colors, spec display, and faction icons. **Vista** adds a cinematic square minimap. **Yield** adds cinematic loot toasts (items, money, currency, reputation). Enable them in options. More modules are planned: Quest Log, Combat Alerts, Unit Frames, Chat.
+**Focus** is the objective tracker. **Presence** adds cinematic zone text and notifications. **Insight** adds cinematic tooltips with class colors, spec display, and faction icons. **Vista** adds a cinematic minimap (square or circular) with zone text, coordinates, addon button collector, and full customisation. **Yield** adds cinematic loot toasts (items, money, currency, reputation). Enable them in options. More modules are planned: Quest Log, Combat Alerts, Unit Frames, Chat.
 
 ---
 

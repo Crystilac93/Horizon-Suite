@@ -161,11 +161,10 @@ local function OnAddonLoaded(addonName)
         addon:EnsureModulesDB()
         local dev = _G.HorizonSuiteDevOverride
         for key in pairs(addon.modules or {}) do
-            -- Beta modules (Insight, Yield, Vista): only enable when dev addon shows their toggle
-            if key == "insight" or key == "yield" or key == "vista" then
+            -- Beta modules (Insight, Yield): only enable when dev addon shows their toggle
+            if key == "insight" or key == "yield" then
                 local showToggle = (key == "insight" and dev and dev.showInsightToggle)
                     or (key == "yield" and dev and dev.showYieldToggle)
-                    or (key == "vista" and dev and dev.showVistaToggle)
                 if not showToggle then
                     if HorizonDB and HorizonDB.modules and HorizonDB.modules[key] then
                         HorizonDB.modules[key].enabled = false

@@ -60,6 +60,7 @@ modules/Yield/YieldSlash.lua
 modules/Yield/YieldModule.lua
 
 modules/Vista/VistaCore.lua
+modules/Vista/VistaSlash.lua
 modules/Vista/VistaModule.lua
 
 modules/Insight/InsightCore.lua

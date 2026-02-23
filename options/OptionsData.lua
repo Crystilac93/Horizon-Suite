@@ -16,6 +16,8 @@ local L = addon.L
 local TYPOGRAPHY_KEYS = {
     fontPath = true,
     titleFontPath = true,
+    presenceTitleFontPath = true,
+    presenceSubtitleFontPath = true,
     zoneFontPath = true,
     objectiveFontPath = true,
     sectionFontPath = true,
@@ -61,6 +63,8 @@ local PRESENCE_KEYS = {
     presenceHoldScale = true,
     presenceMainSize = true,
     presenceSubSize = true,
+    presenceTitleFontPath = true,
+    presenceSubtitleFontPath = true,
 }
 
 local MPLUS_TYPOGRAPHY_KEYS = {
@@ -207,7 +211,7 @@ function OptionsData_SetDB(key, value)
         addon.focus.nearbyQuestCache = nil
         addon.focus.nearbyTaskQuestCache = nil
     end
-    if (key == "fontPath" or key == "titleFontPath" or key == "zoneFontPath" or key == "objectiveFontPath" or key == "sectionFontPath" or key == "progressBarFontPath") and updateOptionsPanelFontsRef then
+    if (key == "fontPath" or key == "titleFontPath" or key == "zoneFontPath" or key == "objectiveFontPath" or key == "sectionFontPath" or key == "progressBarFontPath" or key == "presenceTitleFontPath" or key == "presenceSubtitleFontPath") and updateOptionsPanelFontsRef then
         updateOptionsPanelFontsRef()
     end
     if TYPOGRAPHY_KEYS[key] and addon.UpdateFontObjectsFromDB then
@@ -774,9 +778,6 @@ local OptionCategories = {
             if dev and dev.showYieldToggle then
                 opts[#opts + 1] = { type = "toggle", name = L["Enable Yield module"] .. betaSuffix, desc = L["Cinematic loot notifications (items, money, currency, reputation)."], dbKey = "_module_yield", get = function() return addon:IsModuleEnabled("yield") end, set = function(v) addon:SetModuleEnabled("yield", v) end }
             end
-            if dev and dev.showVistaToggle then
-                -- Legacy: keep for dev override compatibility but Vista toggle is now shown above unconditionally
-            end
             opts[#opts + 1] = { type = "section", name = L["Scaling"] }
             -- helper: refresh all modules after any scale change
             local function refreshAllScaling()
@@ -922,7 +923,7 @@ local OptionCategories = {
             { type = "toggle", name = L["Show zone labels"], desc = L["Show zone name under each quest title."], dbKey = "showZoneLabels", get = function() return getDB("showZoneLabels", true) end, set = function(v) setDB("showZoneLabels", v) end },
             { type = "dropdown", name = L["Active quest highlight"], desc = L["How the focused quest is highlighted."], dbKey = "activeQuestHighlight", options = HIGHLIGHT_OPTIONS, get = getActiveQuestHighlight, set = function(v) setDB("activeQuestHighlight", v) end },
             { type = "toggle", name = L["Show quest item buttons"], desc = L["Show usable quest item button next to each quest."], dbKey = "showQuestItemButtons", get = function() return getDB("showQuestItemButtons", false) end, set = function(v) setDB("showQuestItemButtons", v) end },
-            { type = "toggle", name = L["Show objective numbers"], desc = L["Prefix objectives with 1., 2., 3."], dbKey = "showObjectiveNumbers", get = function() return getDB("showObjectiveNumbers", false) end, set = function(v) setDB("showObjectiveNumbers", v) end },
+            { type = "dropdown", name = L["Objective prefix"], desc = L["Prefix each objective with a number or hyphen."], dbKey = "objectivePrefixStyle", options = { { L["None"], "none" }, { L["Numbers (1. 2. 3.)"], "numbers" }, { L["Hyphens (-)"], "hyphens" } }, get = function() return getDB("objectivePrefixStyle", "none") end, set = function(v) setDB("objectivePrefixStyle", v) end },
             { type = "toggle", name = L["Show entry numbers"], desc = L["Prefix quest titles with 1., 2., 3. within each category."], dbKey = "showCategoryEntryNumbers", get = function() return getDB("showCategoryEntryNumbers", true) end, set = function(v) setDB("showCategoryEntryNumbers", v) end },
             { type = "toggle", name = L["Show completed count"], desc = L["Show X/Y progress in quest title."], dbKey = "showCompletedCount", get = function() return getDB("showCompletedCount", false) end, set = function(v) setDB("showCompletedCount", v) end },
             { type = "toggle", name = L["Show objective progress bar"], desc = L["Show a progress bar under objectives that have numeric progress (e.g. 3/250). Only applies to entries with a single arithmetic objective where the required amount is greater than 1."], dbKey = "showObjectiveProgressBar", get = function() return getDB("showObjectiveProgressBar", false) end, set = function(v)
@@ -1185,6 +1186,8 @@ local OptionCategories = {
         moduleKey = "presence",
         options = {
             { type = "section", name = L["Typography"] },
+            { type = "dropdown", name = L["Main title font"], desc = L["Font family for the main title."], dbKey = "presenceTitleFontPath", searchable = true, options = function() return GetPerElementFontDropdownOptions("presenceTitleFontPath") end, get = function() return getDB("presenceTitleFontPath", FONT_USE_GLOBAL) end, set = function(v) setDB("presenceTitleFontPath", v) end, displayFn = DisplayPerElementFont },
+            { type = "dropdown", name = L["Subtitle font"], desc = L["Font family for the subtitle."], dbKey = "presenceSubtitleFontPath", searchable = true, options = function() return GetPerElementFontDropdownOptions("presenceSubtitleFontPath") end, get = function() return getDB("presenceSubtitleFontPath", FONT_USE_GLOBAL) end, set = function(v) setDB("presenceSubtitleFontPath", v) end, displayFn = DisplayPerElementFont },
             { type = "slider", name = L["Main title size"], desc = L["Font size for the main title (24–72 px)."], dbKey = "presenceMainSize", min = 24, max = 72, get = function() return math.max(24, math.min(72, tonumber(getDB("presenceMainSize", 48)) or 48)) end, set = function(v) setDB("presenceMainSize", math.max(24, math.min(72, v))) end },
             { type = "slider", name = L["Subtitle size"], desc = L["Font size for the subtitle (12–40 px)."], dbKey = "presenceSubSize", min = 12, max = 40, get = function() return math.max(12, math.min(40, tonumber(getDB("presenceSubSize", 24)) or 24)) end, set = function(v) setDB("presenceSubSize", math.max(12, math.min(40, v))) end },
         },
@@ -1227,7 +1230,7 @@ local OptionCategories = {
             { type = "toggle", name = L["Lock minimap position"] or "Lock minimap position",
               desc = L["Prevent dragging the minimap."] or "Prevent dragging the minimap.",
               dbKey = "vistaLock",
-              get = function() return getDB("vistaLock", false) end,
+              get = function() return getDB("vistaLock", true) end,
               set = function(v) setDB("vistaLock", v) end },
             { type = "button", name = L["Reset minimap position"] or "Reset minimap position",
               desc = L["Reset minimap to its default position (top-right)."] or "Reset minimap to its default position (top-right).",
@@ -1400,7 +1403,7 @@ local OptionCategories = {
             { type = "toggle", name = L["Tracking button on mouseover only"] or "Tracking button on mouseover only",
               desc = L["Hide tracking button until you hover over the minimap."] or "Hide tracking button until you hover over the minimap.",
               dbKey = "vistaMouseoverTracking",
-              get = function() return getDB("vistaMouseoverTracking", false) end,
+              get = function() return getDB("vistaMouseoverTracking", true) end,
               set = function(v) setDB("vistaMouseoverTracking", v) end,
               disabled = function() return not getDB("vistaShowTracking", true) end },
             -- Calendar
@@ -1419,7 +1422,7 @@ local OptionCategories = {
             { type = "toggle", name = L["Calendar button on mouseover only"] or "Calendar button on mouseover only",
               desc = L["Hide calendar button until you hover over the minimap."] or "Hide calendar button until you hover over the minimap.",
               dbKey = "vistaMouseoverCalendar",
-              get = function() return getDB("vistaMouseoverCalendar", false) end,
+              get = function() return getDB("vistaMouseoverCalendar", true) end,
               set = function(v) setDB("vistaMouseoverCalendar", v) end,
               disabled = function() return not getDB("vistaShowCalendar", true) end },
             -- Zoom buttons
@@ -1438,7 +1441,7 @@ local OptionCategories = {
             { type = "toggle", name = L["Zoom buttons on mouseover only"] or "Zoom buttons on mouseover only",
               desc = L["Hide zoom buttons until you hover over the minimap."] or "Hide zoom buttons until you hover over the minimap.",
               dbKey = "vistaMouseoverZoomBtns",
-              get = function() return getDB("vistaMouseoverZoomBtns", false) end,
+              get = function() return getDB("vistaMouseoverZoomBtns", true) end,
               set = function(v) setDB("vistaMouseoverZoomBtns", v) end,
               disabled = function() return not getDB("vistaShowZoomBtns", true) end },
         },
@@ -1478,17 +1481,17 @@ local OptionCategories = {
             { type = "toggle", name = L["Lock zone text position"] or "Lock zone text position",
               desc = L["When on, the zone text cannot be dragged."] or "When on, the zone text cannot be dragged.",
               dbKey = "vistaLocked_zone",
-              get = function() return getDB("vistaLocked_zone", false) end,
+              get = function() return getDB("vistaLocked_zone", true) end,
               set = function(v) setDB("vistaLocked_zone", v) end },
             { type = "toggle", name = L["Lock coordinates position"] or "Lock coordinates position",
               desc = L["When on, the coordinates text cannot be dragged."] or "When on, the coordinates text cannot be dragged.",
               dbKey = "vistaLocked_coord",
-              get = function() return getDB("vistaLocked_coord", false) end,
+              get = function() return getDB("vistaLocked_coord", true) end,
               set = function(v) setDB("vistaLocked_coord", v) end },
             { type = "toggle", name = L["Lock time position"] or "Lock time position",
               desc = L["When on, the time text cannot be dragged."] or "When on, the time text cannot be dragged.",
               dbKey = "vistaLocked_time",
-              get = function() return getDB("vistaLocked_time", false) end,
+              get = function() return getDB("vistaLocked_time", true) end,
               set = function(v) setDB("vistaLocked_time", v) end },
             { type = "section", name = L["Button Positions"] or "Button Positions" },
             { type = "header", name = L["Drag buttons to reposition them. Lock to prevent movement."] or "Drag buttons to reposition them. Lock to prevent movement." },
