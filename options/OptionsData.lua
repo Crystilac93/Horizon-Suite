@@ -45,6 +45,7 @@ local PRESENCE_KEYS = {
     presenceDiscoveryColor = true,
     presenceZoneChange = true,
     presenceSubzoneChange = true,
+    presenceHideZoneForSubzone = true,
     presenceSuppressZoneInMplus = true,
     presenceLevelUp = true,
     presenceBossEmote = true,
@@ -849,24 +850,28 @@ local OptionCategories = {
                         if addon.Vista and addon.Vista.ApplyScale then addon.Vista.ApplyScale() end
                     end)
                 end }
-            opts[#opts + 1] = { type = "slider", name = L["Insight scale"], desc = L["Scale for the Insight tooltip module (50–200%)."], dbKey = "insightUIScale_pct", min = 50, max = 200,
-                disabled = isNotPerModule,
-                get = function()
-                    return math.floor((tonumber(getDB("insightUIScale", 1)) or 1) * 100 + 0.5)
-                end, set = function(v)
-                    setDB("insightUIScale", math.max(50, math.min(200, v)) / 100)
-                    -- Insight has no heavy apply; no debounce needed.
-                end }
-            opts[#opts + 1] = { type = "slider", name = L["Yield scale"], desc = L["Scale for the Yield loot toast module (50–200%)."], dbKey = "yieldUIScale_pct", min = 50, max = 200,
-                disabled = isNotPerModule,
-                get = function()
-                    return math.floor((tonumber(getDB("yieldUIScale", 1)) or 1) * 100 + 0.5)
-                end, set = function(v)
-                    setDB("yieldUIScale", math.max(50, math.min(200, v)) / 100)
-                    debouncedRefresh("yield", function()
-                        if addon.Yield and addon.Yield.ApplyScale then addon.Yield.ApplyScale() end
-                    end)
-                end }
+            if dev and dev.showInsightToggle then
+                opts[#opts + 1] = { type = "slider", name = L["Insight scale"], desc = L["Scale for the Insight tooltip module (50–200%)."], dbKey = "insightUIScale_pct", min = 50, max = 200,
+                    disabled = isNotPerModule,
+                    get = function()
+                        return math.floor((tonumber(getDB("insightUIScale", 1)) or 1) * 100 + 0.5)
+                    end, set = function(v)
+                        setDB("insightUIScale", math.max(50, math.min(200, v)) / 100)
+                        -- Insight has no heavy apply; no debounce needed.
+                    end }
+            end
+            if dev and dev.showYieldToggle then
+                opts[#opts + 1] = { type = "slider", name = L["Yield scale"], desc = L["Scale for the Yield loot toast module (50–200%)."], dbKey = "yieldUIScale_pct", min = 50, max = 200,
+                    disabled = isNotPerModule,
+                    get = function()
+                        return math.floor((tonumber(getDB("yieldUIScale", 1)) or 1) * 100 + 0.5)
+                    end, set = function(v)
+                        setDB("yieldUIScale", math.max(50, math.min(200, v)) / 100)
+                        debouncedRefresh("yield", function()
+                            if addon.Yield and addon.Yield.ApplyScale then addon.Yield.ApplyScale() end
+                        end)
+                    end }
+            end
             return opts
         end)(),
     },
@@ -1755,7 +1760,8 @@ local OptionCategories = {
 
 function OptionsData_BuildSearchIndex()
     local index = {}
-    for catIdx, cat in ipairs(OptionCategories) do
+    local cats = addon.OptionCategories
+    for catIdx, cat in ipairs(cats) do
         local currentSection = ""
         local moduleKey = cat.moduleKey
         local moduleLabel = (moduleKey == "focus" and L["Focus"]) or (moduleKey == "presence" and L["Presence"]) or (moduleKey == "insight" and (L["Insight"] or "Insight")) or (moduleKey == "yield" and L["Yield"]) or (moduleKey == "vista" and (L["Vista"] or "Vista")) or L["Modules"]
@@ -1787,12 +1793,31 @@ function OptionsData_BuildSearchIndex()
     return index
 end
 
+-- Filter out Insight/Yield categories when dev addon does not show their toggles.
+local function getVisibleCategories()
+    local dev = _G.HorizonSuiteDevOverride
+    local showInsight = dev and dev.showInsightToggle
+    local showYield = dev and dev.showYieldToggle
+    local out = {}
+    for _, cat in ipairs(OptionCategories) do
+        local mk = cat.moduleKey
+        if mk == "insight" and not showInsight then
+            -- skip
+        elseif mk == "yield" and not showYield then
+            -- skip
+        else
+            out[#out + 1] = cat
+        end
+    end
+    return out
+end
+
 -- Export for panel
 addon.OptionsData_GetDB = OptionsData_GetDB
 addon.OptionsData_SetDB = OptionsData_SetDB
 addon.OptionsData_NotifyMainAddon = OptionsData_NotifyMainAddon
 addon.OptionsData_SetUpdateFontsRef = OptionsData_SetUpdateFontsRef
-addon.OptionCategories = OptionCategories
+addon.OptionCategories = getVisibleCategories()
 addon.OptionsData_BuildSearchIndex = OptionsData_BuildSearchIndex
 addon.COLOR_KEYS_ORDER = COLOR_KEYS_ORDER
 addon.ZONE_COLOR_DEFAULT = ZONE_COLOR_DEFAULT

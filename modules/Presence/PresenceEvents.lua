@@ -730,10 +730,16 @@ local function ScheduleZoneNotification(isNewArea)
 end
 
 local function OnZoneChangedNewArea()
+    if addon.Presence.ReapplyZoneSuppression and C_Timer and C_Timer.After then
+        C_Timer.After(0, addon.Presence.ReapplyZoneSuppression)
+    end
     ScheduleZoneNotification(true)
 end
 
 local function OnZoneChanged()
+    if addon.Presence.ReapplyZoneSuppression and C_Timer and C_Timer.After then
+        C_Timer.After(0, addon.Presence.ReapplyZoneSuppression)
+    end
     local zone = GetZoneText() or ""
     local sub  = GetSubZoneText()
     if sub and sub ~= "" and sub ~= zone then

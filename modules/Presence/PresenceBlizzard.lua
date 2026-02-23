@@ -92,17 +92,21 @@ local function ApplyBlizzardSuppression()
     if not addon:IsModuleEnabled("presence") then return end
 
     -- Zone entry
+    local zoneFrame = ZoneTextFrame or _G["ZoneTextFrame"]
     if isTypeEnabled("presenceZoneChange", nil, true) then
-        KillBlizzardFrame(ZoneTextFrame)
+        KillBlizzardFrame(zoneFrame)
     else
-        RestoreBlizzardFrame(ZoneTextFrame)
+        RestoreBlizzardFrame(zoneFrame)
     end
 
-    -- Subzone
-    if isTypeEnabled("presenceSubzoneChange", "presenceZoneChange", true) then
-        KillBlizzardFrame(SubZoneTextFrame)
+    -- Subzone: suppress when subzone notifications are on, or when user wants zone hidden for subzone-only changes
+    local subzoneFrame = SubZoneTextFrame or _G["SubZoneTextFrame"]
+    local subzoneOn = isTypeEnabled("presenceSubzoneChange", "presenceZoneChange", true)
+    local hideZoneForSubzone = addon.GetDB and addon.GetDB("presenceHideZoneForSubzone", false)
+    if subzoneOn or hideZoneForSubzone then
+        KillBlizzardFrame(subzoneFrame)
     else
-        RestoreBlizzardFrame(SubZoneTextFrame)
+        RestoreBlizzardFrame(subzoneFrame)
     end
 
     -- Level up
@@ -146,6 +150,20 @@ local function ApplyBlizzardSuppression()
     KillBlizzardFrame(ObjectiveTrackerBonusBannerFrame)
     local topBannerFrame = ObjectiveTrackerTopBannerFrame or _G["ObjectiveTrackerTopBannerFrame"]
     if topBannerFrame then KillBlizzardFrame(topBannerFrame) end
+end
+
+--- Re-apply zone frame suppression. Call when zone events fire to ensure frames stay hidden after Blizzard may have shown them.
+--- @return nil
+local function ReapplyZoneSuppression()
+    if not addon:IsModuleEnabled("presence") then return end
+    if isTypeEnabled("presenceZoneChange", nil, true) then
+        KillBlizzardFrame(ZoneTextFrame or _G["ZoneTextFrame"])
+    end
+    local subzoneOn = isTypeEnabled("presenceSubzoneChange", "presenceZoneChange", true)
+    local hideZoneForSubzone = addon.GetDB and addon.GetDB("presenceHideZoneForSubzone", false)
+    if subzoneOn or hideZoneForSubzone then
+        KillBlizzardFrame(SubZoneTextFrame or _G["SubZoneTextFrame"])
+    end
 end
 
 --- Suppress Blizzard frames when Presence is enabled. Calls ApplyBlizzardSuppression for per-type logic.
@@ -233,5 +251,6 @@ end
 addon.Presence.SuppressBlizzard        = SuppressBlizzard
 addon.Presence.RestoreBlizzard         = RestoreBlizzard
 addon.Presence.ApplyBlizzardSuppression = ApplyBlizzardSuppression
+addon.Presence.ReapplyZoneSuppression   = ReapplyZoneSuppression
 addon.Presence.DumpBlizzardSuppression = DumpBlizzardSuppression
 addon.Presence.KillWorldQuestBanner     = KillWorldQuestBanner
