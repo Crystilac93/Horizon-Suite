@@ -37,6 +37,8 @@ local function RunWorldMapVisibilityCheck()
     end
 end
 
+local StopScenarioTimerHeartbeat  -- forward declaration
+
 local function StartScenarioTimerHeartbeat()
     if addon._scenarioTimerHeartbeat then return end
     addon._scenarioTimerHeartbeat = C_Timer.NewTicker(5, function()
@@ -46,13 +48,12 @@ local function StartScenarioTimerHeartbeat()
         if addon.IsScenarioActive and addon.IsScenarioActive() then
             if addon.ScheduleRefresh then addon.ScheduleRefresh() end
         else
-            -- Scenario ended; stop the heartbeat until the next SCENARIO_UPDATE starts it.
             StopScenarioTimerHeartbeat()
         end
     end)
 end
 
-local function StopScenarioTimerHeartbeat()
+StopScenarioTimerHeartbeat = function()
     if addon._scenarioTimerHeartbeat then
         addon._scenarioTimerHeartbeat:Cancel()
         addon._scenarioTimerHeartbeat = nil

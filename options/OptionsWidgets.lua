@@ -285,8 +285,9 @@ function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, m
     local edit = CreateFrame("EditBox", nil, editWrap)
     edit:SetPoint("TOPLEFT", editWrap, "TOPLEFT", 4, 0)
     edit:SetPoint("BOTTOMRIGHT", editWrap, "BOTTOMRIGHT", -4, 0)
-    edit:SetMaxLetters(6)
-    edit:SetNumeric(true)
+    edit:SetMaxLetters(7)   -- allow e.g. "-200" (4 chars) plus some headroom
+    -- Do NOT use SetNumeric(true) — it blocks negative numbers.
+    -- We validate manually in OnEnterPressed / OnEditFocusLost.
     edit:SetAutoFocus(false)
     edit:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
     local tc = Def.TextColorLabel
@@ -344,11 +345,16 @@ function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, m
         thumb:ClearAllPoints()
         thumb:SetPoint("CENTER", track, "LEFT", SLIDER_TRACK_INSET + SLIDER_THUMB_SIZE/2 + n * thumbTravel, 0)
         trackFill:SetWidth(n * fillWidth)
-        edit:SetText(tostring(math.floor(v + 0.5)))
+        -- Use round-towards-zero for display so negatives show correctly (e.g. -6, not -5)
+        local displayInt = (v >= 0) and math.floor(v + 0.5) or -math.floor(-v + 0.5)
+        edit:SetText(tostring(displayInt))
     end
 
     local dragging = false
     local startNorm, startX
+    local function roundInt(v)
+        return (v >= 0) and math.floor(v + 0.5) or -math.floor(-v + 0.5)
+    end
     thumb:SetScript("OnMouseDown", function(_, btn)
         if btn ~= "LeftButton" then return end
         if disabledFn and disabledFn() == true then return end
@@ -356,14 +362,14 @@ function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, m
         startNorm = valueToNorm(get())
         local scale = track:GetEffectiveScale()
         startX = GetCursorPosition() / scale
-        local lastCommittedInt = math.floor(normToValue(startNorm) + 0.5)
+        local lastCommittedInt = roundInt(normToValue(startNorm))
         thumb:GetParent():SetScript("OnUpdate", function()
             if not IsMouseButtonDown("LeftButton") then
                 thumb:GetParent():SetScript("OnUpdate", nil)
                 dragging = false
                 -- Commit final value on release so the DB is up-to-date.
                 local finalV = math.max(minVal, math.min(maxVal, normToValue(startNorm)))
-                local finalInt = math.floor(finalV + 0.5)
+                local finalInt = roundInt(finalV)
                 if finalInt ~= lastCommittedInt then
                     set(finalInt)
                 end
@@ -377,7 +383,7 @@ function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, m
             updateFromValue(v)
             -- Only call set() when the rounded integer value changes — this prevents
             -- refreshAllScaling (and its FullLayout) from running 60 times/second.
-            local intV = math.floor(v + 0.5)
+            local intV = roundInt(v)
             if intV ~= lastCommittedInt then
                 lastCommittedInt = intV
                 set(intV)

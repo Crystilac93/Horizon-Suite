@@ -1478,14 +1478,14 @@ end
 
 -- Build sidebar grouped by moduleKey (Modules, Focus, Presence)
 -- Use "modules" as sentinel for nil (WoW Lua disallows nil as table index)
-local MODULE_LABELS = { ["modules"] = L["Modules"], ["focus"] = L["Focus"], ["presence"] = L["Presence"], ["insight"] = L["Insight"] or "Insight", ["yield"] = L["Yield"] }
+local MODULE_LABELS = { ["modules"] = L["Modules"], ["focus"] = L["Focus"], ["presence"] = L["Presence"], ["insight"] = L["Insight"] or "Insight", ["yield"] = L["Yield"], ["vista"] = L["Vista"] or "Vista" }
 local groups = {}
 for i, cat in ipairs(addon.OptionCategories) do
     local mk = cat.moduleKey or "modules"
     if not groups[mk] then groups[mk] = { label = MODULE_LABELS[mk] or L["Other"], categories = {} } end
     table.insert(groups[mk].categories, i)
 end
-local groupOrder = { "modules", "focus", "presence", "insight", "yield" }
+local groupOrder = { "modules", "focus", "presence", "insight", "yield", "vista" }
 
 local function UpdateTabVisuals()
     for _, btn in ipairs(tabButtons) do
@@ -2079,6 +2079,57 @@ function _G.HorizonSuite_ShowOptions()
             end)
         end
     end
+end
+
+-- Rebuild a single options category tab by key (e.g. "VistaButtons")
+addon.OptionsPanel_RebuildCategory = function(catKey)
+    local cats = addon.OptionCategories
+    if not cats then return end
+    local catIdx
+    for i, cat in ipairs(cats) do
+        if cat.key == catKey then catIdx = i; break end
+    end
+    if not catIdx then return end
+    local cat = cats[catIdx]
+    local tab = tabFrames[catIdx]
+    if not tab then return end
+
+    -- Remove old refreshers belonging to this tab
+    local newRefreshers = {}
+    for _, r in ipairs(allRefreshers) do
+        local belongs = false
+        if r and r.GetParent then
+            local p = r
+            for _ = 1, 10 do
+                p = p:GetParent()
+                if not p then break end
+                if p == tab then belongs = true; break end
+            end
+        end
+        if not belongs then
+            newRefreshers[#newRefreshers + 1] = r
+        end
+    end
+    wipe(allRefreshers)
+    for _, r in ipairs(newRefreshers) do allRefreshers[#allRefreshers + 1] = r end
+
+    -- Wipe all children of the tab frame
+    for _, child in ipairs({ tab:GetChildren() }) do
+        child:Hide()
+        child:ClearAllPoints()
+        child:SetParent(nil)
+    end
+
+    -- Re-create top anchor and rebuild
+    local top = CreateFrame("Frame", nil, tab)
+    top:SetPoint("TOPLEFT", tab, "TOPLEFT", 0, 0)
+    top:SetSize(1, 1)
+    tab.topAnchor = top
+
+    local catOpts = type(cat.options) == "function" and cat.options() or cat.options
+    local refreshers = {}
+    BuildCategory(tab, catIdx, catOpts, refreshers, optionFrames)
+    for _, r in ipairs(refreshers) do allRefreshers[#allRefreshers + 1] = r end
 end
 
 function _G.HorizonSuite_ShowEditPanel()
