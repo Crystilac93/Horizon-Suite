@@ -10,6 +10,24 @@ All notable changes to Horizon Suite are documented here.
 
 ---
 
+## [2.6.0] – 2026-02-23
+
+### ✨ New Features
+
+- **(Presence) Option to show only subzone when staying in same major zone** — Zone notifications display the local area name instead of the full zone when moving between subzones within the same zone.
+- **(Vista) Square minimap option** — Choose a square minimap shape in Vista options.
+
+### 🔧 Improvements
+
+- **(Focus) Improve tracker performance and responsiveness.**
+- **(Core) Option to scale Horizon Suite when WoW UI scale is lowered** — Scale addon elements independently so they remain readable at different game UI scale settings.
+
+### 🐛 Fixes
+
+- **(Focus)** Quest tracker no longer triggers errors when quest rows fade out during combat.
+
+---
+
 ## [2.5.0] – 2026-02-22
 
 ### ✨ New Features
