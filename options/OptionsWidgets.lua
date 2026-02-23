@@ -225,7 +225,26 @@ end
 local SLIDER_TRACK_HEIGHT = 6
 local SLIDER_THUMB_SIZE = 14
 local SLIDER_TRACK_INSET = 2
-function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, minVal, maxVal, disabledFn)
+function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, minVal, maxVal, disabledFn, step)
+    -- step: snapping increment (default 1 = integer). Use e.g. 0.1 for one decimal place.
+    step = step or 1
+    local decimals = 0
+    if step < 1 then
+        -- Determine display decimal places from step (e.g. 0.1 → 1, 0.05 → 2)
+        local s = tostring(step)
+        local dot = s:find("%.")
+        decimals = dot and (#s - dot) or 0
+    end
+    local function snapToStep(v)
+        if step <= 0 then return v end
+        return math.floor(v / step + 0.5) * step
+    end
+    local function formatValue(v)
+        if decimals > 0 then
+            return string.format("%." .. decimals .. "f", v)
+        end
+        return tostring((v >= 0) and math.floor(v + 0.5) or -math.floor(-v + 0.5))
+    end
     local row = CreateFrame("Frame", nil, parent)
     row:SetHeight(40)
     local searchText = (labelText or "") .. " " .. (description or "")
@@ -305,7 +324,7 @@ function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, m
         if disabledFn and disabledFn() == true then return end
         local v = tonumber(edit:GetText())
         if v ~= nil then
-            v = math.max(minVal, math.min(maxVal, v))
+            v = snapToStep(math.max(minVal, math.min(maxVal, v)))
             set(v)
             updateFromValue(v)
         else
@@ -316,7 +335,7 @@ function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, m
         if disabledFn and disabledFn() == true then edit:ClearFocus(); return end
         local v = tonumber(edit:GetText())
         if v ~= nil then
-            v = math.max(minVal, math.min(maxVal, v))
+            v = snapToStep(math.max(minVal, math.min(maxVal, v)))
             set(v)
             updateFromValue(v)
         else
@@ -345,16 +364,11 @@ function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, m
         thumb:ClearAllPoints()
         thumb:SetPoint("CENTER", track, "LEFT", SLIDER_TRACK_INSET + SLIDER_THUMB_SIZE/2 + n * thumbTravel, 0)
         trackFill:SetWidth(n * fillWidth)
-        -- Use round-towards-zero for display so negatives show correctly (e.g. -6, not -5)
-        local displayInt = (v >= 0) and math.floor(v + 0.5) or -math.floor(-v + 0.5)
-        edit:SetText(tostring(displayInt))
+        edit:SetText(formatValue(v))
     end
 
     local dragging = false
     local startNorm, startX
-    local function roundInt(v)
-        return (v >= 0) and math.floor(v + 0.5) or -math.floor(-v + 0.5)
-    end
     thumb:SetScript("OnMouseDown", function(_, btn)
         if btn ~= "LeftButton" then return end
         if disabledFn and disabledFn() == true then return end
@@ -362,16 +376,15 @@ function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, m
         startNorm = valueToNorm(get())
         local scale = track:GetEffectiveScale()
         startX = GetCursorPosition() / scale
-        local lastCommittedInt = roundInt(normToValue(startNorm))
+        local lastCommittedSnapped = snapToStep(normToValue(startNorm))
         thumb:GetParent():SetScript("OnUpdate", function()
             if not IsMouseButtonDown("LeftButton") then
                 thumb:GetParent():SetScript("OnUpdate", nil)
                 dragging = false
                 -- Commit final value on release so the DB is up-to-date.
-                local finalV = math.max(minVal, math.min(maxVal, normToValue(startNorm)))
-                local finalInt = roundInt(finalV)
-                if finalInt ~= lastCommittedInt then
-                    set(finalInt)
+                local finalV = snapToStep(math.max(minVal, math.min(maxVal, normToValue(startNorm))))
+                if finalV ~= lastCommittedSnapped then
+                    set(finalV)
                 end
                 return
             end
@@ -381,12 +394,11 @@ function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, m
             local v = normToValue(n)
             -- Update visual every frame for smooth thumb movement.
             updateFromValue(v)
-            -- Only call set() when the rounded integer value changes — this prevents
-            -- refreshAllScaling (and its FullLayout) from running 60 times/second.
-            local intV = roundInt(v)
-            if intV ~= lastCommittedInt then
-                lastCommittedInt = intV
-                set(intV)
+            -- Only call set() when the snapped value changes.
+            local snappedV = snapToStep(v)
+            if snappedV ~= lastCommittedSnapped then
+                lastCommittedSnapped = snappedV
+                set(snappedV)
             end
             startNorm = n
             startX = x

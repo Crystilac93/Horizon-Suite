@@ -17,6 +17,7 @@ local function DbgWQ(...)
     addon.HSPrint("[Presence WQ] " .. table.concat(parts, " "))
 end
 
+
 -- ============================================================================
 -- FORMATTING & MARKUP
 -- ============================================================================
@@ -618,31 +619,47 @@ local function OnScenarioCompleted()
     end
 end
 
-local function OnZoneChangedNewArea()
+-- ============================================================================
+-- ZONE / SUBZONE DEBOUNCE
+-- ============================================================================
+
+--- Pending zone-change timer. Cancelled whenever a newer zone event arrives so
+--- only the final state within the debounce window is shown.
+local pendingZoneTimer      = nil
+local ZONE_DEBOUNCE         = 0.25
+local lastSubzoneTitleShown = nil
+local lastSubzoneTitleTime  = 0
+local SUBZONE_DEDUP_TIME    = 2.0
+
+local function ScheduleZoneNotification(isNewArea)
     local zone = GetZoneText() or "Unknown Zone"
     local sub  = GetSubZoneText() or ""
-    lastKnownZone = zone
-    local wait = addon.Presence.DISCOVERY_WAIT or 0.15
-    C_Timer.After(wait, function()
+
+    -- Skip transient state where WoW briefly returns zone==sub.
+    if not isNewArea and sub ~= "" and zone == sub then return end
+
+    if isNewArea then lastKnownZone = zone end
+
+    if pendingZoneTimer then
+        pendingZoneTimer:Cancel()
+        pendingZoneTimer = nil
+    end
+
+    pendingZoneTimer = C_Timer.After(ZONE_DEBOUNCE, function()
+        pendingZoneTimer = nil
         if not addon:IsModuleEnabled("presence") then return end
-        local active = addon.Presence.active and addon.Presence.active()
-        local activeTitle = addon.Presence.activeTitle and addon.Presence.activeTitle()
-        local phase = addon.Presence.animPhase and addon.Presence.animPhase()
-        if active and activeTitle == zone and (phase == "hold" or phase == "entrance") then
-            local updateSub = sub
-            if addon.IsDelveActive and addon.IsDelveActive() then
-                local tier = addon.GetActiveDelveTier and addon.GetActiveDelveTier()
-                if tier then updateSub = "Tier " .. tier end
-            end
-            addon.Presence.SoftUpdateSubtitle(updateSub)
-            if addon.Presence.pendingDiscovery then
-                addon.Presence.ShowDiscoveryLine()
-                addon.Presence.pendingDiscovery = nil
-            end
-        else
-            if addon.GetDB and not addon.GetDB("presenceZoneChange", true) then return end
-            if ShouldSuppressInMplus() then return end
-            local opts = {}
+        if addon.GetDB and not addon.GetDB("presenceZoneChange", true) then return end
+        if ShouldSuppressInMplus() then return end
+
+        -- Re-sample at fire time to always use the freshest state.
+        zone = GetZoneText() or "Unknown Zone"
+        sub  = GetSubZoneText() or ""
+
+        if addon.Presence.CancelZoneAnim then addon.Presence.CancelZoneAnim() end
+
+        local opts = {}
+
+        if isNewArea then
             local displaySub = sub
             if addon.IsDelveActive and addon.IsDelveActive() then
                 opts.category = "DELVES"
@@ -652,57 +669,56 @@ local function OnZoneChangedNewArea()
                 opts.category = "DUNGEON"
             end
             opts.source = "ZONE_CHANGED_NEW_AREA"
+            lastSubzoneTitleShown = nil
+            lastSubzoneTitleTime  = 0
             addon.Presence.QueueOrPlay("ZONE_CHANGE", StripPresenceMarkup(zone), StripPresenceMarkup(displaySub), opts)
+        else
+            if sub == "" then return end
+            if addon.IsDelveActive and addon.IsDelveActive() then return end
+            if addon.IsInPartyDungeon and addon.IsInPartyDungeon() then
+                opts.category = "DUNGEON"
+            end
+            opts.source = "ZONE_CHANGED"
+
+            -- Interior zones: WoW sets zone=building, sub=parent (inverted vs normal subzones).
+            local isInterior = lastKnownZone and sub ~= "" and sub == lastKnownZone
+            local displayTitle = isInterior and zone or sub
+            local displayParent = isInterior and sub or zone
+
+            local hideZoneForSubzone = addon.GetDB and addon.GetDB("presenceHideZoneForSubzone", false)
+            local sameZone = lastKnownZone and (
+                (not isInterior and zone ~= "" and zone == lastKnownZone) or
+                (isInterior and sub ~= "" and sub == lastKnownZone)
+            )
+
+            local notifTitle = StripPresenceMarkup(displayTitle)
+            local notifSub   = hideZoneForSubzone and sameZone and "" or StripPresenceMarkup(displayParent)
+
+            local now = GetTime()
+            if notifTitle == lastSubzoneTitleShown and (now - lastSubzoneTitleTime) < SUBZONE_DEDUP_TIME then
+                return
+            end
+            lastSubzoneTitleShown = notifTitle
+            lastSubzoneTitleTime  = now
+            addon.Presence.QueueOrPlay("SUBZONE_CHANGE", notifTitle, notifSub, opts)
+        end
+
+        if addon.Presence.pendingDiscovery then
+            addon.Presence.ShowDiscoveryLine()
+            addon.Presence.pendingDiscovery = nil
         end
     end)
 end
 
+local function OnZoneChangedNewArea()
+    ScheduleZoneNotification(true)
+end
+
 local function OnZoneChanged()
-    local sub = GetSubZoneText()
-    if sub and sub ~= "" then
-        local zone = GetZoneText() or ""
-        local wait = addon.Presence.DISCOVERY_WAIT or 0.15
-        C_Timer.After(wait, function()
-            if not addon:IsModuleEnabled("presence") then return end
-            local active = addon.Presence.active and addon.Presence.active()
-            local activeTitle = addon.Presence.activeTitle and addon.Presence.activeTitle()
-            local phase = addon.Presence.animPhase and addon.Presence.animPhase()
-            if active and activeTitle == zone and (phase == "hold" or phase == "entrance") then
-                local updateSub = sub
-                if addon.IsDelveActive and addon.IsDelveActive() then
-                    local tier = addon.GetActiveDelveTier and addon.GetActiveDelveTier()
-                    if tier then updateSub = "Tier " .. tier end
-                end
-                addon.Presence.SoftUpdateSubtitle(updateSub)
-                if addon.Presence.pendingDiscovery then
-                    addon.Presence.ShowDiscoveryLine()
-                    addon.Presence.pendingDiscovery = nil
-                end
-            else
-                -- In Delves, ZONE_CHANGE already showed delve+tier; suppress SUBZONE_CHANGE
-                -- to avoid duplicate or inverted toast (parent/delve swap from GetZoneText/GetSubZoneText).
-                if addon.IsDelveActive and addon.IsDelveActive() then return end
-                if addon.GetDB and not addon.GetDB("presenceZoneChange", true) then return end
-                if ShouldSuppressInMplus() then return end
-
-                local opts = {}
-                local displaySub = sub
-                if addon.IsInPartyDungeon and addon.IsInPartyDungeon() then
-                    opts.category = "DUNGEON"
-                end
-                opts.source = "ZONE_CHANGED"
-
-                -- When "Hide zone name for subzone changes" is on and we're still in the
-                -- same zone, promote the subzone to the title and leave subtitle empty.
-                local hideZoneForSubzone = addon.GetDB and addon.GetDB("presenceHideZoneForSubzone", false)
-                local sameZone = lastKnownZone and zone ~= "" and zone == lastKnownZone
-                if hideZoneForSubzone and sameZone then
-                    addon.Presence.QueueOrPlay("SUBZONE_CHANGE", StripPresenceMarkup(displaySub), "", opts)
-                else
-                    addon.Presence.QueueOrPlay("SUBZONE_CHANGE", StripPresenceMarkup(zone), StripPresenceMarkup(displaySub), opts)
-                end
-            end
-        end)
+    local zone = GetZoneText() or ""
+    local sub  = GetSubZoneText()
+    if sub and sub ~= "" and sub ~= zone then
+        ScheduleZoneNotification(false)
     end
 end
 
