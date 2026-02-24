@@ -15,14 +15,21 @@ local sectionPool = addon.sectionPool
 local scrollChild = addon.scrollChild
 local scrollFrame = addon.scrollFrame
 
---- Returns the maximum height the panel can grow to without pushing past the screen bottom.
---- Uses the panel's current top position minus UIParent bottom (accounting for scale).
+--- Returns the maximum height the panel can grow to without going off-screen.
+--- Grow-down: distance from panel top to screen bottom. Grow-up: distance from panel bottom to screen top.
 --- Falls back to a large sentinel when the panel isn't yet visible.
 local function GetMaxPanelHeight()
-    if not addon.HS or not addon.HS.GetTop then return 99999 end
+    if not addon.HS then return 99999 end
+    local uiBottom = UIParent and UIParent:GetBottom() or 0
+    local uiTop = UIParent and UIParent:GetTop() or 0
+    if addon.GetDB("growUp", false) then
+        local bottom = addon.HS:GetBottom()
+        if not bottom then return 99999 end
+        local maxH = uiTop - bottom
+        return (maxH > 0) and maxH or 99999
+    end
     local top = addon.HS:GetTop()
     if not top then return 99999 end
-    local uiBottom = UIParent and UIParent:GetBottom() or 0
     local maxH = top - uiBottom
     return (maxH > 0) and maxH or 99999
 end
