@@ -559,7 +559,11 @@ eventFrame:SetScript("OnEvent", function(self, event, guid)
         if not guid then return end
         if UnitExists("mouseover") and UnitGUID("mouseover") == guid then
             CacheInspect(guid, "mouseover")
-            ProcessUnitTooltip()
+            -- Refresh the tooltip from scratch so Blizzard's lines are rebuilt
+            -- before we append ours — prevents every AddLine running twice.
+            if GameTooltip:IsShown() then
+                GameTooltip:SetUnit("mouseover")
+            end
         end
         PruneCache()
     end
