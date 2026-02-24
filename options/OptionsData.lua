@@ -94,7 +94,7 @@ local MPLUS_TYPOGRAPHY_KEYS = {
 -- we skip NotifyMainAddon to avoid FullLayout spam; key-specific handlers (e.g. ApplyBackdropOpacity) still run.
 local COLOR_LIVE_KEYS = {
     backdropOpacity = true, backdropColorR = true, backdropColorG = true, backdropColorB = true,
-    headerColor = true,
+    headerColor = true, headerDividerColor = true,
     colorMatrix = true,
     highlightColor = true, completedObjectiveColor = true, sectionColors = true,
     objectiveProgressFlashColor = true, presenceBossEmoteColor = true, presenceDiscoveryColor = true,
@@ -918,6 +918,7 @@ local OptionCategories = {
             { type = "toggle", name = L["Show quest count"], desc = L["Show quest count in header."], dbKey = "showQuestCount", get = function() return getDB("showQuestCount", true) end, set = function(v) setDB("showQuestCount", v) end },
             { type = "dropdown", name = L["Header count format"], desc = L["Tracked/in-log or in-log/max-slots. Tracked excludes world/live-in-zone quests."], dbKey = "headerCountMode", options = { { L["Tracked / in log"], "trackedLog" }, { L["In log / max slots"], "logMax" } }, get = function() return getDB("headerCountMode", "trackedLog") end, set = function(v) setDB("headerCountMode", v) end },
             { type = "toggle", name = L["Show header divider"], desc = L["Show the line below the header."], dbKey = "showHeaderDivider", get = function() return getDB("showHeaderDivider", true) end, set = function(v) setDB("showHeaderDivider", v) end },
+            { type = "color", name = L["Header divider color"], desc = L["Color of the line below the header."], dbKey = "headerDividerColor", default = addon.DIVIDER_COLOR },
             { type = "color", name = L["Header color"], desc = L["Color of the OBJECTIVES header text."], dbKey = "headerColor", default = addon.HEADER_COLOR },
             { type = "slider", name = L["Header height"], desc = L["Height of the header bar in pixels (18–48)."], dbKey = "headerHeight", min = 18, max = 48, get = function() return math.max(18, math.min(48, tonumber(getDB("headerHeight", addon.HEADER_HEIGHT)) or addon.HEADER_HEIGHT)) end, set = function(v) setDB("headerHeight", math.max(18, math.min(48, v))) end },
             { type = "toggle", name = L["Super-minimal mode"], desc = L["Hide header for a pure text list."], dbKey = "hideObjectivesHeader", get = function() return getDB("hideObjectivesHeader", false) end, set = function(v) setDB("hideObjectivesHeader", v) end },

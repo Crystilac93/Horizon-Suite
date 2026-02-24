@@ -134,6 +134,17 @@ function addon.GetHeaderColor()
     return addon.HEADER_COLOR
 end
 
+--- Returns the header divider color from DB or default.
+--- @return table {r,g,b,a}
+function addon.GetHeaderDividerColor()
+    local c = addon.GetDB("headerDividerColor", nil)
+    if c and type(c) == "table" and c[1] and c[2] and c[3] then
+        local a = (c[4] and type(c[4]) == "number") and c[4] or 0.5
+        return { c[1], c[2], c[3], a }
+    end
+    return addon.DIVIDER_COLOR
+end
+
 --- Returns the header bar height from DB or default, clamped to 18–48 px.
 --- @return number
 function addon.GetHeaderHeight()
@@ -1120,7 +1131,10 @@ end)
 local divider = HS:CreateTexture(nil, "ARTWORK")
 divider:SetSize(addon.GetPanelWidth() - addon.PADDING * 2, addon.DIVIDER_HEIGHT)
 divider:SetPoint("TOP", HS, "TOPLEFT", addon.GetPanelWidth() / 2, -(addon.PADDING + addon.GetHeaderHeight()))
-divider:SetColorTexture(addon.DIVIDER_COLOR[1], addon.DIVIDER_COLOR[2], addon.DIVIDER_COLOR[3], addon.DIVIDER_COLOR[4])
+do
+    local dc = addon.GetHeaderDividerColor()
+    divider:SetColorTexture(dc[1], dc[2], dc[3], dc[4])
+end
 
 function addon.GetHeaderToContentGap()
     return addon.Scaled(math.max(0, math.min(24, tonumber(addon.GetDB("headerToContentGap", 6)) or 6)))
