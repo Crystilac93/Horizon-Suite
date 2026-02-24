@@ -273,13 +273,31 @@ end)
 local tabFrames = {}
 for i = 1, #addon.OptionCategories do
     local f = CreateFrame("Frame", nil, panel)
-    f:SetSize(contentWidth, 3000)
+    f:SetSize(contentWidth, 100)  -- height updated after BuildCategory
     local top = CreateFrame("Frame", nil, f)
     top:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
     top:SetSize(1, 1)
     f.topAnchor = top
     tabFrames[i] = f
 end
+
+-- Recalculate a tab frame's height from its card children so scroll stops at content end.
+local function ResizeTabFrame(f)
+    if not f then return end
+    local maxBottom = 0
+    local fTop = f:GetTop()
+    if not fTop then return end
+    for _, child in ipairs({ f:GetChildren() }) do
+        local b = child:GetBottom()
+        if b then
+            local offset = fTop - b
+            if offset > maxBottom then maxBottom = offset end
+        end
+    end
+    f:SetHeight(math.max(100, maxBottom + PADDING))
+end
+_G.ResizeTabFrame = ResizeTabFrame
+
 scrollFrame:SetScrollChild(tabFrames[1])
 for i = 2, #tabFrames do tabFrames[i]:Hide() end
 
@@ -412,6 +430,11 @@ local function FinalizeCard(card)
     else
         card:SetHeight(fullH)
     end
+    -- Resize parent tab frame so scroll stops at actual content end
+    C_Timer.After(0, function()
+        local tab = card:GetParent()
+        if tab and ResizeTabFrame then ResizeTabFrame(tab) end
+    end)
 end
 
 --- Build one options category: section cards, toggles, sliders, dropdowns, color matrix, reorder list; wires get/set and refreshers.
@@ -1568,6 +1591,7 @@ for _, mk in ipairs(groupOrder) do
             local catOpts = type(cat.options) == "function" and cat.options() or cat.options
             BuildCategory(tabFrames[catIdx], catIdx, catOpts, refreshers, optionFrames)
             for _, r in ipairs(refreshers) do allRefreshers[#allRefreshers+1] = r end
+            C_Timer.After(0, function() ResizeTabFrame(tabFrames[catIdx]) end)
         else
             -- Header row (clickable, collapsible)
             local header = CreateFrame("Button", nil, sidebarContent)
@@ -1692,6 +1716,7 @@ for _, mk in ipairs(groupOrder) do
                 local catOpts = type(cat.options) == "function" and cat.options() or cat.options
                 BuildCategory(tabFrames[catIdx], catIdx, catOpts, refreshers, optionFrames)
                 for _, r in ipairs(refreshers) do allRefreshers[#allRefreshers+1] = r end
+                C_Timer.After(0, function() ResizeTabFrame(tabFrames[catIdx]) end)
             end
         end
     end

@@ -1243,7 +1243,12 @@ function OptionsWidgets_CreateSectionHeader(parent, text, sectionKey, getCollaps
                 local t = math.min(elapsed / CARD_EXPAND_ANIM_DUR, 1)
                 local h = self.animFrom + (self.animTo - self.animFrom) * easeOut(t)
                 self:SetHeight(math.max(headerH, h))
-                if t >= 1 then self:SetScript("OnUpdate", nil) end
+                if t >= 1 then
+                    self:SetScript("OnUpdate", nil)
+                    -- Resize parent tab frame so scroll stops at content end
+                    local tab = self:GetParent()
+                    if tab and _G.ResizeTabFrame then _G.ResizeTabFrame(tab) end
+                end
             end)
         end)
 

@@ -127,6 +127,7 @@ local VISTA_KEYS = {
     vistaCoordFontPath = true, vistaCoordFontSize = true,
     vistaTimeFontPath = true, vistaTimeFontSize = true,
     vistaShowZoneText = true, vistaShowCoordText = true, vistaShowTimeText = true,
+    vistaTimeUseLocal = true, vistaZoneDisplayMode = true,
     vistaZoneVerticalPos = true, vistaCoordVerticalPos = true, vistaTimeVerticalPos = true,
     vistaShowDefaultMinimapButtons = true,  -- legacy key kept for compatibility
     vistaLock = true,
@@ -140,16 +141,24 @@ local VISTA_KEYS = {
     vistaEX_zone = true, vistaEY_zone = true,
     vistaEX_coord = true, vistaEY_coord = true,
     vistaEX_time = true, vistaEY_time = true,
+    vistaEX_diff = true, vistaEY_diff = true,
     -- Proxy button positions (tracking + calendar + queue only; landing page removed)
     ["vistaEX_proxy_tracking"] = true, ["vistaEY_proxy_tracking"] = true,
     ["vistaEX_proxy_calendar"] = true, ["vistaEY_proxy_calendar"] = true,
     ["vistaEX_proxy_queue"]    = true, ["vistaEY_proxy_queue"]    = true,
     -- Lock toggles
     vistaLocked_zone = true, vistaLocked_coord = true, vistaLocked_time = true,
+    vistaLocked_diff = true,
     vistaLocked_zoomIn = true, vistaLocked_zoomOut = true,
     ["vistaLocked_proxy_tracking"] = true,
     ["vistaLocked_proxy_calendar"] = true,
     ["vistaLocked_proxy_queue"]    = true,
+    ["vistaQueueHandlingDisabled"] = true,
+    ["vistaCoordPrecision"] = true,
+    -- Addon button layout
+    vistaBtnLayoutCols = true, vistaBtnLayoutDir = true,
+    vistaMouseoverLocked = true, vistaMouseoverBarX = true, vistaMouseoverBarY = true,
+    vistaRightClickLocked = true, vistaRightClickPanelX = true, vistaRightClickPanelY = true,
     vistaButtonMode = true, vistaHandleAddonButtons = true,
     vistaDrawerButtonLocked = true, vistaButtonWhitelist = true,
     -- Button sizes (separate per type)
@@ -160,6 +169,12 @@ local VISTA_KEYS = {
     vistaCoordColorR = true, vistaCoordColorG = true, vistaCoordColorB = true,
     vistaTimeColorR = true, vistaTimeColorG = true, vistaTimeColorB = true,
     vistaDiffColorR = true, vistaDiffColorG = true, vistaDiffColorB = true,
+    vistaDiffFontPath = true, vistaDiffFontSize = true,
+    vistaLocked_diff = true,
+    vistaDiffColor_mythic_R = true, vistaDiffColor_mythic_G = true, vistaDiffColor_mythic_B = true,
+    vistaDiffColor_heroic_R = true, vistaDiffColor_heroic_G = true, vistaDiffColor_heroic_B = true,
+    vistaDiffColor_normal_R = true, vistaDiffColor_normal_G = true, vistaDiffColor_normal_B = true,
+    vistaDiffColor_looking_for_raid_R = true, vistaDiffColor_looking_for_raid_G = true, vistaDiffColor_looking_for_raid_B = true,
     -- Panel colors
     vistaPanelBgR = true, vistaPanelBgG = true, vistaPanelBgB = true, vistaPanelBgA = true,
     vistaPanelBorderR = true, vistaPanelBorderG = true, vistaPanelBorderB = true, vistaPanelBorderA = true,
@@ -171,6 +186,10 @@ local VISTA_COLOR_LIVE_KEYS = {
     vistaCoordColorR = true, vistaCoordColorG = true, vistaCoordColorB = true,
     vistaTimeColorR = true, vistaTimeColorG = true, vistaTimeColorB = true,
     vistaDiffColorR = true, vistaDiffColorG = true, vistaDiffColorB = true,
+    vistaDiffColor_mythic_R = true, vistaDiffColor_mythic_G = true, vistaDiffColor_mythic_B = true,
+    vistaDiffColor_heroic_R = true, vistaDiffColor_heroic_G = true, vistaDiffColor_heroic_B = true,
+    vistaDiffColor_normal_R = true, vistaDiffColor_normal_G = true, vistaDiffColor_normal_B = true,
+    vistaDiffColor_looking_for_raid_R = true, vistaDiffColor_looking_for_raid_G = true, vistaDiffColor_looking_for_raid_B = true,
     vistaPanelBgR = true, vistaPanelBgG = true, vistaPanelBgB = true, vistaPanelBgA = true,
     vistaPanelBorderR = true, vistaPanelBorderG = true, vistaPanelBorderB = true, vistaPanelBorderA = true,
 }
@@ -186,6 +205,9 @@ local SCALE_DEBOUNCE_KEYS = {
     vistaUIScale    = true,
     insightUIScale  = true,
     yieldUIScale    = true,
+    vistaBorderWidth = true,
+    vistaAddonBtnSize = true,
+    vistaBtnLayoutCols = true,
 }
 
 function OptionsData_GetDB(key, default)
@@ -240,6 +262,11 @@ function OptionsData_SetDB(key, value)
                 fn()
             end
         end
+    end
+    -- vistaButtonManaged_* keys trigger a full button re-collect
+    if key:sub(1, 19) == "vistaButtonManaged_" and addon.Vista and addon.Vista.ApplyOptions then
+        local fn = addon.Vista.ApplyOptions
+        if C_Timer and C_Timer.After then C_Timer.After(0, fn) else fn() end
     end
     if key == "lockPosition" and addon.UpdateResizeHandleVisibility then
         addon.UpdateResizeHandleVisibility()
@@ -1334,6 +1361,16 @@ local OptionCategories = {
                   set = function(r, g, b)
                       setDB("vistaCoordColorR", r); setDB("vistaCoordColorG", g); setDB("vistaCoordColorB", b)
                   end },
+                { type = "dropdown", name = L["Coordinate precision"] or "Coordinate precision",
+                  desc = L["Number of decimal places shown for X and Y coordinates."] or "Number of decimal places shown for X and Y coordinates.",
+                  dbKey = "vistaCoordPrecision",
+                  options = function() return {
+                      { L["No decimals (e.g. 52, 37)"]      or "No decimals (e.g. 52, 37)",      0 },
+                      { L["1 decimal (e.g. 52.3, 37.1)"]    or "1 decimal (e.g. 52.3, 37.1)",    1 },
+                      { L["2 decimals (e.g. 52.34, 37.12)"] or "2 decimals (e.g. 52.34, 37.12)", 2 },
+                  } end,
+                  get = function() return tonumber(getDB("vistaCoordPrecision", 1)) or 1 end,
+                  set = function(v) setDB("vistaCoordPrecision", tonumber(v) or 1) end },
 
                 { type = "section", name = L["Time Text"] or "Time Text" },
                 { type = "dropdown", name = L["Time font"] or "Time font",
@@ -1358,8 +1395,8 @@ local OptionCategories = {
                   end },
 
                 { type = "section", name = L["Difficulty Text"] or "Difficulty Text" },
-                { type = "color", name = L["Difficulty text color"] or "Difficulty text color",
-                  desc = L["Color of the instance difficulty text below zone name."] or "Color of the instance difficulty text below zone name.",
+                { type = "color", name = L["Difficulty text color (fallback)"] or "Difficulty text color (fallback)",
+                  desc = L["Default color when no per-difficulty color is set."] or "Default color when no per-difficulty color is set.",
                   dbKey = "vistaDiffColor",
                   get = function()
                       return getDB("vistaDiffColorR", 0.55), getDB("vistaDiffColorG", 0.65), getDB("vistaDiffColorB", 0.75)
@@ -1367,6 +1404,43 @@ local OptionCategories = {
                   set = function(r, g, b)
                       setDB("vistaDiffColorR", r); setDB("vistaDiffColorG", g); setDB("vistaDiffColorB", b)
                   end },
+                { type = "dropdown", name = L["Difficulty font"] or "Difficulty font",
+                  desc = L["Font for the instance difficulty text."] or "Font for the instance difficulty text.",
+                  dbKey = "vistaDiffFontPath", searchable = true,
+                  options = function() return fontOpts("vistaDiffFontPath") end,
+                  get = function() return getFont("vistaDiffFontPath") end,
+                  set = function(v) setDB("vistaDiffFontPath", v) end,
+                  displayFn = displayFont },
+                { type = "slider", name = L["Difficulty font size"] or "Difficulty font size",
+                  dbKey = "vistaDiffFontSize", min = 7, max = 24,
+                  get = function() return math.max(7, math.min(24, tonumber(getDB("vistaDiffFontSize", 10)) or 10)) end,
+                  set = function(v) setDB("vistaDiffFontSize", math.max(7, math.min(24, v))) end },
+                { type = "toggle", name = L["Lock difficulty text position"] or "Lock difficulty text position",
+                  desc = L["When on, the difficulty text cannot be dragged."] or "When on, the difficulty text cannot be dragged.",
+                  dbKey = "vistaLocked_diff",
+                  get = function() return getDB("vistaLocked_diff", false) end,
+                  set = function(v) setDB("vistaLocked_diff", v) end },
+                { type = "section", name = L["Per-Difficulty Colors"] or "Per-Difficulty Colors" },
+                { type = "color", name = L["Mythic color"] or "Mythic color",
+                  desc = L["Color for Mythic difficulty text."] or "Color for Mythic difficulty text.",
+                  dbKey = "vistaDiffColor_mythic",
+                  get = function() return getDB("vistaDiffColor_mythic_R", 0.64), getDB("vistaDiffColor_mythic_G", 0.21), getDB("vistaDiffColor_mythic_B", 0.93) end,
+                  set = function(r, g, b) setDB("vistaDiffColor_mythic_R", r); setDB("vistaDiffColor_mythic_G", g); setDB("vistaDiffColor_mythic_B", b) end },
+                { type = "color", name = L["Heroic color"] or "Heroic color",
+                  desc = L["Color for Heroic difficulty text."] or "Color for Heroic difficulty text.",
+                  dbKey = "vistaDiffColor_heroic",
+                  get = function() return getDB("vistaDiffColor_heroic_R", 1.00), getDB("vistaDiffColor_heroic_G", 0.12), getDB("vistaDiffColor_heroic_B", 0.12) end,
+                  set = function(r, g, b) setDB("vistaDiffColor_heroic_R", r); setDB("vistaDiffColor_heroic_G", g); setDB("vistaDiffColor_heroic_B", b) end },
+                { type = "color", name = L["Normal color"] or "Normal color",
+                  desc = L["Color for Normal difficulty text."] or "Color for Normal difficulty text.",
+                  dbKey = "vistaDiffColor_normal",
+                  get = function() return getDB("vistaDiffColor_normal_R", 0.12), getDB("vistaDiffColor_normal_G", 0.83), getDB("vistaDiffColor_normal_B", 0.12) end,
+                  set = function(r, g, b) setDB("vistaDiffColor_normal_R", r); setDB("vistaDiffColor_normal_G", g); setDB("vistaDiffColor_normal_B", b) end },
+                { type = "color", name = L["LFR color"] or "LFR color",
+                  desc = L["Color for Looking For Raid difficulty text."] or "Color for Looking For Raid difficulty text.",
+                  dbKey = "vistaDiffColor_lfr",
+                  get = function() return getDB("vistaDiffColor_looking_for_raid_R", 0.00), getDB("vistaDiffColor_looking_for_raid_G", 0.70), getDB("vistaDiffColor_looking_for_raid_B", 1.00) end,
+                  set = function(r, g, b) setDB("vistaDiffColor_looking_for_raid_R", r); setDB("vistaDiffColor_looking_for_raid_G", g); setDB("vistaDiffColor_looking_for_raid_B", b) end },
             }
         end,
     },
@@ -1381,6 +1455,17 @@ local OptionCategories = {
               dbKey = "vistaShowZoneText",
               get = function() return getDB("vistaShowZoneText", true) end,
               set = function(v) setDB("vistaShowZoneText", v) end },
+            { type = "dropdown", name = L["Zone text display mode"] or "Zone text display mode",
+              desc = L["What to show: zone only, subzone only, or both."] or "What to show: zone only, subzone only, or both.",
+              dbKey = "vistaZoneDisplayMode",
+              options = function() return {
+                  { L["Zone only"] or "Zone only", "zone" },
+                  { L["Subzone only"] or "Subzone only", "subzone" },
+                  { L["Both"] or "Both", "both" },
+              } end,
+              get = function() return getDB("vistaZoneDisplayMode", "zone") end,
+              set = function(v) setDB("vistaZoneDisplayMode", v) end,
+              disabled = function() return not getDB("vistaShowZoneText", true) end },
             { type = "toggle", name = L["Show coordinates"] or "Show coordinates",
               desc = L["Show player coordinates below the minimap."] or "Show player coordinates below the minimap.",
               dbKey = "vistaShowCoordText",
@@ -1391,6 +1476,12 @@ local OptionCategories = {
               dbKey = "vistaShowTimeText",
               get = function() return getDB("vistaShowTimeText", false) end,
               set = function(v) setDB("vistaShowTimeText", v) end },
+            { type = "toggle", name = L["Use local time"] or "Use local time",
+              desc = L["When on, shows your local system time. When off, shows server time."] or "When on, shows your local system time. When off, shows server time.",
+              dbKey = "vistaTimeUseLocal",
+              get = function() return getDB("vistaTimeUseLocal", false) end,
+              set = function(v) setDB("vistaTimeUseLocal", v) end,
+              disabled = function() return not getDB("vistaShowTimeText", false) end },
             { type = "section", name = L["Minimap Buttons"] or "Minimap Buttons" },
             { type = "header", name = L["Queue status and mail indicator are always shown when relevant."] or "Queue status and mail indicator are always shown when relevant." },
             -- Tracking
@@ -1480,7 +1571,16 @@ local OptionCategories = {
               desc = L["Thickness of the minimap border in pixels (1–8)."] or "Thickness of the minimap border in pixels (1–8).",
               dbKey = "vistaBorderWidth", min = 1, max = 8,
               get = function() return math.max(1, math.min(8, tonumber(getDB("vistaBorderWidth", 1)) or 1)) end,
-              set = function(v) setDB("vistaBorderWidth", math.max(1, math.min(8, v))) end },
+              set = function(v)
+                  addon.SetDB("vistaBorderWidth", math.max(1, math.min(8, v)))
+                  if addon.Vista then
+                      if addon._vistaBorderDebounce then addon._vistaBorderDebounce:Cancel() end
+                      addon._vistaBorderDebounce = C_Timer.NewTimer(0.15, function()
+                          addon._vistaBorderDebounce = nil
+                          if addon.Vista.ApplyOptions then addon.Vista.ApplyOptions() end
+                      end)
+                  end
+              end },
 
             { type = "section", name = L["Text Positions"] or "Text Positions" },
             { type = "header", name = L["Drag text elements to reposition them. Lock to prevent accidental movement."] or "Drag text elements to reposition them. Lock to prevent accidental movement." },
@@ -1526,6 +1626,11 @@ local OptionCategories = {
               dbKey = "vistaLocked_time",
               get = function() return getDB("vistaLocked_time", true) end,
               set = function(v) setDB("vistaLocked_time", v) end },
+            { type = "toggle", name = L["Lock difficulty text position"] or "Lock difficulty text position",
+              desc = L["When on, the difficulty text cannot be dragged."] or "When on, the difficulty text cannot be dragged.",
+              dbKey = "vistaLocked_diff",
+              get = function() return getDB("vistaLocked_diff", false) end,
+              set = function(v) setDB("vistaLocked_diff", v) end },
             { type = "section", name = L["Button Positions"] or "Button Positions" },
             { type = "header", name = L["Drag buttons to reposition them. Lock to prevent movement."] or "Drag buttons to reposition them. Lock to prevent movement." },
             { type = "toggle", name = L["Lock Zoom In button"] or "Lock Zoom In button",
@@ -1552,7 +1657,22 @@ local OptionCategories = {
               desc = L["Prevent dragging the queue status button."] or "Prevent dragging the queue status button.",
               dbKey = "vistaLocked_proxy_queue",
               get = function() return getDB("vistaLocked_proxy_queue", false) end,
-              set = function(v) setDB("vistaLocked_proxy_queue", v) end },
+              set = function(v)
+                  setDB("vistaLocked_proxy_queue", v)
+                  if addon.Vista and addon.Vista.RefreshQueueProxies then
+                      addon.Vista.RefreshQueueProxies()
+                  end
+              end },
+            { type = "toggle", name = L["Disable queue button handling"] or "Disable queue button handling",
+              desc = L["Turn off all queue button anchoring (use if another addon manages it)."] or "Turn off all queue button anchoring (use if another addon manages it).",
+              dbKey = "vistaQueueHandlingDisabled",
+              get = function() return getDB("vistaQueueHandlingDisabled", false) end,
+              set = function(v)
+                  setDB("vistaQueueHandlingDisabled", v)
+                  if addon.Vista and addon.Vista.RefreshQueueProxies then
+                      addon.Vista.RefreshQueueProxies()
+                  end
+              end },
             { type = "section", name = L["Button Sizes"] or "Button Sizes" },
             { type = "header", name = L["Adjust the size of minimap overlay buttons."] or "Adjust the size of minimap overlay buttons." },
             { type = "slider", name = L["Tracking button size"] or "Tracking button size",
@@ -1584,7 +1704,16 @@ local OptionCategories = {
               desc = L["Size of collected addon minimap buttons (pixels)."] or "Size of collected addon minimap buttons (pixels).",
               dbKey = "vistaAddonBtnSize", min = 16, max = 48,
               get = function() return math.max(16, math.min(48, tonumber(getDB("vistaAddonBtnSize", 26)) or 26)) end,
-              set = function(v) setDB("vistaAddonBtnSize", math.max(16, math.min(48, v))) end },
+              set = function(v)
+                  setDB("vistaAddonBtnSize", math.max(16, math.min(48, v)))
+                  if addon._vistaAddonBtnDebounce then addon._vistaAddonBtnDebounce:Cancel() end
+                  if C_Timer and C_Timer.NewTimer and addon.Vista and addon.Vista.ApplyOptions then
+                      addon._vistaAddonBtnDebounce = C_Timer.NewTimer(0.15, function()
+                          addon._vistaAddonBtnDebounce = nil
+                          addon.Vista.ApplyOptions()
+                      end)
+                  end
+              end },
         },
     },
     {
@@ -1639,38 +1768,98 @@ local OptionCategories = {
                   disabled = function()
                       return not getDB("vistaHandleAddonButtons", true) or getDB("vistaButtonMode", "mouseover") ~= "drawer"
                   end },
-                { type = "section", name = L["Panel Appearance"] or "Panel Appearance" },
-                { type = "header", name = L["Colors for the drawer and right-click button panels."] or "Colors for the drawer and right-click button panels." },
-                { type = "color", name = L["Panel background color"] or "Panel background color",
-                  desc = L["Background color of the addon button panels."] or "Background color of the addon button panels.",
-                  dbKey = "vistaPanelBg",
-                  get = function()
-                      return getDB("vistaPanelBgR", 0.08), getDB("vistaPanelBgG", 0.08),
-                             getDB("vistaPanelBgB", 0.12), getDB("vistaPanelBgA", 0.95)
-                  end,
-                  set = function(r, g, b, a)
-                      setDB("vistaPanelBgR", r); setDB("vistaPanelBgG", g)
-                      setDB("vistaPanelBgB", b)
-                      if a then setDB("vistaPanelBgA", a) end
-                  end,
-                  hasAlpha = true },
-                { type = "color", name = L["Panel border color"] or "Panel border color",
-                  desc = L["Border color of the addon button panels."] or "Border color of the addon button panels.",
-                  dbKey = "vistaPanelBorder",
-                  get = function()
-                      return getDB("vistaPanelBorderR", 0.3), getDB("vistaPanelBorderG", 0.4),
-                             getDB("vistaPanelBorderB", 0.6), getDB("vistaPanelBorderA", 0.7)
-                  end,
-                  set = function(r, g, b, a)
-                      setDB("vistaPanelBorderR", r); setDB("vistaPanelBorderG", g)
-                      setDB("vistaPanelBorderB", b)
-                      if a then setDB("vistaPanelBorderA", a) end
-                  end,
-                  hasAlpha = true },
-                { type = "section", name = L["Button Filter"] or "Button Filter" },
+                { type = "toggle", name = L["Lock mouseover bar position"] or "Lock mouseover bar position",
+                  desc = L["Prevent dragging the mouseover button bar."] or "Prevent dragging the mouseover button bar.",
+                  dbKey = "vistaMouseoverLocked",
+                  get = function() return getDB("vistaMouseoverLocked", true) end,
+                  set = function(v) setDB("vistaMouseoverLocked", v) end,
+                  disabled = function()
+                      return not getDB("vistaHandleAddonButtons", true) or getDB("vistaButtonMode", "mouseover") ~= "mouseover"
+                  end },
+                { type = "toggle", name = L["Lock right-click panel position"] or "Lock right-click panel position",
+                  desc = L["Prevent dragging the right-click panel."] or "Prevent dragging the right-click panel.",
+                  dbKey = "vistaRightClickLocked",
+                  get = function() return getDB("vistaRightClickLocked", true) end,
+                  set = function(v) setDB("vistaRightClickLocked", v) end,
+                  disabled = function()
+                      return not getDB("vistaHandleAddonButtons", true) or getDB("vistaButtonMode", "mouseover") ~= "rightclick"
+                  end },
+
+                { type = "section", name = L["Layout"] or "Layout" },
             }
 
-            -- Per-button filter toggles from discovered minimap buttons
+            local DIR_OPTIONS = function() return {
+                { L["Right"] or "Right", "right" },
+                { L["Left"] or "Left",   "left"  },
+                { L["Down"] or "Down",   "down"  },
+                { L["Up"] or "Up",       "up"    },
+            } end
+
+            -- Shared layout options (apply to all 3 modes)
+            opts[#opts + 1] = {
+                type = "slider", name = L["Buttons per row/column"] or "Buttons per row/column",
+                desc = L["Controls how many buttons appear before wrapping. For left/right direction this is columns; for up/down it is rows."] or "Controls how many buttons appear before wrapping. For left/right direction this is columns; for up/down it is rows.",
+                dbKey = "vistaBtnLayoutCols", min = 1, max = 20, step = 1,
+                get = function() return math.max(1, math.min(20, tonumber(getDB("vistaBtnLayoutCols", 5)) or 5)) end,
+                set = function(v)
+                    setDB("vistaBtnLayoutCols", math.max(1, math.min(20, v)))
+                    if addon._vistaBtnColsDebounce then addon._vistaBtnColsDebounce:Cancel() end
+                    if C_Timer and C_Timer.NewTimer and addon.Vista and addon.Vista.ApplyOptions then
+                        addon._vistaBtnColsDebounce = C_Timer.NewTimer(0.15, function()
+                            addon._vistaBtnColsDebounce = nil
+                            addon.Vista.ApplyOptions()
+                        end)
+                    end
+                end,
+                disabled = function() return not getDB("vistaHandleAddonButtons", true) end,
+            }
+            opts[#opts + 1] = {
+                type = "dropdown", name = L["Expand direction"] or "Expand direction",
+                desc = L["Direction buttons fill from the anchor point. Left/Right = horizontal rows. Up/Down = vertical columns."] or "Direction buttons fill from the anchor point. Left/Right = horizontal rows. Up/Down = vertical columns.",
+                dbKey = "vistaBtnLayoutDir", options = DIR_OPTIONS,
+                get = function() return getDB("vistaBtnLayoutDir", "right") end,
+                set = function(v) setDB("vistaBtnLayoutDir", v) end,
+                disabled = function() return not getDB("vistaHandleAddonButtons", true) end,
+            }
+
+            opts[#opts + 1] = { type = "section", name = L["Panel Appearance"] or "Panel Appearance" }
+            opts[#opts + 1] = { type = "header", name = L["Colors for the drawer and right-click button panels."] or "Colors for the drawer and right-click button panels." }
+            opts[#opts + 1] = {
+                type = "color", name = L["Panel background color"] or "Panel background color",
+                desc = L["Background color of the addon button panels."] or "Background color of the addon button panels.",
+                dbKey = "vistaPanelBg",
+                get = function()
+                    return getDB("vistaPanelBgR", 0.08), getDB("vistaPanelBgG", 0.08),
+                           getDB("vistaPanelBgB", 0.12), getDB("vistaPanelBgA", 0.95)
+                end,
+                set = function(r, g, b, a)
+                    setDB("vistaPanelBgR", r); setDB("vistaPanelBgG", g)
+                    setDB("vistaPanelBgB", b)
+                    if a then setDB("vistaPanelBgA", a) end
+                end,
+                hasAlpha = true,
+            }
+            opts[#opts + 1] = {
+                type = "color", name = L["Panel border color"] or "Panel border color",
+                desc = L["Border color of the addon button panels."] or "Border color of the addon button panels.",
+                dbKey = "vistaPanelBorder",
+                get = function()
+                    return getDB("vistaPanelBorderR", 0.3), getDB("vistaPanelBorderG", 0.4),
+                           getDB("vistaPanelBorderB", 0.6), getDB("vistaPanelBorderA", 0.7)
+                end,
+                set = function(r, g, b, a)
+                    setDB("vistaPanelBorderR", r); setDB("vistaPanelBorderG", g)
+                    setDB("vistaPanelBorderB", b)
+                    if a then setDB("vistaPanelBorderA", a) end
+                end,
+                hasAlpha = true,
+            }
+            -- Managed buttons: per-button toggle — uncheck to fully ignore a button
+            opts[#opts + 1] = {
+                type = "section",
+                name = L["Managed buttons"] or "Managed buttons",
+            }
+
             local function getButtonNames()
                 if addon.Vista and addon.Vista.GetDiscoveredButtonNames then
                     return addon.Vista.GetDiscoveredButtonNames()
@@ -1678,30 +1867,34 @@ local OptionCategories = {
                 return {}
             end
 
-            opts[#opts + 1] = {
-                type = "toggle",
-                name = L["Filter to selected buttons only"] or "Filter to selected buttons only",
-                desc = L["When on, only buttons checked below will appear. Unchecked buttons are hidden everywhere including the minimap."] or "When on, only buttons checked below will appear. Unchecked buttons are hidden everywhere including the minimap.",
-                dbKey = "vistaButtonFilterEnabled",
-                get = function()
-                    local wl = getDB("vistaButtonWhitelist", nil)
-                    if not wl or type(wl) ~= "table" then return false end
-                    local hasAny = false
-                    for _ in pairs(wl) do hasAny = true; break end
-                    return hasAny
-                end,
-                set = function(v)
-                    if not v then
-                        setDB("vistaButtonWhitelist", nil)
-                    else
-                        local names = getButtonNames()
-                        local wl = {}
-                        for _, n in ipairs(names) do wl[n] = true end
-                        setDB("vistaButtonWhitelist", wl)
-                    end
-                end,
-                disabled = function() return not getDB("vistaHandleAddonButtons", true) end,
-            }
+            local managedNames = getButtonNames()
+            for _, btnName in ipairs(managedNames) do
+                local localName = btnName
+                local displayName = localName
+                if addon.Vista and addon.Vista.GetButtonDisplayName then
+                    displayName = addon.Vista.GetButtonDisplayName(localName) or localName
+                end
+                opts[#opts + 1] = {
+                    type = "toggle",
+                    name = (displayName ~= "" and displayName ~= localName) and displayName or localName,
+                    desc = L["When off, this button is completely ignored by this addon."] or "When off, this button is completely ignored by this addon.",
+                    dbKey = "vistaButtonManaged_" .. localName,
+                    disabled = function() return not getDB("vistaHandleAddonButtons", true) end,
+                    get = function() return getDB("vistaButtonManaged_" .. localName, true) end,
+                    set = function(v)
+                        setDB("vistaButtonManaged_" .. localName, v)
+                    end,
+                }
+            end
+            if #managedNames == 0 then
+                opts[#opts + 1] = {
+                    type = "toggle",
+                    name = L["(No addon buttons detected yet)"] or "(No addon buttons detected yet)",
+                    dbKey = "_vista_no_managed_placeholder",
+                    get = function() return false end, set = function() end,
+                    disabled = function() return true end,
+                }
+            end
 
             opts[#opts + 1] = {
                 type = "section",
@@ -1715,38 +1908,31 @@ local OptionCategories = {
                 if addon.Vista and addon.Vista.GetButtonDisplayName then
                     displayName = addon.Vista.GetButtonDisplayName(localName) or localName
                 end
-                local label
-                if displayName ~= localName and displayName ~= "" then
-                    label = displayName
-                else
-                    label = localName
-                end
+                local label = (displayName ~= localName and displayName ~= "") and displayName or localName
                 opts[#opts + 1] = {
                     type = "toggle",
                     name = label,
                     dbKey = "vistaBtn_" .. localName,
                     disabled = function()
-                        return not getDB("vistaHandleAddonButtons", true)
+                        if not getDB("vistaHandleAddonButtons", true) then return true end
+                        return not getDB("vistaButtonManaged_" .. localName, true)
                     end,
                     get = function()
                         local wl = getDB("vistaButtonWhitelist", nil)
-                        if not wl or type(wl) ~= "table" then return true end  -- no filter = all visible
+                        if not wl or type(wl) ~= "table" then return true end
                         return wl[localName] == true
                     end,
                     set = function(v)
                         local wl = getDB("vistaButtonWhitelist", nil)
                         if not wl or type(wl) ~= "table" then
-                            -- Build whitelist from all known buttons
                             local allNames = getButtonNames()
                             wl = {}
                             for _, n in ipairs(allNames) do wl[n] = true end
                         end
                         wl[localName] = v or nil
-                        -- If whitelist is now all-true or empty, clear it
                         local hasAny = false
-                        local hasFalse = false
-                        for n, val in pairs(wl) do
-                            if val then hasAny = true else hasFalse = true end
+                        for _, val in pairs(wl) do
+                            if val then hasAny = true; break end
                         end
                         if not hasAny then wl = nil end
                         setDB("vistaButtonWhitelist", wl)
