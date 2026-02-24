@@ -376,10 +376,6 @@ L["Show affix names in Delves"]                         = "Mostrar nomes de afix
 L["Show season affix names on the first Delve entry. Requires Blizzard's objective tracker widgets to be populated; may not show when using a full tracker replacement."] = "Mostra nomes de afixos da temporada na primeira entrada de Delve. Requer widgets do rastreador de objetivos da Blizzard; pode não aparecer ao usar um rastreador totalmente substituto."
 L["Cinematic scenario bar"]                             = "Barra de cenário cinematográfica"
 L["Show timer and progress bar for scenario entries."]  = "Mostra cronômetro e barra de progresso para entradas de cenário."
-L["Scenario bar opacity"]                               = "Opacidade da barra de cenário"
-L["Opacity of scenario timer/progress bar (0–1)."]      = "Opacidade do cronômetro/barra de progresso do cenário (0–1)."
-L["Scenario bar height"]                                = "Altura da barra de cenário"
-L["Height of scenario progress bar (4–8 px)."]          = "Altura da barra de progresso do cenário (4–8 px)."
 
 -- =====================================================================
 -- OptionsData.lua Typography — Font
@@ -407,7 +403,7 @@ L["Section header font size."]                          = "Tamanho da fonte dos 
 L["Progress bar font"]                                  = "Fonte da barra de progresso"
 L["Font family for the progress bar label."]            = "Família de fonte para o texto da barra de progresso."
 L["Progress bar text size"]                             = "Tamanho do texto da barra de progresso"
-L["Font size for the progress bar label. Also adjusts bar height."] = "Tamanho da fonte do texto da barra de progresso. Também ajusta a altura da barra."
+L["Font size for the progress bar label. Also adjusts bar height. Affects quest objectives, scenario progress, and scenario timer bars."] = "Tamanho da fonte do texto da barra de progresso. Também ajusta a altura da barra. Afeta objetivos de missões, progresso de cenário e barras de timer."
 L["Progress bar fill"]                                  = "Preenchimento da barra de progresso"
 L["Progress bar text"]                                  = "Texto da barra de progresso"
 L["Outline"]                                            = "Contorno"
@@ -614,6 +610,16 @@ L["Pill left accent"]                                   = "Realce em pílula à 
 -- =====================================================================
 L["Top"]                                                = "Topo"
 L["Bottom"]                                             = "Fundo"
+
+-- =====================================================================
+-- OptionsData.lua Vista — Text element positions
+-- =====================================================================
+L["Location position"]                                  = "Posição do nome da zona"
+L["Place the zone name above or below the minimap."]      = "Coloca o nome da zona acima ou abaixo do minimapa."
+L["Coordinates position"]                               = "Posição das coordenadas"
+L["Place the coordinates above or below the minimap."]    = "Coloca as coordenadas acima ou abaixo do minimapa."
+L["Clock position"]                                     = "Posição do relógio"
+L["Place the clock above or below the minimap."]         = "Coloca o relógio acima ou abaixo do minimapa."
 
 -- =====================================================================
 -- OptionsData.lua Dropdown options — Text case

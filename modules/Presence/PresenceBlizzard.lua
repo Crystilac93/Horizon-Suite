@@ -110,30 +110,35 @@ local function ApplyBlizzardSuppression()
     end
 
     -- Level up
+    local levelUpFrame = LevelUpDisplay or _G["LevelUpDisplay"]
     if addon.GetDB and addon.GetDB("presenceLevelUp", true) then
-        KillBlizzardFrame(LevelUpDisplay)
+        KillBlizzardFrame(levelUpFrame)
     else
-        RestoreBlizzardFrame(LevelUpDisplay)
+        RestoreBlizzardFrame(levelUpFrame)
     end
 
     -- Boss emotes
+    local bossEmoteFrame = RaidBossEmoteFrame or _G["RaidBossEmoteFrame"]
     if addon.GetDB and addon.GetDB("presenceBossEmote", true) then
-        KillBlizzardFrame(RaidBossEmoteFrame)
+        KillBlizzardFrame(bossEmoteFrame)
     else
-        RestoreBlizzardFrame(RaidBossEmoteFrame)
+        RestoreBlizzardFrame(bossEmoteFrame)
     end
 
-    -- Event toasts (achievements, quest accept/complete/progress) - shared frame
+    -- Event toasts (achievements, quest accept/complete/progress, scenario) - shared frame
     local anyToast = isTypeEnabled("presenceAchievement", nil, true)
         or isTypeEnabled("presenceQuestAccept", "presenceQuestEvents", true)
         or isTypeEnabled("presenceWorldQuestAccept", "presenceQuestEvents", true)
         or isTypeEnabled("presenceQuestComplete", "presenceQuestEvents", true)
         or isTypeEnabled("presenceWorldQuest", "presenceQuestEvents", true)
         or isTypeEnabled("presenceQuestUpdate", "presenceQuestEvents", true)
+        or isTypeEnabled("presenceScenarioStart", "showScenarioEvents", true)
+        or isTypeEnabled("presenceScenarioUpdate", "showScenarioEvents", true)
+    local eventToastFrame = EventToastManagerFrame or _G["EventToastManagerFrame"]
     if anyToast then
-        KillBlizzardFrame(EventToastManagerFrame)
+        KillBlizzardFrame(eventToastFrame)
     else
-        RestoreBlizzardFrame(EventToastManagerFrame)
+        RestoreBlizzardFrame(eventToastFrame)
     end
 
     -- World quest complete banner (separate from EventToastManagerFrame)
@@ -177,8 +182,9 @@ end
 local function RestoreBlizzard()
     RestoreBlizzardFrame(ZoneTextFrame)
     RestoreBlizzardFrame(SubZoneTextFrame)
-    RestoreBlizzardFrame(RaidBossEmoteFrame)
-    RestoreBlizzardFrame(LevelUpDisplay)
+    RestoreBlizzardFrame(RaidBossEmoteFrame or _G["RaidBossEmoteFrame"])
+    RestoreBlizzardFrame(LevelUpDisplay or _G["LevelUpDisplay"])
+    RestoreBlizzardFrame(EventToastManagerFrame or _G["EventToastManagerFrame"])
     RestoreBlizzardFrame(BossBanner)
     RestoreBlizzardFrame(ObjectiveTrackerBonusBannerFrame)
     local topBannerFrame = ObjectiveTrackerTopBannerFrame or _G["ObjectiveTrackerTopBannerFrame"]
@@ -211,11 +217,13 @@ local function DumpBlizzardSuppression(p)
     local subzoneOn = isTypeEnabled("presenceSubzoneChange", "presenceZoneChange", true)
     p("Subzone:       option=" .. tostring(subzoneOn) .. " | SubZoneTextFrame=" .. frameState(SubZoneTextFrame))
 
+    local levelUpFrame = LevelUpDisplay or _G["LevelUpDisplay"]
     local levelOn = addon.GetDB and addon.GetDB("presenceLevelUp", true)
-    p("Level up:      option=" .. tostring(levelOn) .. " | LevelUpDisplay=" .. frameState(LevelUpDisplay))
+    p("Level up:      option=" .. tostring(levelOn) .. " | LevelUpDisplay=" .. frameState(levelUpFrame))
 
+    local bossEmoteFrame = RaidBossEmoteFrame or _G["RaidBossEmoteFrame"]
     local bossOn = addon.GetDB and addon.GetDB("presenceBossEmote", true)
-    p("Boss emote:    option=" .. tostring(bossOn) .. " | RaidBossEmoteFrame=" .. frameState(RaidBossEmoteFrame))
+    p("Boss emote:    option=" .. tostring(bossOn) .. " | RaidBossEmoteFrame=" .. frameState(bossEmoteFrame))
 
     local anyToast = isTypeEnabled("presenceAchievement", nil, true)
         or isTypeEnabled("presenceQuestAccept", "presenceQuestEvents", true)
@@ -223,7 +231,10 @@ local function DumpBlizzardSuppression(p)
         or isTypeEnabled("presenceQuestComplete", "presenceQuestEvents", true)
         or isTypeEnabled("presenceWorldQuest", "presenceQuestEvents", true)
         or isTypeEnabled("presenceQuestUpdate", "presenceQuestEvents", true)
-    p("Event toasts:  any=" .. tostring(anyToast) .. " (ach/quest) | EventToastManagerFrame=" .. frameState(EventToastManagerFrame))
+        or isTypeEnabled("presenceScenarioStart", "showScenarioEvents", true)
+        or isTypeEnabled("presenceScenarioUpdate", "showScenarioEvents", true)
+    local eventToastFrame = EventToastManagerFrame or _G["EventToastManagerFrame"]
+    p("Event toasts:  any=" .. tostring(anyToast) .. " (ach/quest/scenario) | EventToastManagerFrame=" .. frameState(eventToastFrame))
 
     local wqOn = isTypeEnabled("presenceWorldQuest", "presenceQuestEvents", true)
     local wqFrame = WorldQuestCompleteBannerFrame or _G["WorldQuestCompleteBannerFrame"]

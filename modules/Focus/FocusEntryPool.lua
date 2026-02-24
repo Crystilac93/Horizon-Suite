@@ -271,7 +271,7 @@ local function CreateQuestEntry(parent, index)
     e.wqProgressText:SetJustifyH("CENTER")
     e.wqProgressText:Hide()
 
-    -- Per-criteria scenario timer bars (KT-aligned; 1s tick driven).
+    -- Per-criteria scenario timer bars (KT-aligned; 1s tick driven). Same format as quest progress bars.
     local slots = addon.SCENARIO_TIMER_BAR_SLOTS or 5
     e.scenarioTimerBars = {}
     for si = 1, slots do
@@ -279,13 +279,13 @@ local function CreateQuestEntry(parent, index)
         bar:SetHeight(addon.WQ_TIMER_BAR_HEIGHT or 6)
         bar.Bg = bar:CreateTexture(nil, "BACKGROUND")
         bar.Bg:SetAllPoints()
-        bar.Bg:SetColorTexture(0.08, 0.06, 0.12, 0.5)
+        bar.Bg:SetColorTexture(0.15, 0.15, 0.18, 0.7)
         bar.Fill = bar:CreateTexture(nil, "ARTWORK")
         bar.Fill:SetPoint("TOPLEFT", bar, "TOPLEFT", 0, 0)
         bar.Fill:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 0, 0)
-        bar.Fill:SetColorTexture(0.45, 0.32, 0.75, 0.88)
+        bar.Fill:SetColorTexture(0.40, 0.65, 0.90, 0.85)
         bar.Label = bar:CreateFontString(nil, "OVERLAY")
-        bar.Label:SetFontObject(addon.ObjFont)
+        bar.Label:SetFontObject(addon.ProgressBarFont or addon.ObjFont)
         bar.Label:SetPoint("CENTER", bar, "CENTER", 0, 0)
         bar.Label:SetJustifyH("CENTER")
         bar.duration = nil
@@ -344,20 +344,18 @@ local function UpdateScenarioBar(bar, now)
     local m = math.floor(remaining / 60)
     local sec = math.floor(remaining % 60)
     bar.Label:SetText(("%02d:%02d"):format(m, sec))
-    -- Percentage-based color (KT: 66% white, 33% yellow, below red).
-    local pctLeft = (d > 0) and pct or 0
-    local r, g, b
-    if pctLeft > 0.66 then
-        local sc = addon.GetQuestColor and addon.GetQuestColor("SCENARIO") or (addon.QUEST_COLORS and addon.QUEST_COLORS.SCENARIO) or { 0.55, 0.35, 0.85 }
-        r, g, b = sc[1], sc[2], sc[3]
-    elseif pctLeft > 0.33 then
-        local blueOffset = (pctLeft - 0.33) / 0.33
-        r, g, b = 1, 1, blueOffset
+    -- Same format as quest progress bars: use progFillColor and progTextColor
+    local progFillColor
+    if addon.GetDB("progressBarUseCategoryColor", true) then
+        progFillColor = (addon.GetQuestColor and addon.GetQuestColor("SCENARIO")) or (addon.QUEST_COLORS and addon.QUEST_COLORS.SCENARIO) or { 0.55, 0.35, 0.85 }
     else
-        local greenOffset = pctLeft / 0.33
-        r, g, b = 1, greenOffset, 0
+        progFillColor = addon.GetDB("progressBarFillColor", nil)
+        if not progFillColor or type(progFillColor) ~= "table" then progFillColor = { 0.40, 0.65, 0.90 } end
     end
-    bar.Label:SetTextColor(r, g, b, 1)
+    local progTextColor = addon.GetDB("progressBarTextColor", nil)
+    if not progTextColor or type(progTextColor) ~= "table" then progTextColor = { 0.95, 0.95, 0.95 } end
+    bar.Fill:SetColorTexture(progFillColor[1], progFillColor[2], progFillColor[3], 0.85)
+    bar.Label:SetTextColor(progTextColor[1], progTextColor[2], progTextColor[3], 1)
 end
 
 function addon.UpdateScenarioTimerBars()

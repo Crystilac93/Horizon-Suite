@@ -376,10 +376,6 @@ L["Show affix names in Delves"]                         = "Показывать 
 L["Show season affix names on the first Delve entry. Requires Blizzard's objective tracker widgets to be populated; may not show when using a full tracker replacement."] = "Показывает сезонные модификаторы на первой записи. Требуются виджеты Blizzard."
 L["Cinematic scenario bar"]                             = "Кинематографическая панель сценария"
 L["Show timer and progress bar for scenario entries."]  = "Показывает таймер и полосу прогресса для сценариев."
-L["Scenario bar opacity"]                               = "Прозрачность панели сценария"
-L["Opacity of scenario timer/progress bar (0–1)."]      = "Прозрачность таймера/полосы сценария (0–1)."
-L["Scenario bar height"]                                = "Высота панели сценария"
-L["Height of scenario progress bar (4–8 px)."]          = "Высота полосы прогресса сценария (4–8 px)."
 
 -- =====================================================================
 -- OptionsData.lua Typography — Font
@@ -407,7 +403,7 @@ L["Section header font size."]                          = "Размер шриф
 L["Progress bar font"]                                  = "Шрифт полосы прогресса"
 L["Font family for the progress bar label."]            = "Семейство шрифта для подписи полосы."
 L["Progress bar text size"]                             = "Размер текста полосы прогресса"
-L["Font size for the progress bar label. Also adjusts bar height."] = "Размер шрифта подписи полосы. Также регулирует высоту."
+L["Font size for the progress bar label. Also adjusts bar height. Affects quest objectives, scenario progress, and scenario timer bars."] = "Размер шрифта подписи полосы. Также регулирует высоту. Влияет на цели заданий, прогресс сценариев и таймеры."
 L["Progress bar fill"]                                  = "Заливка полосы прогресса"
 L["Progress bar text"]                                  = "Текст полосы прогресса"
 L["Outline"]                                            = "Контур"
@@ -614,6 +610,16 @@ L["Pill left accent"]                                   = "Акцент слев
 -- =====================================================================
 L["Top"]                                                = "Сверху"
 L["Bottom"]                                             = "Снизу"
+
+-- =====================================================================
+-- OptionsData.lua Vista — Text element positions
+-- =====================================================================
+L["Location position"]                                  = "Позиция названия зоны"
+L["Place the zone name above or below the minimap."]      = "Размещение названия зоны над или под миникартой."
+L["Coordinates position"]                               = "Позиция координат"
+L["Place the coordinates above or below the minimap."]    = "Размещение координат над или под миникартой."
+L["Clock position"]                                     = "Позиция часов"
+L["Place the clock above or below the minimap."]          = "Размещение часов над или под миникартой."
 
 -- =====================================================================
 -- OptionsData.lua Dropdown options — Text case

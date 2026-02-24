@@ -12,6 +12,7 @@ Thumbs.db
 *.sublime-*
 
 # Local dev notes (not for version control)
+CLAUDE.md
 docs/plans/
 
 

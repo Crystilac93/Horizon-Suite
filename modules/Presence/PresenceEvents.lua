@@ -119,23 +119,29 @@ local PRESENCE_EVENTS = {
 
 local function OnAddonLoaded(addonName)
     if addonName == "Blizzard_WorldQuestComplete" and addon.Presence.KillWorldQuestBanner then
-        -- Single deferred call is enough: the addon has just loaded so its frames exist
-        -- by the time this fires. Unregister immediately — this only needs to run once.
-        eventFrame:UnregisterEvent("ADDON_LOADED")
         C_Timer.After(0.1, function()
             addon.Presence.KillWorldQuestBanner()
         end)
+    end
+    if addonName == "Blizzard_LevelUpDisplay" or addonName == "Blizzard_RaidBossEmoteFrame" or addonName == "Blizzard_EventToastManager" then
+        if addon:IsModuleEnabled("presence") and addon.Presence.ApplyBlizzardSuppression then
+            C_Timer.After(0.05, function()
+                addon.Presence.ApplyBlizzardSuppression()
+            end)
+        end
     end
 end
 
 local function OnPlayerLevelUp(_, level)
     if addon.GetDB and not addon.GetDB("presenceLevelUp", true) then return end
+    if addon.Presence.ApplyBlizzardSuppression then addon.Presence.ApplyBlizzardSuppression() end
     local L = addon.L or {}
     addon.Presence.QueueOrPlay("LEVEL_UP", L["LEVEL UP"], L["You have reached level %s"]:format(level or "??"))
 end
 
 local function OnRaidBossEmote(_, msg, unitName)
     if addon.GetDB and not addon.GetDB("presenceBossEmote", true) then return end
+    if addon.Presence.ApplyBlizzardSuppression then addon.Presence.ApplyBlizzardSuppression() end
     local bossName = unitName or "Boss"
     local formatted = msg or ""
     formatted = formatted:gsub("|T.-|t", "")
@@ -600,6 +606,7 @@ local function TryShowScenarioStart()
             lastScenarioCriteriaCache = seedKey
             lastScenarioObjectives = seedObjs
         end
+        if addon.Presence.ApplyBlizzardSuppression then addon.Presence.ApplyBlizzardSuppression() end
         addon.Presence.QueueOrPlay("SCENARIO_START", StripPresenceMarkup(title), StripPresenceMarkup(subtitle or ""), { category = category, source = "SCENARIO_UPDATE" })
     end)
 end
@@ -616,11 +623,19 @@ local function OnPlayerEnteringWorld()
     end
 end
 
-local function OnScenarioUpdate() TryShowScenarioStart() end
+local function OnScenarioUpdate()
+    if IsPresenceTypeEnabled("presenceScenarioStart", "showScenarioEvents", true) or IsPresenceTypeEnabled("presenceScenarioUpdate", "showScenarioEvents", true) then
+        if addon.Presence.ApplyBlizzardSuppression then addon.Presence.ApplyBlizzardSuppression() end
+    end
+    TryShowScenarioStart()
+end
 
 local function OnScenarioCriteriaUpdate()
     -- Delve objective update feature disabled; skip when in a delve
     if addon.IsDelveActive and addon.IsDelveActive() then return end
+    if IsPresenceTypeEnabled("presenceScenarioStart", "showScenarioEvents", true) or IsPresenceTypeEnabled("presenceScenarioUpdate", "showScenarioEvents", true) then
+        if addon.Presence.ApplyBlizzardSuppression then addon.Presence.ApplyBlizzardSuppression() end
+    end
     TryShowScenarioStart()
     if wasInScenario then
         RequestScenarioCriteriaUpdate()

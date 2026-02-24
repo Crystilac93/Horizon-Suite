@@ -127,6 +127,7 @@ local VISTA_KEYS = {
     vistaCoordFontPath = true, vistaCoordFontSize = true,
     vistaTimeFontPath = true, vistaTimeFontSize = true,
     vistaShowZoneText = true, vistaShowCoordText = true, vistaShowTimeText = true,
+    vistaZoneVerticalPos = true, vistaCoordVerticalPos = true, vistaTimeVerticalPos = true,
     vistaShowDefaultMinimapButtons = true,  -- legacy key kept for compatibility
     vistaLock = true,
     vistaPoint = true, vistaRelPoint = true, vistaX = true, vistaY = true,
@@ -985,7 +986,7 @@ local OptionCategories = {
             { type = "slider", name = L["Objective size"], desc = L["Objective text font size."], dbKey = "objectiveFontSize", min = 8, max = 20, get = function() return getDB("objectiveFontSize", 11) end, set = function(v) setDB("objectiveFontSize", v) end },
             { type = "slider", name = L["Zone size"], desc = L["Zone label font size."], dbKey = "zoneFontSize", min = 8, max = 18, get = function() return getDB("zoneFontSize", 10) end, set = function(v) setDB("zoneFontSize", v) end },
             { type = "slider", name = L["Section size"], desc = L["Section header font size."], dbKey = "sectionFontSize", min = 8, max = 18, get = function() return getDB("sectionFontSize", 10) end, set = function(v) setDB("sectionFontSize", v) end },
-            { type = "slider", name = L["Progress bar text size"], desc = L["Font size for the progress bar label. Also adjusts bar height."], dbKey = "progressBarFontSize", min = 7, max = 18, get = function() return getDB("progressBarFontSize", 10) end, set = function(v) setDB("progressBarFontSize", v) end },
+            { type = "slider", name = L["Progress bar text size"], desc = L["Font size for the progress bar label. Also adjusts bar height. Affects quest objectives, scenario progress, and scenario timer bars."], dbKey = "progressBarFontSize", min = 7, max = 18, get = function() return getDB("progressBarFontSize", 10) end, set = function(v) setDB("progressBarFontSize", v) end },
             { type = "dropdown", name = L["Outline"], desc = L["Font outline style."], dbKey = "fontOutline", options = OUTLINE_OPTIONS, get = function() return getDB("fontOutline", "OUTLINE") end, set = function(v) setDB("fontOutline", v) end },
             { type = "section", name = L["Text case"] },
             { type = "dropdown", name = L["Header text case"], desc = L["Display case for header."], dbKey = "headerTextCase", options = TEXT_CASE_OPTIONS, get = function() local v = getDB("headerTextCase", "proper"); return (v == "default") and "proper" or v end, set = function(v) setDB("headerTextCase", v) end },
@@ -1078,8 +1079,6 @@ local OptionCategories = {
             { type = "toggle", name = L["Show affix names in Delves"], desc = L["Show season affix names on the first Delve entry. Requires Blizzard's objective tracker widgets to be populated; may not show when using a full tracker replacement."], dbKey = "showDelveAffixes", get = function() return getDB("showDelveAffixes", getDB("delveBlockShowAffixes", true)) end, set = function(v) setDB("showDelveAffixes", v); if addon.ScheduleRefresh then addon.ScheduleRefresh() end end },
             { type = "section", name = L["Scenario Bar"] },
             { type = "toggle", name = L["Cinematic scenario bar"], desc = L["Show timer and progress bar for scenario entries."], dbKey = "cinematicScenarioBar", get = function() return getDB("cinematicScenarioBar", true) end, set = function(v) setDB("cinematicScenarioBar", v) end },
-            { type = "slider", name = L["Scenario bar opacity"], desc = L["Opacity of scenario timer/progress bar (0–1)."], dbKey = "scenarioBarOpacity", min = 0.3, max = 1, get = function() return tonumber(getDB("scenarioBarOpacity", 0.85)) or 0.85 end, set = function(v) setDB("scenarioBarOpacity", v) end },
-            { type = "slider", name = L["Scenario bar height"], desc = L["Height of scenario progress bar (4–8 px)."], dbKey = "scenarioBarHeight", min = 4, max = 8, get = function() return math.max(4, math.min(8, tonumber(getDB("scenarioBarHeight", 6)) or 6)) end, set = function(v) setDB("scenarioBarHeight", math.max(4, math.min(8, v))) end },
         },
     },
     {
@@ -1483,16 +1482,43 @@ local OptionCategories = {
 
             { type = "section", name = L["Text Positions"] or "Text Positions" },
             { type = "header", name = L["Drag text elements to reposition them. Lock to prevent accidental movement."] or "Drag text elements to reposition them. Lock to prevent accidental movement." },
+            { type = "dropdown", name = L["Location position"] or "Location position",
+              desc = L["Place the zone name above or below the minimap."] or "Place the zone name above or below the minimap.",
+              dbKey = "vistaZoneVerticalPos",
+              options = function() return { { L["Top"] or "Top", "top" }, { L["Bottom"] or "Bottom", "bottom" } } end,
+              get = function() return getDB("vistaZoneVerticalPos", "bottom") or "bottom" end,
+              set = function(v)
+                  setDB("vistaZoneVerticalPos", v)
+                  setDB("vistaEX_zone", nil); setDB("vistaEY_zone", nil)
+              end },
             { type = "toggle", name = L["Lock zone text position"] or "Lock zone text position",
               desc = L["When on, the zone text cannot be dragged."] or "When on, the zone text cannot be dragged.",
               dbKey = "vistaLocked_zone",
               get = function() return getDB("vistaLocked_zone", true) end,
               set = function(v) setDB("vistaLocked_zone", v) end },
+            { type = "dropdown", name = L["Coordinates position"] or "Coordinates position",
+              desc = L["Place the coordinates above or below the minimap."] or "Place the coordinates above or below the minimap.",
+              dbKey = "vistaCoordVerticalPos",
+              options = function() return { { L["Top"] or "Top", "top" }, { L["Bottom"] or "Bottom", "bottom" } } end,
+              get = function() return getDB("vistaCoordVerticalPos", "bottom") or "bottom" end,
+              set = function(v)
+                  setDB("vistaCoordVerticalPos", v)
+                  setDB("vistaEX_coord", nil); setDB("vistaEY_coord", nil)
+              end },
             { type = "toggle", name = L["Lock coordinates position"] or "Lock coordinates position",
               desc = L["When on, the coordinates text cannot be dragged."] or "When on, the coordinates text cannot be dragged.",
               dbKey = "vistaLocked_coord",
               get = function() return getDB("vistaLocked_coord", true) end,
               set = function(v) setDB("vistaLocked_coord", v) end },
+            { type = "dropdown", name = L["Clock position"] or "Clock position",
+              desc = L["Place the clock above or below the minimap."] or "Place the clock above or below the minimap.",
+              dbKey = "vistaTimeVerticalPos",
+              options = function() return { { L["Top"] or "Top", "top" }, { L["Bottom"] or "Bottom", "bottom" } } end,
+              get = function() return getDB("vistaTimeVerticalPos", "bottom") or "bottom" end,
+              set = function(v)
+                  setDB("vistaTimeVerticalPos", v)
+                  setDB("vistaEX_time", nil); setDB("vistaEY_time", nil)
+              end },
             { type = "toggle", name = L["Lock time position"] or "Lock time position",
               desc = L["When on, the time text cannot be dragged."] or "When on, the time text cannot be dragged.",
               dbKey = "vistaLocked_time",

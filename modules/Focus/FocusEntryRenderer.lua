@@ -366,6 +366,21 @@ local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor
     local scenarioBarTopMargin = isScenario and S(4) or 0
     local scenarioFirstElementPlaced = false
 
+    -- Quest bar format for scenario: same height, colors, and font as objective progress bars
+    local progBarFontSz = tonumber(addon.GetDB("progressBarFontSize", 10)) or 10
+    local PROGRESS_BAR_HEIGHT = S(math.max(8, progBarFontSz + 4))
+    local progFillColor, progTextColor
+    if isScenario then
+        if addon.GetDB("progressBarUseCategoryColor", true) then
+            progFillColor = (addon.GetQuestColor and addon.GetQuestColor("SCENARIO")) or (addon.QUEST_COLORS and addon.QUEST_COLORS.SCENARIO) or { 0.55, 0.35, 0.85 }
+        else
+            progFillColor = addon.GetDB("progressBarFillColor", nil)
+            if not progFillColor or type(progFillColor) ~= "table" then progFillColor = { 0.40, 0.65, 0.90 } end
+        end
+        progTextColor = addon.GetDB("progressBarTextColor", nil)
+        if not progTextColor or type(progTextColor) ~= "table" then progTextColor = { 0.95, 0.95, 0.95 } end
+    end
+
     local showBar
     if isScenario and entry.scenarioTimerBars and addon.GetDB("cinematicScenarioBar", true) then
         local timerSources = {}
@@ -377,7 +392,7 @@ local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor
         if #timerSources == 0 and questData.timerDuration and questData.timerStartTime then
             timerSources[#timerSources + 1] = { duration = questData.timerDuration, startTime = questData.timerStartTime }
         end
-        local barHeight = math.max(4, math.min(8, tonumber(addon.GetDB("scenarioBarHeight", 6)) or 6))
+        local barHeight = PROGRESS_BAR_HEIGHT
         for i, src in ipairs(timerSources) do
             local bar = entry.scenarioTimerBars[i]
             if bar then
@@ -387,7 +402,7 @@ local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor
                 bar:SetWidth(barW)
                 bar:SetHeight(barHeight)
                 bar:ClearAllPoints()
-                bar:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", objIndent, -barSpacing)
+                bar:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", 0, -barSpacing)
                 bar:Show()
                 totalH = totalH + barSpacing + barHeight
                 prevAnchor = bar
@@ -430,7 +445,7 @@ local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor
             entry.wqTimerText:SetText(timerStr)
             entry.wqTimerText:SetWidth(barW)
             entry.wqTimerText:ClearAllPoints()
-            entry.wqTimerText:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", objIndent, -timerSpacing)
+            entry.wqTimerText:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", 0, -timerSpacing)
             if isScenario then
                 local sc = addon.GetQuestColor and addon.GetQuestColor(questData.category) or (addon.QUEST_COLORS and addon.QUEST_COLORS[questData.category]) or { 0.38, 0.52, 0.88 }
                 entry.wqTimerText:SetTextColor(sc[1], sc[2], sc[3], 1)
@@ -456,18 +471,14 @@ local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor
         end
     end
     if showBar and firstPercent ~= nil then
-        local barHeight = barH
-        if isScenario then
-            barHeight = math.max(4, math.min(8, tonumber(addon.GetDB("scenarioBarHeight", 6)) or 6))
-        end
+        local barHeight = isScenario and PROGRESS_BAR_HEIGHT or barH
         local percentBarSpacing = spacing + (isScenario and not scenarioFirstElementPlaced and scenarioBarTopMargin or 0)
         entry.wqProgressBg:SetHeight(barHeight)
         entry.wqProgressBg:SetWidth(barW)
         entry.wqProgressBg:ClearAllPoints()
-        entry.wqProgressBg:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", objIndent, -percentBarSpacing)
+        entry.wqProgressBg:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", 0, -percentBarSpacing)
         if isScenario then
-            local opacity = tonumber(addon.GetDB("scenarioBarOpacity", 0.85)) or 0.85
-            entry.wqProgressBg:SetColorTexture(0.08, 0.06, 0.12, math.max(0.35, opacity * 0.45))
+            entry.wqProgressBg:SetColorTexture(0.15, 0.15, 0.18, 0.7)
         else
             entry.wqProgressBg:SetColorTexture(0.2, 0.2, 0.25, 0.8)
         end
@@ -478,10 +489,7 @@ local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor
         entry.wqProgressFill:ClearAllPoints()
         entry.wqProgressFill:SetPoint("TOPLEFT", entry.wqProgressBg, "TOPLEFT", 0, 0)
         if isScenario then
-            local sc = addon.GetQuestColor and addon.GetQuestColor(questData.category) or (addon.QUEST_COLORS and addon.QUEST_COLORS[questData.category]) or { 0.38, 0.52, 0.88 }
-            local fillOpacity = tonumber(addon.GetDB("scenarioBarOpacity", 0.85)) or 0.85
-            local r, g, b = sc[1] * 0.9, sc[2] * 0.9, sc[3] * 1.0
-            entry.wqProgressFill:SetColorTexture(r, g, b, math.min(0.92, fillOpacity))
+            entry.wqProgressFill:SetColorTexture(progFillColor[1], progFillColor[2], progFillColor[3], 0.85)
         else
             entry.wqProgressFill:SetColorTexture(0.45, 0.35, 0.65, 0.9)
         end
@@ -490,7 +498,8 @@ local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor
         entry.wqProgressText:ClearAllPoints()
         entry.wqProgressText:SetPoint("CENTER", entry.wqProgressBg, "CENTER", 0, 0)
         if isScenario then
-            entry.wqProgressText:SetTextColor(1, 1, 1, 0.92)
+            entry.wqProgressText:SetFontObject(addon.ProgressBarFont or addon.ObjFont)
+            entry.wqProgressText:SetTextColor(progTextColor[1], progTextColor[2], progTextColor[3], 1)
         else
             entry.wqProgressText:SetTextColor(0.9, 0.9, 0.9, 1)
         end

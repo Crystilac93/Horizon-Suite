@@ -376,10 +376,6 @@ L["Show affix names in Delves"]                         = "구렁에 시즌 효�
 L["Show season affix names on the first Delve entry. Requires Blizzard's objective tracker widgets to be populated; may not show when using a full tracker replacement."] = "첫 번째 구렁 항목에 시즌 효과 이름을 표시합니다. Blizzard 목표 추적기 위젯이 필요하며, 전체 추적기 대체 시 표시되지 않을 수 있습니다."
 L["Cinematic scenario bar"]                             = "보기 좋은 시나리오 바"
 L["Show timer and progress bar for scenario entries."]  = "시나리오 항목에 시간과 진행 바를 표시합니다."
-L["Scenario bar opacity"]                               = "시나리오 바 투명도"
-L["Opacity of scenario timer/progress bar (0–1)."]      = "시나리오 시간/진행 바의 투명도 (0–1)."
-L["Scenario bar height"]                                = "시나리오 바 높이"
-L["Height of scenario progress bar (4–8 px)."]          = "시나리오 진행 바의 높이 (4–8 px)."
 
 -- =====================================================================
 -- OptionsData.lua Typography — Font
@@ -407,7 +403,7 @@ L["Section header font size."]                          = "구역 헤더 글자 
 L["Progress bar font"]                                  = "진행 바 글꼴"
 L["Font family for the progress bar label."]            = "진행 바 텍스트의 글자."
 L["Progress bar text size"]                             = "진행 바 텍스트 크기"
-L["Font size for the progress bar label. Also adjusts bar height."] = "진행 바 글자 크기. 바 높이도 함께 조정됩니다."
+L["Font size for the progress bar label. Also adjusts bar height. Affects quest objectives, scenario progress, and scenario timer bars."] = "진행 바 글자 크기. 바 높이도 함께 조정됩니다. 퀘스트 목표, 시나리오 진행 및 시나리오 타이머 바에 적용됩니다."
 L["Progress bar fill"]                                  = "진행 바 채우기"
 L["Progress bar text"]                                  = "진행 바 글자"
 L["Outline"]                                            = "외곽선"
@@ -614,6 +610,16 @@ L["Pill left accent"]                                   = "알약형 왼쪽 강�
 -- =====================================================================
 L["Top"]                                                = "위"
 L["Bottom"]                                             = "아래"
+
+-- =====================================================================
+-- OptionsData.lua Vista — Text element positions
+-- =====================================================================
+L["Location position"]                                  = "위치 표시"
+L["Place the zone name above or below the minimap."]      = "지역 이름을 미니맵 위 또는 아래에 배치합니다."
+L["Coordinates position"]                               = "좌표 위치"
+L["Place the coordinates above or below the minimap."]   = "좌표를 미니맵 위 또는 아래에 배치합니다."
+L["Clock position"]                                     = "시계 위치"
+L["Place the clock above or below the minimap."]         = "시계를 미니맵 위 또는 아래에 배치합니다."
 
 -- =====================================================================
 -- OptionsData.lua Dropdown options — Text case

@@ -119,6 +119,25 @@ local function GetShowZone()           return DB("vistaShowZoneText",           
 local function GetShowCoord()          return DB("vistaShowCoordText",            true) end
 local function GetShowTime()           return DB("vistaShowTimeText",             false) end
 
+-- Vertical position: "top" = above minimap, "bottom" = below minimap
+local function GetZoneVerticalPos()  return (DB("vistaZoneVerticalPos",  "bottom") or "bottom") == "top" and "top" or "bottom" end
+local function GetCoordVerticalPos() return (DB("vistaCoordVerticalPos", "bottom") or "bottom") == "top" and "top" or "bottom" end
+local function GetTimeVerticalPos()  return (DB("vistaTimeVerticalPos",  "bottom") or "bottom") == "top" and "top" or "bottom" end
+
+-- Return (elementAnchor, minimapAnchor) for SetPoint based on vertical position
+local function GetZoneAnchors()
+    if GetZoneVerticalPos() == "top" then return "BOTTOM", "TOP" end
+    return "TOP", "BOTTOM"
+end
+local function GetCoordAnchors()
+    if GetCoordVerticalPos() == "top" then return "BOTTOMRIGHT", "TOPRIGHT" end
+    return "TOPRIGHT", "BOTTOMRIGHT"
+end
+local function GetTimeAnchors()
+    if GetTimeVerticalPos() == "top" then return "BOTTOMLEFT", "TOPLEFT" end
+    return "TOPLEFT", "BOTTOMLEFT"
+end
+
 -- Per-button visibility (replaces old single "show default minimap buttons" toggle)
 local function GetShowTracking()       return DB("vistaShowTracking",   true)  end
 local function GetShowCalendar()       return DB("vistaShowCalendar",   true)  end
@@ -134,17 +153,31 @@ local function GetElemX(key, def)    return tonumber(DB("vistaEX_"..key, def))  
 local function GetElemY(key, def)    return tonumber(DB("vistaEY_"..key, def))  or def  end
 local function GetElemLocked(key)    return DB("vistaLocked_"..key, false) end
 
--- Convenience: default offsets for each text element
-local ZONE_DEFAULT_X,   ZONE_DEFAULT_Y   =   0, -6
-local COORD_DEFAULT_X,  COORD_DEFAULT_Y  =   0, -6
-local TIME_DEFAULT_X,   TIME_DEFAULT_Y   =   0, -6
+-- Default offsets: bottom = negative Y (below minimap), top = positive Y (above minimap)
+local ZONE_DEFAULT_X   = 0
+local COORD_DEFAULT_X  = 0
+local TIME_DEFAULT_X   = 0
+local DEFAULT_Y_BOTTOM = -6
+local DEFAULT_Y_TOP   = 6
 
 local function GetZoneOffsetX()  return GetElemX("zone",  ZONE_DEFAULT_X)  end
-local function GetZoneOffsetY()  return GetElemY("zone",  ZONE_DEFAULT_Y)  end
+local function GetZoneOffsetY()
+    local custom = GetElemY("zone", nil)
+    if custom ~= nil then return custom end
+    return GetZoneVerticalPos() == "top" and DEFAULT_Y_TOP or DEFAULT_Y_BOTTOM
+end
 local function GetCoordOffsetX() return GetElemX("coord", COORD_DEFAULT_X) end
-local function GetCoordOffsetY() return GetElemY("coord", COORD_DEFAULT_Y) end
+local function GetCoordOffsetY()
+    local custom = GetElemY("coord", nil)
+    if custom ~= nil then return custom end
+    return GetCoordVerticalPos() == "top" and DEFAULT_Y_TOP or DEFAULT_Y_BOTTOM
+end
 local function GetTimeOffsetX()  return GetElemX("time",  TIME_DEFAULT_X)  end
-local function GetTimeOffsetY()  return GetElemY("time",  TIME_DEFAULT_Y)  end
+local function GetTimeOffsetY()
+    local custom = GetElemY("time", nil)
+    if custom ~= nil then return custom end
+    return GetTimeVerticalPos() == "top" and DEFAULT_Y_TOP or DEFAULT_Y_BOTTOM
+end
 
 -- Button mode
 local function GetButtonMode()          return DB("vistaButtonMode",           BTN_MODE_MOUSEOVER) end
@@ -440,10 +473,10 @@ local defaultProxies = {}  -- list of proxy frames we created
 -- ============================================================================
 
 -- Makes `frame` draggable. On drag-stop saves the position as an offset
--- relative to `relFrame` using `anchorPoint`/`relPoint`.
--- `lockKey` is the DB key for the lock toggle.
--- `xKey`/`yKey` are the DB keys where we persist the offsets.
-local function MakeDraggable(frame, lockKey, xKey, yKey, anchorPoint, relFrame, relPoint)
+-- relative to `relFrame` using anchors from `getAnchors()`.
+-- `getAnchors` is a function returning (anchorPoint, relPoint) for the current vertical position.
+-- `lockKey` is the DB key for the lock toggle. `xKey`/`yKey` are where we persist offsets.
+local function MakeDraggable(frame, lockKey, xKey, yKey, getAnchors, relFrame)
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
     frame:EnableMouse(true)
@@ -455,18 +488,16 @@ local function MakeDraggable(frame, lockKey, xKey, yKey, anchorPoint, relFrame, 
     end)
     frame:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
+        local anchorPoint, relPoint = getAnchors()
         -- Compute offset relative to relFrame so the element keeps following it.
         -- After StopMovingOrSizing, WoW re-anchors to BOTTOMLEFT/UIParent.
-        -- We need to figure out our new offset from the intended anchor.
         local sx, sy = self:GetCenter()
         local rx, ry = relFrame:GetCenter()
-        -- For the anchors used (TOP→BOTTOM, TOPRIGHT→BOTTOMRIGHT, TOPLEFT→BOTTOMLEFT),
-        -- the offset is relative to a specific edge of relFrame.
         local relW, relH = relFrame:GetSize()
         local selfW, selfH = self:GetSize()
         local ox, oy
+        -- Bottom position (element below minimap)
         if anchorPoint == "TOP" and relPoint == "BOTTOM" then
-            -- x offset from center of relFrame, y offset from bottom of relFrame to top of self
             ox = sx - rx
             oy = (sy + selfH / 2) - (ry - relH / 2)
         elseif anchorPoint == "TOPRIGHT" and relPoint == "BOTTOMRIGHT" then
@@ -475,14 +506,22 @@ local function MakeDraggable(frame, lockKey, xKey, yKey, anchorPoint, relFrame, 
         elseif anchorPoint == "TOPLEFT" and relPoint == "BOTTOMLEFT" then
             ox = (sx - selfW / 2) - (rx - relW / 2)
             oy = (sy + selfH / 2) - (ry - relH / 2)
+        -- Top position (element above minimap)
+        elseif anchorPoint == "BOTTOM" and relPoint == "TOP" then
+            ox = sx - rx
+            oy = (sy - selfH / 2) - (ry + relH / 2)
+        elseif anchorPoint == "BOTTOMRIGHT" and relPoint == "TOPRIGHT" then
+            ox = (sx + selfW / 2) - (rx + relW / 2)
+            oy = (sy - selfH / 2) - (ry + relH / 2)
+        elseif anchorPoint == "BOTTOMLEFT" and relPoint == "TOPLEFT" then
+            ox = (sx - selfW / 2) - (rx - relW / 2)
+            oy = (sy - selfH / 2) - (ry + relH / 2)
         else
-            -- Generic fallback: center-to-center
             ox = sx - rx
             oy = sy - ry
         end
         SetDB("vistaEX_" .. xKey, ox)
         SetDB("vistaEY_" .. yKey, oy)
-        -- Re-anchor to relFrame so element follows when minimap moves
         self:ClearAllPoints()
         self:SetPoint(anchorPoint, relFrame, relPoint, ox, oy)
     end)
@@ -703,9 +742,10 @@ local function CreateDecor()
     -- ---- Zone text (in a draggable container) ----
     local zoneContainer = CreateFrame("Frame", nil, decor)
     zoneContainer:SetSize(GetMapSize(), 20)
-    zoneContainer:SetPoint("TOP", Minimap, "BOTTOM", GetZoneOffsetX(), GetZoneOffsetY())
+    local zAp, zRp = GetZoneAnchors()
+    zoneContainer:SetPoint(zAp, Minimap, zRp, GetZoneOffsetX(), GetZoneOffsetY())
     zoneContainer:SetFrameLevel(decor:GetFrameLevel() + 1)
-    MakeDraggable(zoneContainer, "zone", "zone", "zone", "TOP", Minimap, "BOTTOM")
+    MakeDraggable(zoneContainer, "zone", "zone", "zone", GetZoneAnchors, Minimap)
 
     zoneShadow = zoneContainer:CreateFontString(nil, "BORDER")
     zoneShadow:SetFont(GetZoneFont(), GetZoneSize(), "OUTLINE")
@@ -736,9 +776,10 @@ local function CreateDecor()
     -- ---- Coord text (in a draggable container) ----
     local coordContainer = CreateFrame("Frame", nil, decor)
     coordContainer:SetSize(120, 16)
-    coordContainer:SetPoint("TOPRIGHT", Minimap, "BOTTOMRIGHT", GetCoordOffsetX(), GetCoordOffsetY())
+    local cAp, cRp = GetCoordAnchors()
+    coordContainer:SetPoint(cAp, Minimap, cRp, GetCoordOffsetX(), GetCoordOffsetY())
     coordContainer:SetFrameLevel(decor:GetFrameLevel() + 1)
-    MakeDraggable(coordContainer, "coord", "coord", "coord", "TOPRIGHT", Minimap, "BOTTOMRIGHT")
+    MakeDraggable(coordContainer, "coord", "coord", "coord", GetCoordAnchors, Minimap)
 
     coordShadow = coordContainer:CreateFontString(nil, "BORDER")
     coordShadow:SetFont(GetCoordFont(), GetCoordSize(), "OUTLINE")
@@ -753,13 +794,14 @@ local function CreateDecor()
     coordText:SetAllPoints()
 
     -- ---- Time text (in a draggable container) ----
-    -- Start small; we'll resize to fit the text each update
-    local TIME_PAD = 4  -- horizontal padding each side
-    local timeContainer = CreateFrame("Frame", nil, decor)
+    -- Use Button (not Frame) so it handles both click (open time manager) and drag (reposition), same as zone/coord
+    local TIME_PAD = 4
+    local timeContainer = CreateFrame("Button", nil, decor)
     timeContainer:SetSize(60, 16)
-    timeContainer:SetPoint("TOPLEFT", Minimap, "BOTTOMLEFT", GetTimeOffsetX(), GetTimeOffsetY())
+    local tAp, tRp = GetTimeAnchors()
+    timeContainer:SetPoint(tAp, Minimap, tRp, GetTimeOffsetX(), GetTimeOffsetY())
     timeContainer:SetFrameLevel(decor:GetFrameLevel() + 1)
-    MakeDraggable(timeContainer, "time", "time", "time", "TOPLEFT", Minimap, "BOTTOMLEFT")
+    MakeDraggable(timeContainer, "time", "time", "time", GetTimeAnchors, Minimap)
 
     timeShadow = timeContainer:CreateFontString(nil, "BORDER")
     timeShadow:SetFont(GetTimeFont(), GetTimeSize(), "OUTLINE")
@@ -791,46 +833,15 @@ local function CreateDecor()
         ResizeTimeContainer()
     end)
 
-    -- Invisible click overlay on top — separate from the draggable frame so drag still works
-    local timeClickBtn = CreateFrame("Button", nil, timeContainer)
-    timeClickBtn:SetAllPoints(timeContainer)
-    timeClickBtn:SetFrameLevel(timeContainer:GetFrameLevel() + 2)
-    timeClickBtn:RegisterForClicks("LeftButtonUp")
-    -- Forward drag events to the parent timeContainer so click-and-drag repositioning works
-    timeClickBtn:RegisterForDrag("LeftButton")
-    timeClickBtn:SetScript("OnDragStart", function()
-        if DB("vistaLocked_time", false) then return end
-        if InCombatLockdown() then return end
-        timeContainer:StartMoving()
-    end)
-    timeClickBtn:SetScript("OnDragStop", function()
-        timeContainer:StopMovingOrSizing()
-        -- Compute offset relative to Minimap (TOPLEFT→BOTTOMLEFT anchor)
-        local sx, sy = timeContainer:GetCenter()
-        local rx, ry = Minimap:GetCenter()
-        local relW, relH = Minimap:GetSize()
-        local selfW, selfH = timeContainer:GetSize()
-        local ox = (sx - selfW / 2) - (rx - relW / 2)
-        local oy = (sy + selfH / 2) - (ry - relH / 2)
-        SetDB("vistaEX_time", ox)
-        SetDB("vistaEY_time", oy)
-        -- Re-anchor to Minimap so it follows when minimap moves
-        timeContainer:ClearAllPoints()
-        timeContainer:SetPoint("TOPLEFT", Minimap, "BOTTOMLEFT", ox, oy)
-    end)
-    timeClickBtn:SetScript("OnClick", function()
+    -- Click opens time manager (same frame handles drag via MakeDraggable)
+    timeContainer:RegisterForClicks("LeftButtonUp")
+    timeContainer:SetScript("OnClick", function()
         pcall(function()
-            -- Open the stopwatch / time manager (NOT the calendar)
             if TimeManagerFrame then
-                if TimeManagerFrame:IsShown() then
-                    TimeManagerFrame:Hide()
-                else
-                    TimeManagerFrame:Show()
-                end
+                if TimeManagerFrame:IsShown() then TimeManagerFrame:Hide() else TimeManagerFrame:Show() end
             elseif _G["ToggleTimeManager"] then
                 ToggleTimeManager()
             else
-                -- Last resort: temporarily restore the clock button and click it
                 local btn = TimeManagerClockButton
                 if btn then
                     btn.Show = nil; btn:Show()
@@ -841,12 +852,12 @@ local function CreateDecor()
             end
         end)
     end)
-    timeClickBtn:SetScript("OnEnter", function(self)
+    timeContainer:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
         GameTooltip:SetText("Open Stopwatch")
         GameTooltip:Show()
     end)
-    timeClickBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    timeContainer:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     -- store containers for ApplyOptions
     decor._zoneContainer  = zoneContainer
@@ -1982,7 +1993,7 @@ local function CreateDrawerButton()
         -- Saved as CENTER offset relative to Minimap CENTER
         drawerButton:SetPoint("CENTER", Minimap, "CENTER", dbx, dby)
     else
-        drawerButton:SetPoint("TOPRIGHT", Minimap, "BOTTOMRIGHT", 0, -10)
+        drawerButton:SetPoint("BOTTOMRIGHT", Minimap, "BOTTOMRIGHT", 0, 0)
     end
 
     -- Visuals
@@ -2024,16 +2035,38 @@ local function CreateDrawerButton()
     drawerButton:SetScript("OnDragStop", function(self)
         drawerDragging = false
         self:StopMovingOrSizing()
-        -- Save as CENTER offset relative to Minimap CENTER so it follows minimap
-        local mx, my = Minimap:GetCenter()
-        local bx, by = self:GetCenter()
-        if mx and my and bx and by then
-            local ox, oy = bx - mx, by - my
+        local function SaveDrawerAnchor()
+            local mx, my = Minimap:GetCenter()
+            local bx, by = self:GetCenter()
+            if not (mx and my and bx and by) then return end
+
+            -- Normalize both centers to UIParent-scale units so Minimap scale
+            -- does not skew the offset when re-anchoring to Minimap.
+            local uiScale = (UIParent and UIParent.GetEffectiveScale and UIParent:GetEffectiveScale()) or 1
+            local mmScale = (Minimap and Minimap.GetEffectiveScale and Minimap:GetEffectiveScale()) or uiScale
+            local btnScale = (self.GetEffectiveScale and self:GetEffectiveScale()) or uiScale
+
+            local normMx = (mx * mmScale) / uiScale
+            local normMy = (my * mmScale) / uiScale
+            local normBx = (bx * btnScale) / uiScale
+            local normBy = (by * btnScale) / uiScale
+
+            local ox, oy = normBx - normMx, normBy - normMy
             SetDB("vistaDrawerBtnX", ox)
             SetDB("vistaDrawerBtnY", oy)
-            -- Re-anchor to Minimap
             self:ClearAllPoints()
             self:SetPoint("CENTER", Minimap, "CENTER", ox, oy)
+        end
+        -- Defer: WoW may update the frame on the next frame; read position then to avoid jump
+        if C_Timer and C_Timer.After then
+            C_Timer.After(0, function()
+                if not addon:IsModuleEnabled("vista") then return end
+                if not drawerButton or not drawerButton:IsShown() then return end
+                SaveDrawerAnchor()
+            end)
+        else
+            -- Fallback if C_Timer unavailable
+            SaveDrawerAnchor()
         end
     end)
 
@@ -2379,10 +2412,10 @@ function Vista.ApplyOptions()
         zoneText:SetShown(show); zoneShadow:SetShown(show)
         decor._zoneContainer:SetShown(show)
         decor._zoneContainer:SetWidth(sz)
-        if not GetElemLocked("zone") then
-            decor._zoneContainer:ClearAllPoints()
-            decor._zoneContainer:SetPoint("TOP", Minimap, "BOTTOM", GetZoneOffsetX(), GetZoneOffsetY())
-        end
+        -- Always apply position when options change (lock only prevents manual drag)
+        local ap, rp = GetZoneAnchors()
+        decor._zoneContainer:ClearAllPoints()
+        decor._zoneContainer:SetPoint(ap, Minimap, rp, GetZoneOffsetX(), GetZoneOffsetY())
         decor._zoneContainer:SetMovable(not GetElemLocked("zone"))
     end
 
@@ -2395,10 +2428,10 @@ function Vista.ApplyOptions()
         coordText:SetTextColor(GetCoordColor())
         coordText:SetShown(show); coordShadow:SetShown(show)
         decor._coordContainer:SetShown(show)
-        if not GetElemLocked("coord") then
-            decor._coordContainer:ClearAllPoints()
-            decor._coordContainer:SetPoint("TOPRIGHT", Minimap, "BOTTOMRIGHT", GetCoordOffsetX(), GetCoordOffsetY())
-        end
+        -- Always apply position when options change (lock only prevents manual drag)
+        local ap, rp = GetCoordAnchors()
+        decor._coordContainer:ClearAllPoints()
+        decor._coordContainer:SetPoint(ap, Minimap, rp, GetCoordOffsetX(), GetCoordOffsetY())
         decor._coordContainer:SetMovable(not GetElemLocked("coord"))
     end
 
@@ -2411,10 +2444,10 @@ function Vista.ApplyOptions()
         timeText:SetTextColor(GetTimeColor())
         timeText:SetShown(show); timeShadow:SetShown(show)
         decor._timeContainer:SetShown(show)
-        if not GetElemLocked("time") then
-            decor._timeContainer:ClearAllPoints()
-            decor._timeContainer:SetPoint("TOPLEFT", Minimap, "BOTTOMLEFT", GetTimeOffsetX(), GetTimeOffsetY())
-        end
+        -- Always apply position when options change (lock only prevents manual drag)
+        local ap, rp = GetTimeAnchors()
+        decor._timeContainer:ClearAllPoints()
+        decor._timeContainer:SetPoint(ap, Minimap, rp, GetTimeOffsetX(), GetTimeOffsetY())
         decor._timeContainer:SetMovable(not GetElemLocked("time"))
     end
 
