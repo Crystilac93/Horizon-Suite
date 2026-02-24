@@ -15,6 +15,7 @@ local hiddenParent = CreateFrame("Frame")
 hiddenParent:Hide()
 
 local suppressedFrames = {}
+local suppressedHooks  = {}
 local originalParents = {}
 local originalPoints = {}
 local originalAlphas = {}
@@ -35,7 +36,7 @@ end
 -- pcall: frame methods can throw on protected or invalid frames.
 local function KillBlizzardFrame(frame)
     if not frame then return end
-    -- Already suppressed — skip to avoid overwriting original parent/alpha data
+    -- Already suppressed; skip to avoid overwriting original parent/alpha data.
     if suppressedFrames[frame] then return end
     local ok1, err1 = pcall(function()
         frame:UnregisterAllEvents()
@@ -53,6 +54,11 @@ local function KillBlizzardFrame(frame)
         frame:SetScript("OnShow", function(self) self:Hide() end)
     end)
     if not ok2 and addon.HSPrint then addon.HSPrint("Presence KillBlizzardFrame OnShow hook failed: " .. tostring(err2)) end
+    -- Secondary hook via hooksecurefunc — works even when SetScript is blocked on protected frames.
+    if not suppressedHooks[frame] then
+        hooksecurefunc(frame, "Show", function(self) self:Hide() end)
+        suppressedHooks[frame] = true
+    end
 end
 
 -- pcall: frame methods can throw on protected or invalid frames.
@@ -77,6 +83,7 @@ local function RestoreBlizzardFrame(frame)
     end)
     if not ok and addon.HSPrint then addon.HSPrint("Presence RestoreBlizzardFrame failed: " .. tostring(err)) end
     suppressedFrames[frame] = nil
+    suppressedHooks[frame]  = nil  -- note: hooksecurefunc hook cannot be undone, but state is reset
     originalParents[frame] = nil
     originalPoints[frame] = nil
     originalAlphas[frame] = nil
@@ -170,6 +177,19 @@ local function ReapplyZoneSuppression()
     local hideZoneForSubzone = addon.GetDB and addon.GetDB("presenceHideZoneForSubzone", false)
     if subzoneOn or hideZoneForSubzone then
         KillBlizzardFrame(SubZoneTextFrame or _G["SubZoneTextFrame"])
+    end
+    -- Re-kill EventToastManagerFrame on zone transitions: world quest auto-accepts fire QUEST_ACCEPTED
+    -- during ZONE_CHANGED_NEW_AREA and Blizzard may re-show its toast before our suppression runs.
+    local anyToast = isTypeEnabled("presenceAchievement", nil, true)
+        or isTypeEnabled("presenceQuestAccept", "presenceQuestEvents", true)
+        or isTypeEnabled("presenceWorldQuestAccept", "presenceQuestEvents", true)
+        or isTypeEnabled("presenceQuestComplete", "presenceQuestEvents", true)
+        or isTypeEnabled("presenceWorldQuest", "presenceQuestEvents", true)
+        or isTypeEnabled("presenceQuestUpdate", "presenceQuestEvents", true)
+        or isTypeEnabled("presenceScenarioStart", "showScenarioEvents", true)
+        or isTypeEnabled("presenceScenarioUpdate", "showScenarioEvents", true)
+    if anyToast then
+        KillBlizzardFrame(EventToastManagerFrame or _G["EventToastManagerFrame"])
     end
 end
 
