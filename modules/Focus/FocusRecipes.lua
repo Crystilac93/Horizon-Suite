@@ -41,8 +41,10 @@ local function GetTrackedRecipeIDs()
         local ok, ids = pcall(C_TradeSkillUI.GetRecipesTracked, isRecraft)
         if ok and ids and type(ids) == "table" then
             for _, id in ipairs(ids) do
-                if type(id) == "number" and id > 0 and not seen[id] then
-                    seen[id] = true
+                -- Key includes isRecraft so the same recipe can appear as both normal and recraft
+                local seenKey = tostring(id) .. (isRecraft and ":r" or "")
+                if type(id) == "number" and id > 0 and not seen[seenKey] then
+                    seen[seenKey] = true
                     idList[#idList + 1] = { recipeID = id, isRecraft = isRecraft }
                 end
             end
@@ -74,13 +76,13 @@ local function DedupeAndAppend(raw, objectives, sectionHeader, sectionType)
     end
     local byName, order = {}, {}
     for _, r in ipairs(raw) do
-        local key = r.name or ("item:" .. tostring(r.itemID))
+        local key = r.name or (r.currencyID and ("currency:" .. tostring(r.currencyID))) or ("item:" .. tostring(r.itemID))
         if not byName[key] then
-            byName[key] = { name = r.name, itemID = r.itemID, link = r.link, owned = 0, qtyRequired = r.qtyRequired, itemQuality = r.itemQuality }
+            byName[key] = { name = r.name, itemID = r.itemID, currencyID = r.currencyID, link = r.link, owned = 0, qtyRequired = r.qtyRequired, itemQuality = r.itemQuality }
             order[#order + 1] = key
         end
         byName[key].owned = byName[key].owned + r.owned
-        if r.itemID > (byName[key].itemID or 0) then
+        if r.itemID and r.itemID > (byName[key].itemID or 0) then
             byName[key].itemID = r.itemID
             byName[key].link = r.link
             byName[key].itemQuality = r.itemQuality
@@ -96,6 +98,7 @@ local function DedupeAndAppend(raw, objectives, sectionHeader, sectionType)
             numFulfilled = agg.owned,
             numRequired  = agg.qtyRequired,
             itemID       = agg.itemID,
+            currencyID   = agg.currencyID,
             itemLink     = agg.link,
             itemQuality  = agg.itemQuality,
             finished     = (agg.owned >= (agg.qtyRequired or 1)),
@@ -141,6 +144,25 @@ local function BuildRecipeObjectives(recipeID, isRecraft)
         return (base ~= firstName) and (base .. " (any)") or (firstName .. " (any)")
     end
 
+    -- Derives the choice slot header text from all deduplicated variant names.
+    -- Uses longest common prefix if >=4 chars, otherwise falls back to first name.
+    local function deriveChoiceBaseName(dedupedVariants)
+        if #dedupedVariants == 0 then return "Item (any)" end
+        if #dedupedVariants == 1 then return deriveBaseName(dedupedVariants[1].text) end
+        local prefix = dedupedVariants[1].text or ""
+        for i = 2, #dedupedVariants do
+            local name = dedupedVariants[i].text or ""
+            local newLen = 0
+            for j = 1, math.min(#prefix, #name) do
+                if prefix:sub(j, j) == name:sub(j, j) then newLen = j else break end
+            end
+            prefix = prefix:sub(1, newLen)
+        end
+        prefix = prefix:gsub("[^%a]+$", ""):match("^%s*(.-)%s*$") or ""
+        if #prefix >= 4 then return prefix .. " (any)" end
+        return (dedupedVariants[1].text or "Item") .. " (any)"
+    end
+
     -- Collect raw reagents; choice slots go to a separate list for collapsible treatment
     -- Basic = required; Modifying = optional; Finishing = finishing
     local requiredRaw, optionalRaw, finishingRaw, choiceSlots = {}, {}, {}, {}
@@ -160,6 +182,10 @@ local function BuildRecipeObjectives(recipeID, isRecraft)
                             if item and item.GetItemLink then link = item:GetItemLink() end
                         end
                         name = name or (link and link:match("%[(.-)%]")) or ("Item " .. tostring(itemID))
+                        -- If item data wasn't cached, request a background load so next refresh shows the real name
+                        if (not name or name:sub(1, 5) == "Item ") and C_Item and C_Item.RequestLoadItemDataByID then
+                            C_Item.RequestLoadItemDataByID(itemID)
+                        end
                         link = link or ("item:" .. tostring(itemID))
                         local owned = 0
                         if getItemCount then
@@ -170,11 +196,41 @@ local function BuildRecipeObjectives(recipeID, isRecraft)
                         variants[#variants + 1] = { text = name, itemID = itemID, itemLink = link, numFulfilled = owned, numRequired = 1, itemQuality = itemQuality, finished = (owned >= 1) }
                     end
                 end
+                -- Deduplicate by display name: quality-tier variants share a name but have distinct itemIDs.
+                -- Merge same-named entries: sum owned counts; prefer highest-quality itemID for display.
+                if #variants > 1 then
+                    local byName, nameOrder = {}, {}
+                    for _, v in ipairs(variants) do
+                        local key = v.text
+                        if not byName[key] then
+                            byName[key] = { text = v.text, itemID = v.itemID, itemLink = v.itemLink,
+                                            numFulfilled = v.numFulfilled, numRequired = v.numRequired,
+                                            itemQuality = v.itemQuality, finished = false }
+                            nameOrder[#nameOrder + 1] = key
+                        else
+                            local agg = byName[key]
+                            agg.numFulfilled = agg.numFulfilled + v.numFulfilled
+                            local vQ = v.itemQuality or -1
+                            local aQ = agg.itemQuality or -1
+                            if vQ > aQ then
+                                agg.itemID, agg.itemLink, agg.itemQuality = v.itemID, v.itemLink, v.itemQuality
+                            end
+                        end
+                    end
+                    variants = {}
+                    for _, key in ipairs(nameOrder) do
+                        local agg = byName[key]
+                        agg.finished = (agg.numFulfilled >= 1)
+                        variants[#variants + 1] = agg
+                    end
+                end
+                -- Recalculate totalOwned from deduped list
+                totalOwned = 0
+                for _, v in ipairs(variants) do totalOwned = totalOwned + v.numFulfilled end
                 if #variants > 0 then
-                    local first = variants[1]
                     choiceSlots[#choiceSlots + 1] = {
                         choiceSlotKey = "recipe:" .. tostring(recipeID) .. ":slot:" .. tostring(slotIdx),
-                        baseName = deriveBaseName(first.text),
+                        baseName = deriveChoiceBaseName(variants),
                         numFulfilled = totalOwned,
                         numRequired = 1,
                         finished = (totalOwned >= 1),
@@ -207,6 +263,12 @@ local function BuildRecipeObjectives(recipeID, isRecraft)
                                 if countOk and type(count) == "number" then owned = count end
                             end
                             target[#target + 1] = { name = name, itemID = itemID, link = link, owned = owned, qtyRequired = qtyRequired, itemQuality = itemQuality }
+                        elseif type(reagent and reagent.currencyID) == "number" and reagent.currencyID > 0 then
+                            local info = C_CurrencyInfo and C_CurrencyInfo.GetCurrencyInfo(reagent.currencyID)
+                            if info then
+                                local owned = info.quantity or 0
+                                target[#target + 1] = { name = info.name, itemID = nil, currencyID = reagent.currencyID, link = nil, owned = owned, qtyRequired = qtyRequired }
+                            end
                         end
                     end
                 end
@@ -266,6 +328,29 @@ local function BuildRecipeObjectives(recipeID, isRecraft)
     return objectives
 end
 
+--- Build unmet crafting station requirements for a recipe as objectives.
+-- Only called when showRecipeRequirements is enabled. Returns unmet requirements only.
+-- @param recipeID number Recipe spell ID
+-- @return table Array of { text, isRequirement = true, finished = false }
+local function BuildRecipeRequirements(recipeID)
+    local out = {}
+    if not C_TradeSkillUI or not C_TradeSkillUI.GetRecipeRequirements then return out end
+    local ok, reqs = pcall(C_TradeSkillUI.GetRecipeRequirements, recipeID)
+    if not ok or type(reqs) ~= "table" then return out end
+    for _, req in ipairs(reqs) do
+        if req and req.met == false and type(req.name) == "string" and req.name ~= "" then
+            out[#out + 1] = {
+                text         = "Requires: " .. req.name,
+                isRequirement = true,
+                finished     = false,
+                numFulfilled = 0,
+                numRequired  = 1,
+            }
+        end
+    end
+    return out
+end
+
 --- Get recipe output item quality for rarity coloring.
 -- Tries GetRecipeQualityItemIDs, GetRecipeOutputItemData, GetFactionSpecificOutputItem, then schematic output.
 -- @param recipeID number Recipe spell ID
@@ -273,6 +358,22 @@ end
 -- @return number|nil Item quality (0-7) or nil if unavailable
 local function GetRecipeOutputQuality(recipeID, isRecraft)
     if not C_TradeSkillUI then return nil end
+
+    -- 0. Direct schematic fields (fastest path)
+    if C_TradeSkillUI.GetRecipeSchematic then
+        local ok, schematic = pcall(C_TradeSkillUI.GetRecipeSchematic, recipeID, isRecraft or false, nil)
+        if ok and schematic and type(schematic) == "table" then
+            -- 0a. schematic.productQuality is the direct crafting quality number
+            if type(schematic.productQuality) == "number" and schematic.productQuality > 0 then
+                return schematic.productQuality
+            end
+            -- 0b. schematic.outputItemID -> item quality via GetItemInfo
+            if type(schematic.outputItemID) == "number" and schematic.outputItemID > 0 then
+                local _, _, itemQuality = GetItemInfo(schematic.outputItemID)
+                if type(itemQuality) == "number" then return itemQuality end
+            end
+        end
+    end
 
     -- 1. GetRecipeQualityItemIDs: table of itemIDs per quality tier (may be sparse)
     if C_TradeSkillUI.GetRecipeQualityItemIDs then
@@ -350,7 +451,7 @@ end
 
 --- Get recipe display info. Uses C_TradeSkillUI.GetRecipeInfo or GetProfessionInfoByRecipeID fallback.
 -- @param recipeID number
--- @return string name, number|string icon
+-- @return string name, number|string icon, boolean supportsQualities, number maxQuality, boolean firstCraft
 local function GetRecipeDisplayInfo(recipeID)
     -- C_TradeSkillUI.GetRecipeInfo(recipeSpellID, recipeLevel) - recipeID often equals recipeSpellID
     if C_TradeSkillUI and C_TradeSkillUI.GetRecipeInfo then
@@ -359,7 +460,10 @@ local function GetRecipeDisplayInfo(recipeID)
             local name = recipeInfo.name
             if name and name ~= "" then
                 local icon = recipeInfo.icon
-                return name, icon
+                local supportsQualities = recipeInfo.supportsQualities == true
+                local maxQuality = type(recipeInfo.maxQuality) == "number" and recipeInfo.maxQuality or nil
+                local firstCraft = recipeInfo.firstCraft == true
+                return name, icon, supportsQualities, maxQuality, firstCraft
             end
         end
     end
@@ -367,10 +471,10 @@ local function GetRecipeDisplayInfo(recipeID)
     if C_TradeSkillUI and C_TradeSkillUI.GetProfessionInfoByRecipeID then
         local ok, info = pcall(C_TradeSkillUI.GetProfessionInfoByRecipeID, recipeID)
         if ok and info and type(info) == "table" and info.professionName then
-            return info.professionName .. " — Recipe #" .. tostring(recipeID), nil
+            return info.professionName .. " — Recipe #" .. tostring(recipeID), nil, false, nil, false
         end
     end
-    return "Recipe " .. tostring(recipeID), nil
+    return "Recipe " .. tostring(recipeID), nil, false, nil, false
 end
 
 --- Build synthetic objectives for the recipe debug example (all sections: required, choice slots, optional, finishing).
@@ -381,8 +485,23 @@ local function BuildExampleRecipeObjectives()
     local showOptional = addon.GetDB("showOptionalReagents", true)
     local showFinishing = addon.GetDB("showFinishingReagents", true)
     local showChoiceSlots = addon.GetDB("showChoiceSlots", true)
+    local showRequirements = addon.GetDB("showRecipeRequirements", false)
+    local showCraftableCount = addon.GetDB("showCraftableCount", false)
+    local showQualityInfo = addon.GetDB("showRecipeQualityInfo", false)
     local choiceSlotKey = "recipe:0:slot:1"
     local obj = {}
+    -- Unmet requirements (if enabled)
+    if showRequirements then
+        obj[#obj + 1] = { text = "Requires: Forge", isRequirement = true, finished = false, numFulfilled = 0, numRequired = 1 }
+    end
+    -- Craftable count (if enabled)
+    if showCraftableCount then
+        obj[#obj + 1] = { text = "Can craft: 2", isCraftableCount = true, finished = true, numFulfilled = 1, numRequired = 1 }
+    end
+    -- Quality tier indicator (if enabled)
+    if showQualityInfo then
+        obj[#obj + 1] = { text = "Quality: ★ ★ ★ (1–3)", isQualityInfo = true, finished = true, numFulfilled = 1, numRequired = 1 }
+    end
     -- Required
     obj[#obj + 1] = { text = "Sanctified Alloy", numFulfilled = 0, numRequired = 6, finished = false }
     obj[#obj + 1] = { text = "Ironclaw Alloy", numFulfilled = 0, numRequired = 12, finished = false }
@@ -447,33 +566,82 @@ local function ReadTrackedRecipes()
 
     local recipeColor = (addon.GetQuestColor and addon.GetQuestColor("RECIPE")) or (addon.QUEST_COLORS and addon.QUEST_COLORS.RECIPE) or { 0.55, 0.75, 0.45 }
 
+    local showRequirements = addon.GetDB("showRecipeRequirements", false)
+    local showCraftableCount = addon.GetDB("showCraftableCount", false)
+    local showQualityInfo = addon.GetDB("showRecipeQualityInfo", false)
+
     for _, item in ipairs(idList) do
         local recipeID = (type(item) == "table" and item.recipeID) or item
         local isRecraft = (type(item) == "table" and item.isRecraft == true) or false
         if type(recipeID) == "number" and recipeID > 0 then
-            local name, icon = GetRecipeDisplayInfo(recipeID)
+            local name, icon, supportsQualities, maxQuality, firstCraft = GetRecipeDisplayInfo(recipeID)
             local recipeIcon = (icon and (type(icon) == "number" or (type(icon) == "string" and icon ~= ""))) and icon or nil
             local objectives = BuildRecipeObjectives(recipeID, isRecraft)
             local outputQuality = GetRecipeOutputQuality(recipeID, isRecraft)
+
+            -- Prepend unmet requirements (if enabled)
+            if showRequirements then
+                local reqs = BuildRecipeRequirements(recipeID)
+                if #reqs > 0 then
+                    local merged = {}
+                    for _, r in ipairs(reqs) do merged[#merged + 1] = r end
+                    for _, o in ipairs(objectives) do merged[#merged + 1] = o end
+                    objectives = merged
+                end
+            end
+
+            -- Craftable count (if enabled)
+            local craftableCount = nil
+            if showCraftableCount and C_TradeSkillUI and C_TradeSkillUI.GetCraftableCount then
+                local ok, count = pcall(C_TradeSkillUI.GetCraftableCount, recipeID)
+                if ok and type(count) == "number" then
+                    craftableCount = count
+                    table.insert(objectives, 1, {
+                        text = "Can craft: " .. tostring(count),
+                        isCraftableCount = true,
+                        finished = true,
+                        numFulfilled = 1,
+                        numRequired = 1,
+                    })
+                end
+            end
+
+            -- Quality tier indicator (if enabled and recipe supports qualities)
+            if showQualityInfo and supportsQualities and maxQuality and maxQuality > 0 then
+                local stars = string.rep("★ ", maxQuality):gsub(" $", "")
+                table.insert(objectives, 1, {
+                    text = "Quality: " .. stars .. " (1–" .. tostring(maxQuality) .. ")",
+                    isQualityInfo = true,
+                    finished = true,
+                    numFulfilled = 1,
+                    numRequired = 1,
+                })
+            end
+
             out[#out + 1] = {
-                entryKey        = "recipe:" .. tostring(recipeID),
-                recipeID        = recipeID,
-                recipeIsRecraft = isRecraft,
-                questID        = nil,
-                title          = name or ("Recipe " .. tostring(recipeID)),
-                objectives     = objectives,
-                color          = recipeColor,
-                outputQuality  = outputQuality,
-                category       = "RECIPE",
-                isComplete     = false,
-                isSuperTracked = false,
-                isNearby       = false,
-                zoneName       = nil,
-                itemLink       = nil,
-                itemTexture    = nil,
-                isRecipe       = true,
-                isTracked      = true,
-                recipeIcon     = recipeIcon,
+                -- Include recraft suffix so normal and recraft can coexist without key collision
+                entryKey           = "recipe:" .. tostring(recipeID) .. (isRecraft and ":recraft" or ""),
+                recipeID           = recipeID,
+                recipeIsRecraft    = isRecraft,
+                questID            = nil,
+                title              = name or ("Recipe " .. tostring(recipeID)),
+                objectives         = objectives,
+                color              = recipeColor,
+                outputQuality      = outputQuality,
+                category           = "RECIPE",
+                isComplete         = false,
+                isSuperTracked     = false,
+                isNearby           = false,
+                zoneName           = nil,
+                itemLink           = nil,
+                itemTexture        = nil,
+                isRecipe           = true,
+                isTracked          = true,
+                recipeIcon         = recipeIcon,
+                supportsQualities  = supportsQualities,
+                maxQuality         = maxQuality,
+                firstCraft         = firstCraft,
+                craftableCount     = craftableCount,
             }
         end
     end
@@ -520,8 +688,12 @@ local function DebugRecipeReagents(recipeID)
     local showOptional = addon.GetDB("showOptionalReagents", true)
     local showFinishing = addon.GetDB("showFinishingReagents", true)
     local showChoiceSlots = addon.GetDB("showChoiceSlots", true)
+    local showRequirements = addon.GetDB("showRecipeRequirements", false)
+    local showCraftableCount = addon.GetDB("showCraftableCount", false)
+    local showQualityInfo = addon.GetDB("showRecipeQualityInfo", false)
     HSPrint("--- Recipe Reagent Debug ---")
     HSPrint("Options: showOptional=" .. tostring(showOptional) .. " showFinishing=" .. tostring(showFinishing) .. " showChoiceSlots=" .. tostring(showChoiceSlots))
+    HSPrint("         showRequirements=" .. tostring(showRequirements) .. " showCraftableCount=" .. tostring(showCraftableCount) .. " showQualityInfo=" .. tostring(showQualityInfo))
     for _, item in ipairs(targets) do
         local rid = item.recipeID
         local isRecraft = item.isRecraft
@@ -543,9 +715,25 @@ local function DebugRecipeReagents(recipeID)
             local qtyRequired = slot and (slot.quantityRequired or 1) or 1
             if reagents and type(reagents) == "table" then
                 if isChoiceSlot(slot) then
-                    local first = reagents[1] and type(reagents[1].itemID) == "number" and GetItemInfo(reagents[1].itemID)
-                    local name = first or ("item:" .. tostring(reagents[1] and reagents[1].itemID))
-                    choiceSlots[#choiceSlots + 1] = name .. " (" .. #reagents .. " variants)"
+                    local rawCount = #reagents
+                    local namesSeen, uniqueNames, nameToIDs = {}, {}, {}
+                    for _, r in ipairs(reagents) do
+                        if r and type(r.itemID) == "number" and r.itemID > 0 then
+                            local n = GetItemInfo(r.itemID) or ("item:" .. r.itemID)
+                            if not namesSeen[n] then namesSeen[n] = true; uniqueNames[#uniqueNames + 1] = n; nameToIDs[n] = {} end
+                            nameToIDs[n][#nameToIDs[n] + 1] = r.itemID
+                        end
+                    end
+                    local firstName = uniqueNames[1] or "?"
+                    local dedupNote = (rawCount ~= #uniqueNames)
+                        and ("[DEDUP: " .. rawCount .. " raw -> " .. #uniqueNames .. " unique]")
+                        or ("[" .. rawCount .. " variants, all unique]")
+                    choiceSlots[#choiceSlots + 1] = firstName .. " " .. dedupNote
+                    for _, uName in ipairs(uniqueNames) do
+                        local ids = {}
+                        for _, id in ipairs(nameToIDs[uName]) do ids[#ids + 1] = tostring(id) end
+                        choiceSlots[#choiceSlots + 1] = "  " .. uName .. " [" .. table.concat(ids, ",") .. "]"
+                    end
                 else
                     local target
                     if reagentType == REAGENT_TYPE_FINISHING then target = finishingRaw
@@ -591,6 +779,10 @@ local function DebugRecipeReagents(recipeID)
             if o.isOptionalReagent then flags[#flags + 1] = "optionalReagent" end
             if o.isFinishingHeader then flags[#flags + 1] = "finishingHeader" end
             if o.isFinishingReagent then flags[#flags + 1] = "finishingReagent" end
+            if o.isRequirement then flags[#flags + 1] = "requirement" end
+            if o.isCraftableCount then flags[#flags + 1] = "craftableCount" end
+            if o.isQualityInfo then flags[#flags + 1] = "qualityInfo" end
+            if o.currencyID then flags[#flags + 1] = "currency:" .. tostring(o.currencyID) end
             local flagStr = #flags > 0 and (" [" .. table.concat(flags, ",") .. "]") or ""
             HSPrint("      " .. i .. ": " .. tostring(o.text or "(no text)") .. flagStr)
         end
