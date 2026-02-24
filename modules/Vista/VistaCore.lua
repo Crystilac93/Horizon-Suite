@@ -2786,6 +2786,7 @@ function Vista.Init()
     minimapClickGuard:SetAllPoints(Minimap)
     minimapClickGuard:SetFrameLevel(Minimap:GetFrameLevel() + 5)
     minimapClickGuard:EnableMouse(false)
+    minimapClickGuard:SetMouseMotionEnabled(false)  -- never capture hover so minimap pin tooltips pass through
     minimapClickGuard:RegisterForClicks("RightButtonDown", "RightButtonUp")
     minimapClickGuard:RegisterForDrag("LeftButton")
     minimapClickGuard:SetScript("OnDragStart", function()
@@ -2819,7 +2820,7 @@ function Vista.Init()
         end
     end)
     local function UpdateMinimapClickGuard()
-        minimapClickGuard:EnableMouse(GetButtonMode() == BTN_MODE_RIGHTCLICK)
+        minimapClickGuard:SetMouseClickEnabled(GetButtonMode() == BTN_MODE_RIGHTCLICK)
     end
     updateMinimapClickGuard = UpdateMinimapClickGuard
 
