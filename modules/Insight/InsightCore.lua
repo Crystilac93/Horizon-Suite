@@ -39,7 +39,11 @@ local FACTION_ICONS = {
     Alliance = "|TInterface\\FriendsFrame\\PlusManz-Alliance:14:14:0:0|t ",
 }
 
-local SPEC_COLOR = { 0.65, 0.75, 0.85 }
+local SPEC_COLOR   = { 0.65, 0.75, 0.85 }
+local MOUNT_COLOR  = { 0.80, 0.65, 1.00 }   -- soft purple for mount name
+local MOUNT_SRC_COLOR = { 0.55, 0.55, 0.55 } -- grey for source text
+local ILVL_COLOR   = { 0.60, 0.85, 1.00 }   -- ice blue for item level
+local TITLE_COLOR  = { 1.00, 0.82, 0.00 }   -- gold for PvP title
 
 local CINEMATIC_BACKDROP = {
     bgFile   = "Interface\\ChatFrame\\ChatFrameBackground",
@@ -58,10 +62,15 @@ local function IsEnabled()
     return addon:IsModuleEnabled("insight")
 end
 
-local function GetAnchorMode() return addon.GetDB("insightAnchorMode", DEFAULT_ANCHOR) end
-local function GetFixedPoint() return addon.GetDB("insightFixedPoint", FIXED_POINT) end
-local function GetFixedX() return tonumber(addon.GetDB("insightFixedX", FIXED_X)) or FIXED_X end
-local function GetFixedY() return tonumber(addon.GetDB("insightFixedY", FIXED_Y)) or FIXED_Y end
+local function GetAnchorMode()    return addon.GetDB("insightAnchorMode",    DEFAULT_ANCHOR) end
+local function GetFixedPoint()    return addon.GetDB("insightFixedPoint",   FIXED_POINT)    end
+local function GetFixedX()        return tonumber(addon.GetDB("insightFixedX", FIXED_X)) or FIXED_X end
+local function GetFixedY()        return tonumber(addon.GetDB("insightFixedY", FIXED_Y)) or FIXED_Y end
+
+local function ShowMount()        return addon.GetDB("insightShowMount",       true)  end
+local function ShowIlvl()         return addon.GetDB("insightShowIlvl",        true)  end
+local function ShowPvPTitle()     return addon.GetDB("insightShowPvPTitle",    true)  end
+local function ShowStatusBadges() return addon.GetDB("insightShowStatusBadges",true)  end
 
 -- ============================================================================
 -- BACKBONE TOOLTIP STYLING
@@ -179,6 +188,38 @@ local function HookGameTooltipAnimation()
 end
 
 -- ============================================================================
+-- MOUNT SCANNER
+-- ============================================================================
+
+local function GetPlayerMountInfo(unit)
+    if not C_MountJournal or not C_UnitAuras then return nil end
+    local i = 1
+    while true do
+        local auraData = C_UnitAuras.GetAuraDataByIndex(unit, i, "HELPFUL")
+        if not auraData then break end
+        local spellID = auraData.spellId
+        if spellID then
+            local mountID = C_MountJournal.GetMountFromSpell(spellID)
+            if mountID then
+                local mName, _, mIcon, _, _, sourceType, _, _, _, _, isCollected =
+                    C_MountJournal.GetMountInfoByID(mountID)
+                local _, description, source = C_MountJournal.GetMountInfoExtraByID(mountID)
+                return {
+                    name        = mName,
+                    icon        = mIcon,
+                    source      = source,
+                    sourceType  = sourceType,
+                    isCollected = isCollected,
+                    description = description,
+                }
+            end
+        end
+        i = i + 1
+    end
+    return nil
+end
+
+-- ============================================================================
 -- UNIT TOOLTIP ENHANCEMENTS
 -- ============================================================================
 
@@ -207,17 +248,25 @@ end
 
 local function CacheInspect(guid, unit)
     local specID = GetInspectSpecialization(unit)
-    if specID and specID > 0 then
-        local _, specName, _, specIcon, role = GetSpecializationInfoByID(specID)
-        if specName then
-            inspectCache[guid] = {
-                specName = specName,
-                specIcon = specIcon,
-                role     = role,
-                time     = GetTime(),
-            }
+    if not specID or specID <= 0 then return end
+    local _, specName, _, specIcon, role = GetSpecializationInfoByID(specID)
+    if not specName then return end
+
+    local ilvl
+    if C_PaperDollInfo and C_PaperDollInfo.GetInspectItemLevel then
+        local equipped = C_PaperDollInfo.GetInspectItemLevel(unit)
+        if equipped and equipped > 0 then
+            ilvl = equipped
         end
     end
+
+    inspectCache[guid] = {
+        specName = specName,
+        specIcon = specIcon,
+        role     = role,
+        ilvl     = ilvl,
+        time     = GetTime(),
+    }
 end
 
 local function RequestInspect(unit)
@@ -246,37 +295,107 @@ local function ProcessUnitTooltip()
     local isPlayer = UnitIsPlayer(unit)
     local guid     = UnitGUID(unit)
 
-    if isPlayer then
-        local _, classFile = UnitClass(unit)
-        local classColor   = classFile and C_ClassColor and C_ClassColor.GetClassColor(classFile)
-        local nameLeft     = _G["GameTooltipTextLeft1"]
-
-        if classColor and nameLeft then
-            local faction = UnitFactionGroup(unit)
-            local icon    = FACTION_ICONS[faction] or ""
-            local name    = GetUnitName(unit, true) or nameLeft:GetText() or ""
-            nameLeft:SetText(icon .. name)
-            nameLeft:SetTextColor(classColor.r, classColor.g, classColor.b)
-        end
-
-        if classColor then
-            GameTooltip:SetBackdropBorderColor(classColor.r, classColor.g, classColor.b, 0.60)
-        end
-    else
+    if not isPlayer then
         GameTooltip:SetBackdropBorderColor(PANEL_BORDER[1], PANEL_BORDER[2], PANEL_BORDER[3], PANEL_BORDER[4])
+        StyleFonts(GameTooltip)
+        return
     end
 
-    if isPlayer and guid then
-        local cached = inspectCache[guid]
-        if cached then
-            local iconStr = ""
-            if cached.specIcon then
-                iconStr = "|T" .. cached.specIcon .. ":14:14:0:0|t "
+    local className, classFile = UnitClass(unit)
+    local classColor = classFile and C_ClassColor and C_ClassColor.GetClassColor(classFile)
+    local cached     = guid and inspectCache[guid]
+
+    -- 1. Name line: faction icon + class colour
+    local nameLeft = _G["GameTooltipTextLeft1"]
+    if nameLeft then
+        local faction = UnitFactionGroup(unit)
+        local icon    = FACTION_ICONS[faction] or ""
+        local name    = GetUnitName(unit, true) or nameLeft:GetText() or ""
+        nameLeft:SetText(icon .. name)
+        if classColor then
+            nameLeft:SetTextColor(classColor.r, classColor.g, classColor.b)
+        end
+    end
+
+    -- 2. Border tint
+    if classColor then
+        GameTooltip:SetBackdropBorderColor(classColor.r, classColor.g, classColor.b, 0.60)
+    end
+
+    -- 3. Clean up Blizzard lines: strip "(Player)", remove faction text, style class line
+    local numLines = GameTooltip:NumLines()
+    for j = 2, numLines do
+        local lineLeft = _G["GameTooltipTextLeft" .. j]
+        if lineLeft then
+            local text = lineLeft:GetText() or ""
+
+            -- Strip "(Player)" suffix
+            if text:find(" %(Player%)") then
+                text = text:gsub(" %(Player%)", "")
+                lineLeft:SetText(text)
             end
-            GameTooltip:AddLine(iconStr .. cached.specName, SPEC_COLOR[1], SPEC_COLOR[2], SPEC_COLOR[3])
+
+            -- Blank the redundant faction line (already shown as icon on name)
+            if text == "Horde" or text == "Alliance" then
+                lineLeft:SetText("")
+
+            -- Style the class line: class colour + spec icon prefix (when cached)
+            elseif className and text ~= "" and text:find(className, 1, true) then
+                if classColor then
+                    lineLeft:SetTextColor(classColor.r, classColor.g, classColor.b)
+                end
+                if cached and cached.specIcon then
+                    lineLeft:SetText("|T" .. cached.specIcon .. ":14:14:0:0|t " .. text)
+                end
+            end
+        end
+    end
+
+    -- 4. PvP title
+    if ShowPvPTitle() then
+        local pvpFullName = UnitPVPName(unit)
+        local baseName    = UnitName(unit)
+        if pvpFullName and baseName and pvpFullName ~= baseName then
+            GameTooltip:AddLine(pvpFullName, TITLE_COLOR[1], TITLE_COLOR[2], TITLE_COLOR[3])
+        end
+    end
+
+    -- 5. Status badges
+    if ShowStatusBadges() then
+        local badges = {}
+        if UnitAffectingCombat(unit) then badges[#badges + 1] = "|cffff4444[Combat]|r" end
+        if UnitIsAFK(unit)           then badges[#badges + 1] = "|cffffff55[AFK]|r"    end
+        if UnitIsDND(unit)           then badges[#badges + 1] = "|cffaaaaaa[DND]|r"    end
+        if #badges > 0 then
+            GameTooltip:AddLine(table.concat(badges, "  "), 1, 1, 1)
+        end
+    end
+
+    -- 6. Item level (only once inspect cache is available)
+    if cached then
+        if ShowIlvl() and cached.ilvl then
+            GameTooltip:AddLine("Item Level: " .. cached.ilvl, ILVL_COLOR[1], ILVL_COLOR[2], ILVL_COLOR[3])
+        end
+        GameTooltip:Show()
+    else
+        RequestInspect(unit)
+    end
+
+    -- 7. Mount block
+    if ShowMount() then
+        local mount = GetPlayerMountInfo(unit)
+        if mount and mount.name then
+            local iconStr = mount.icon and ("|T" .. mount.icon .. ":14:14:0:0|t ") or ""
+            GameTooltip:AddLine(iconStr .. mount.name, MOUNT_COLOR[1], MOUNT_COLOR[2], MOUNT_COLOR[3])
+            if mount.source and mount.source ~= "" then
+                GameTooltip:AddLine(mount.source, MOUNT_SRC_COLOR[1], MOUNT_SRC_COLOR[2], MOUNT_SRC_COLOR[3])
+            end
+            if mount.isCollected == true then
+                GameTooltip:AddLine("|cff55ff55You own this mount|r", 1, 1, 1)
+            elseif mount.isCollected == false then
+                GameTooltip:AddLine("|cffff5555You don't own this mount|r", 1, 1, 1)
+            end
             GameTooltip:Show()
-        else
-            RequestInspect(unit)
         end
     end
 
@@ -490,15 +609,28 @@ SlashCmdList["HORIZONSUITEINSIGHT"] = function(msg)
     elseif cmd == "test" then
         GameTooltip:SetOwner(UIParent, "ANCHOR_CURSOR")
         GameTooltip:ClearLines()
-        GameTooltip:AddLine(
-            (FACTION_ICONS["Alliance"] or "") .. "Testplayer - Stormrage",
-            0.64, 0.21, 0.93)
-        GameTooltip:AddLine("Level 80 Blood Elf Paladin", 1, 0.82, 0)
-        GameTooltip:AddLine(
-            "|TInterface\\Icons\\spell_holy_holybolt:14:14:0:0|t Holy",
-            SPEC_COLOR[1], SPEC_COLOR[2], SPEC_COLOR[3])
+        -- Name: faction icon + class colour
+        GameTooltip:AddLine((FACTION_ICONS["Alliance"] or "") .. "Testplayer-Stormrage", 0.77, 0.12, 0.23)
+        -- Guild
         GameTooltip:AddLine("<Ascension>", 0.25, 0.78, 0.92)
-        GameTooltip:AddLine("PvP", 0.5, 1, 0.5)
+        -- Level + Race (no class — Blizzard combines class on its own line)
+        GameTooltip:AddLine("Level 80 Human", 1, 0.82, 0)
+        -- Class line with spec icon prepended (class colour)
+        GameTooltip:AddLine(
+            "|TInterface\\Icons\\spell_deathknight_bloodpresence:14:14:0:0|t Blood Death Knight",
+            0.77, 0.12, 0.23)
+        -- PvP title
+        GameTooltip:AddLine("Duelist Testplayer", TITLE_COLOR[1], TITLE_COLOR[2], TITLE_COLOR[3])
+        -- Status badges
+        GameTooltip:AddLine("|cffff4444[Combat]|r  |cffffff55[AFK]|r", 1, 1, 1)
+        -- Item level
+        GameTooltip:AddLine("Item Level: 639", ILVL_COLOR[1], ILVL_COLOR[2], ILVL_COLOR[3])
+        -- Mount
+        GameTooltip:AddLine(
+            "|TInterface\\Icons\\ability_mount_drake_proto:14:14:0:0|t Reins of the Thundering Cobalt Cloud Serpent",
+            MOUNT_COLOR[1], MOUNT_COLOR[2], MOUNT_COLOR[3])
+        GameTooltip:AddLine("Drop: Sha of Anger", MOUNT_SRC_COLOR[1], MOUNT_SRC_COLOR[2], MOUNT_SRC_COLOR[3])
+        GameTooltip:AddLine("|cffff5555You don't own this mount|r", 1, 1, 1)
         GameTooltip:Show()
         if addon.HSPrint then addon.HSPrint("Horizon Insight: Test tooltip shown at cursor.") end
 

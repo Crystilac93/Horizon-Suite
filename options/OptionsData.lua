@@ -32,10 +32,14 @@ local TYPOGRAPHY_KEYS = {
 }
 
 local INSIGHT_KEYS = {
-    insightAnchorMode = true,
-    insightFixedPoint = true,
-    insightFixedX = true,
-    insightFixedY = true,
+    insightAnchorMode       = true,
+    insightFixedPoint       = true,
+    insightFixedX           = true,
+    insightFixedY           = true,
+    insightShowMount        = true,
+    insightShowIlvl         = true,
+    insightShowPvPTitle     = true,
+    insightShowStatusBadges = true,
 }
 
 local PRESENCE_KEYS = {
@@ -1241,6 +1245,11 @@ local OptionCategories = {
                 setDB("insightFixedY", 120)
                 if addon.Insight and addon.Insight.ApplyInsightOptions then addon.Insight.ApplyInsightOptions() end
             end },
+            { type = "section", name = L["Player Tooltip"] or "Player Tooltip" },
+            { type = "toggle", name = L["Show mount info"] or "Show mount info", desc = L["When hovering a mounted player, show their mount name, source, and whether you own it."] or "When hovering a mounted player, show their mount name, source, and whether you own it.", dbKey = "insightShowMount", get = function() return getDB("insightShowMount", true) end, set = function(v) setDB("insightShowMount", v) end },
+            { type = "toggle", name = L["Show item level"] or "Show item level", desc = L["Show the player's equipped item level after inspecting them."] or "Show the player's equipped item level after inspecting them.", dbKey = "insightShowIlvl", get = function() return getDB("insightShowIlvl", true) end, set = function(v) setDB("insightShowIlvl", v) end },
+            { type = "toggle", name = L["Show PvP title"] or "Show PvP title", desc = L["Show the player's PvP title (e.g. Gladiator) in the tooltip."] or "Show the player's PvP title (e.g. Gladiator) in the tooltip.", dbKey = "insightShowPvPTitle", get = function() return getDB("insightShowPvPTitle", true) end, set = function(v) setDB("insightShowPvPTitle", v) end },
+            { type = "toggle", name = L["Show status badges"] or "Show status badges", desc = L["Show combat, AFK, and DND badges in the player tooltip."] or "Show combat, AFK, and DND badges in the player tooltip.", dbKey = "insightShowStatusBadges", get = function() return getDB("insightShowStatusBadges", true) end, set = function(v) setDB("insightShowStatusBadges", v) end },
         },
     },
     {
