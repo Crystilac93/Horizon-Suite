@@ -1636,27 +1636,27 @@ local OptionCategories = {
             { type = "toggle", name = L["Lock Zoom In button"] or "Lock Zoom In button",
               desc = L["Prevent dragging the + zoom button."] or "Prevent dragging the + zoom button.",
               dbKey = "vistaLocked_zoomIn",
-              get = function() return getDB("vistaLocked_zoomIn", false) end,
+              get = function() return getDB("vistaLocked_zoomIn", true) end,
               set = function(v) setDB("vistaLocked_zoomIn", v) end },
             { type = "toggle", name = L["Lock Zoom Out button"] or "Lock Zoom Out button",
               desc = L["Prevent dragging the - zoom button."] or "Prevent dragging the - zoom button.",
               dbKey = "vistaLocked_zoomOut",
-              get = function() return getDB("vistaLocked_zoomOut", false) end,
+              get = function() return getDB("vistaLocked_zoomOut", true) end,
               set = function(v) setDB("vistaLocked_zoomOut", v) end },
             { type = "toggle", name = L["Lock Tracking button"] or "Lock Tracking button",
               desc = L["Prevent dragging the tracking button."] or "Prevent dragging the tracking button.",
               dbKey = "vistaLocked_proxy_tracking",
-              get = function() return getDB("vistaLocked_proxy_tracking", false) end,
+              get = function() return getDB("vistaLocked_proxy_tracking", true) end,
               set = function(v) setDB("vistaLocked_proxy_tracking", v) end },
             { type = "toggle", name = L["Lock Calendar button"] or "Lock Calendar button",
               desc = L["Prevent dragging the calendar button."] or "Prevent dragging the calendar button.",
               dbKey = "vistaLocked_proxy_calendar",
-              get = function() return getDB("vistaLocked_proxy_calendar", false) end,
+              get = function() return getDB("vistaLocked_proxy_calendar", true) end,
               set = function(v) setDB("vistaLocked_proxy_calendar", v) end },
             { type = "toggle", name = L["Lock Queue button"] or "Lock Queue button",
               desc = L["Prevent dragging the queue status button."] or "Prevent dragging the queue status button.",
               dbKey = "vistaLocked_proxy_queue",
-              get = function() return getDB("vistaLocked_proxy_queue", false) end,
+              get = function() return getDB("vistaLocked_proxy_queue", true) end,
               set = function(v)
                   setDB("vistaLocked_proxy_queue", v)
                   if addon.Vista and addon.Vista.RefreshQueueProxies then
@@ -1745,7 +1745,7 @@ local OptionCategories = {
                   desc = L["How addon buttons are presented: hover bar below minimap, panel on right-click, or floating drawer button."] or "How addon buttons are presented: hover bar below minimap, panel on right-click, or floating drawer button.",
                   dbKey = "vistaButtonMode",
                   options = BUTTON_MODE_OPTIONS,
-                  get = function() return getDB("vistaButtonMode", "mouseover") end,
+                  get = function() return getDB("vistaButtonMode", "rightclick") end,
                   set = function(v)
                       if not getDB("vistaHandleAddonButtons", true) then return end
                       setDB("vistaButtonMode", v)

@@ -164,7 +164,7 @@ do
     G.TimeOffsetY  = function() local c=G.ElemY("time", nil);  if c~=nil then return c end return G.TimeVerticalPos()=="top"  and DEFAULT_Y_TOP or DEFAULT_Y_BOTTOM end
 
     -- Button modes
-    G.ButtonMode          = function() return DB("vistaButtonMode",         BTN_MODE_MOUSEOVER) end
+    G.ButtonMode          = function() return DB("vistaButtonMode",         BTN_MODE_RIGHTCLICK) end
     G.ButtonHandleButtons = function() return DB("vistaHandleAddonButtons", true) end
     G.ButtonDrawerLocked  = function() return DB("vistaDrawerButtonLocked", false) end
     G.ButtonWhitelist     = function() return DB("vistaButtonWhitelist",    nil) end
@@ -1094,7 +1094,7 @@ local function CreateZoomButtons()
         btn:SetClampedToScreen(true)
         btn:RegisterForDrag("LeftButton")
         btn:SetScript("OnDragStart", function(self)
-            if DB("vistaLocked_" .. lockKey, false) then return end
+            if DB("vistaLocked_" .. lockKey, true) then return end
             if InCombatLockdown() then return end
             self:StartMoving()
         end)
@@ -1119,7 +1119,7 @@ local function CreateZoomButtons()
         btn:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
             GameTooltip:SetText(zoomDelta > 0 and "Zoom In" or "Zoom Out")
-            if not DB("vistaLocked_" .. lockKey, false) then
+            if not DB("vistaLocked_" .. lockKey, true) then
                 GameTooltip:AddLine("Drag to move", 0.7, 0.7, 0.7)
             end
             GameTooltip:Show()
@@ -1384,7 +1384,7 @@ CreateDefaultButtonProxies = function()
         proxy:SetMovable(true)
         proxy:RegisterForDrag("LeftButton")
         proxy:SetScript("OnDragStart", function(self)
-            if DB("vistaLocked_" .. lockKey, false) then return end
+            if DB("vistaLocked_" .. lockKey, true) then return end
             if InCombatLockdown() then return end
             self:StartMoving()
         end)
@@ -1479,7 +1479,7 @@ local function RefreshQueueAnchor()
         return
     end
     local realBtn = _G["QueueStatusButton"] or _G["QueueStatusMinimapButton"] or _G["MiniMapBattlefieldFrame"]
-    local locked  = DB("vistaLocked_proxy_queue", false)
+    local locked  = DB("vistaLocked_proxy_queue", true)
     local queued  = realBtn and realBtn:IsShown()
 
     if queued then
@@ -1540,7 +1540,7 @@ local function CreateQueueAnchor()
     -- Drag support — identical pattern to the drawer button
     queueAnchor:RegisterForDrag("LeftButton")
     queueAnchor:SetScript("OnDragStart", function(self)
-        if DB("vistaLocked_proxy_queue", false) then return end
+        if DB("vistaLocked_proxy_queue", true) then return end
         if InCombatLockdown() then return end
         self:StartMoving()
     end)
@@ -1569,7 +1569,7 @@ local function CreateQueueAnchor()
     end)
 
     queueAnchor:SetScript("OnEnter", function(self)
-        if not DB("vistaLocked_proxy_queue", false) then
+        if not DB("vistaLocked_proxy_queue", true) then
             GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
             GameTooltip:SetText("Queue Status Button")
             GameTooltip:AddLine("Drag to reposition", 0.7, 0.7, 0.7)
