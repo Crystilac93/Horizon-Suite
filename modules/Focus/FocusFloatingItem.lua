@@ -173,7 +173,7 @@ local function UpdateFloatingQuestItem(questsFlat)
             floatingQuestItemBtn:SetAttribute("item", itemName or chosenLink)
         end
         floatingQuestItemBtn._itemLink = chosenLink
-        local sz = tonumber(addon.GetDB("floatingQuestItemSize", 36)) or 36
+        local sz = (addon.Scaled or function(v) return v end)(tonumber(addon.GetDB("floatingQuestItemSize", 36)) or 36)
         floatingQuestItemBtn:SetSize(sz, sz)
         local savedPoint = addon.GetDB("floatingQuestItemPoint", nil)
         floatingQuestItemBtn:ClearAllPoints()

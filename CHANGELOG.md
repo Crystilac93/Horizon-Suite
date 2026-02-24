@@ -10,6 +10,62 @@ All notable changes to Horizon Suite are documented here.
 
 ---
 
+## [3.0.2] – 2026-02-24
+
+### 🔧 Improvements
+
+- **(Vista) Zone, coordinates, and clock above or below minimap** — Choose to place zone name, coordinates, and clock above or below the minimap in Vista options.
+- **(Focus) Scenario bars match progress bar styling** — Timer and progress bars in scenarios now use the same font, colors, and height as quest objective progress bars.
+- **(Presence) More reliable notification display** — Level-up, boss emotes, and scenario toasts display correctly when event frames load.
+
+---
+
+## [3.0.1] – 2026-02-23
+
+### 🐛 Fixes
+
+- **Dev addon fix.**
+
+---
+
+## [3.0.0] – 2026-02-23
+
+### ✨ New Features
+
+- **(Vista) Minimap sizing and free positioning.**
+- **(Vista) Minimap border thickness and visibility control.**
+- **(Vista) Replace MinimapButtonButton/Hiding bar with built-in opt-out list of addon buttons to show.**
+- **(Vista) Zone text control: position, background color and visibility, font size, font.**
+- **(Vista) Coordinates text: position and styling; optional format (decimal precision, X/Y prefixes).**
+- **(Vista) Time/clock text: same controls as coords; optional format options.**
+- **(Vista) Default map button visibility, position, size, and custom icons.**
+- **(Presence) Per-type toggles for Presence notifications.**
+- **(Core) Options panel localization for Russian (ruRU)** — Options panel is now fully translated into Russian.
+
+---
+
+## [2.6.1] – 2026-02-23
+
+---
+
+## [2.6.0] – 2026-02-23
+
+### ✨ New Features
+
+- **(Presence) Option to show only subzone when staying in same major zone** — Zone notifications display the local area name instead of the full zone when moving between subzones within the same zone.
+- **(Vista) Square minimap option** — Choose a square minimap shape in Vista options.
+
+### 🔧 Improvements
+
+- **(Focus) Improve tracker performance and responsiveness.**
+- **(Core) Option to scale Horizon Suite when WoW UI scale is lowered** — Scale addon elements independently so they remain readable at different game UI scale settings.
+
+### 🐛 Fixes
+
+- **(Focus)** Quest tracker no longer triggers errors when quest rows fade out during combat.
+
+---
+
 ## [2.5.0] – 2026-02-22
 
 ### ✨ New Features

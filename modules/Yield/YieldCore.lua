@@ -21,7 +21,10 @@ end
 -- ============================================================================
 
 local Frame = CreateFrame("Frame", nil, UIParent)
-Frame:SetSize(Y.TOTAL_WIDTH, Y.LINE_HEIGHT * Y.POOL_SIZE)
+do
+    local S = function(v) return (addon.ScaledForModule or addon.Scaled or function(x) return x end)(v, "yield") end
+    Frame:SetSize(S(Y.TOTAL_WIDTH), S(Y.LINE_HEIGHT) * Y.POOL_SIZE)
+end
 Frame:SetPoint(Y.DEFAULT_ANCHOR, UIParent, Y.DEFAULT_ANCHOR, Y.DEFAULT_X, Y.DEFAULT_Y)
 Frame:Hide()
 
@@ -69,13 +72,13 @@ editOverlay:SetFrameLevel(Frame:GetFrameLevel() + 10)
 editOverlay:EnableMouse(false)
 
 local editTitle = editOverlay:CreateFontString(nil, "OVERLAY")
-editTitle:SetFont(Y.FONT_PATH, 14, "OUTLINE")
+editTitle:SetFont(Y.FONT_PATH, (addon.ScaledForModule or addon.Scaled or function(v) return v end)(14, "yield"), "OUTLINE")
 editTitle:SetTextColor(0.4, 0.8, 1.0, 1)
 editTitle:SetPoint("CENTER", editOverlay, "CENTER", 0, 10)
 editTitle:SetText("LOOT TOAST AREA")
 
 local editHint = editOverlay:CreateFontString(nil, "OVERLAY")
-editHint:SetFont(Y.FONT_PATH, 10, "OUTLINE")
+editHint:SetFont(Y.FONT_PATH, (addon.ScaledForModule or addon.Scaled or function(v) return v end)(10, "yield"), "OUTLINE")
 editHint:SetTextColor(0.7, 0.7, 0.7, 1)
 editHint:SetPoint("CENTER", editOverlay, "CENTER", 0, -8)
 editHint:SetText("Drag to reposition  |  /horizon yield edit to hide")
@@ -83,21 +86,22 @@ editHint:SetText("Drag to reposition  |  /horizon yield edit to hide")
 editOverlay:Hide()
 
 local function CreateToastEntry(parent)
+    local S = function(v) return (addon.ScaledForModule or addon.Scaled or function(x) return x end)(v, "yield") end
     local f = CreateFrame("Frame", nil, parent)
-    f:SetSize(Y.TOTAL_WIDTH, Y.ENTRY_HEIGHT)
+    f:SetSize(S(Y.TOTAL_WIDTH), S(Y.ENTRY_HEIGHT))
 
     local iconBg = f:CreateTexture(nil, "BORDER")
-    iconBg:SetSize(Y.ICON_SIZE + Y.BORDER_PAD * 2, Y.ICON_SIZE + Y.BORDER_PAD * 2)
+    iconBg:SetSize(S(Y.ICON_SIZE + Y.BORDER_PAD * 2), S(Y.ICON_SIZE + Y.BORDER_PAD * 2))
     iconBg:SetPoint("LEFT", f, "LEFT", 0, 0)
     iconBg:SetColorTexture(1, 1, 1, 0.8)
 
     local icon = f:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(Y.ICON_SIZE, Y.ICON_SIZE)
+    icon:SetSize(S(Y.ICON_SIZE), S(Y.ICON_SIZE))
     icon:SetPoint("CENTER", iconBg, "CENTER", 0, 0)
     icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 
     local shine = f:CreateTexture(nil, "OVERLAY")
-    shine:SetSize(Y.ICON_SIZE + 8, Y.ICON_SIZE + 8)
+    shine:SetSize(S(Y.ICON_SIZE + 8), S(Y.ICON_SIZE + 8))
     shine:SetPoint("CENTER", iconBg, "CENTER", 0, 0)
     shine:SetTexture("Interface\\Cooldown\\star4")
     shine:SetBlendMode("ADD")
@@ -105,18 +109,18 @@ local function CreateToastEntry(parent)
     shine:Hide()
 
     local shadow = f:CreateFontString(nil, "BORDER")
-    shadow:SetFont(Y.FONT_PATH, Y.FONT_SIZE, "OUTLINE")
+    shadow:SetFont(Y.FONT_PATH, S(Y.FONT_SIZE), "OUTLINE")
     shadow:SetTextColor(0, 0, 0, 0.7)
     shadow:SetJustifyH("LEFT")
-    shadow:SetPoint("LEFT", iconBg, "RIGHT", Y.ICON_GAP + 1, -1)
+    shadow:SetPoint("LEFT", iconBg, "RIGHT", S(Y.ICON_GAP) + 1, -1)
     shadow:SetPoint("RIGHT", f, "RIGHT", 1, -1)
     shadow:SetWordWrap(false)
 
     local text = f:CreateFontString(nil, "OVERLAY")
-    text:SetFont(Y.FONT_PATH, Y.FONT_SIZE, "OUTLINE")
+    text:SetFont(Y.FONT_PATH, S(Y.FONT_SIZE), "OUTLINE")
     text:SetTextColor(1, 1, 1, 1)
     text:SetJustifyH("LEFT")
-    text:SetPoint("LEFT", iconBg, "RIGHT", Y.ICON_GAP, 0)
+    text:SetPoint("LEFT", iconBg, "RIGHT", S(Y.ICON_GAP), 0)
     text:SetPoint("RIGHT", f, "RIGHT", 0, 0)
     text:SetWordWrap(false)
 
@@ -279,9 +283,10 @@ function Y.ShowToast(data)
 
     local entry = AcquireEntry()
 
+    local S = function(v) return (addon.ScaledForModule or addon.Scaled or function(x) return x end)(v, "yield") end
     for i = 1, Y.POOL_SIZE do
         if y.pool[i].active then
-            y.pool[i].stackY = y.pool[i].stackY + Y.LINE_HEIGHT
+            y.pool[i].stackY = y.pool[i].stackY + S(Y.LINE_HEIGHT)
         end
     end
 
@@ -370,6 +375,23 @@ function Y.SetFrameVisible(visible)
         Frame:Show()
     else
         Frame:Hide()
+    end
+end
+
+--- Re-apply scale to frame and pool entries (call when global UI scale changes).
+function Y.ApplyScale()
+    local S = function(v) return (addon.ScaledForModule or addon.Scaled or function(x) return x end)(v, "yield") end
+    Frame:SetSize(S(Y.TOTAL_WIDTH), S(Y.LINE_HEIGHT) * Y.POOL_SIZE)
+    for i = 1, Y.POOL_SIZE do
+        local entry = y.pool[i]
+        if entry then
+            if entry.frame then entry.frame:SetSize(S(Y.TOTAL_WIDTH), S(Y.ENTRY_HEIGHT)) end
+            if entry.iconBg then entry.iconBg:SetSize(S(Y.ICON_SIZE + Y.BORDER_PAD * 2), S(Y.ICON_SIZE + Y.BORDER_PAD * 2)) end
+            if entry.icon then entry.icon:SetSize(S(Y.ICON_SIZE), S(Y.ICON_SIZE)) end
+            if entry.shine then entry.shine:SetSize(S(Y.ICON_SIZE + 8), S(Y.ICON_SIZE + 8)) end
+            if entry.text then entry.text:SetFont(Y.FONT_PATH, S(Y.FONT_SIZE), "OUTLINE") end
+            if entry.shadow then entry.shadow:SetFont(Y.FONT_PATH, S(Y.FONT_SIZE), "OUTLINE") end
+        end
     end
 end
 

@@ -72,6 +72,7 @@
 - `BUG` OPEN 2026-02-13 [P2] `[Focus]` World quest zone labels wrong or missing (in-zone redundant; off-map sometimes missing).
 - `BUG` OPEN 2026-02-13 [P2] `[Focus]` Warfront objectives not shown in the tracker.
 - `BUG` OPEN 2026-02-13 [P2] `[Focus]` Pop-up quests not appearing in the log.
+- `IMPR` OPEN 2026-02-23 [P2] `[Focus]` Options to desaturate or adjust alpha for dimmed non-focused quests (Display).
 - `IMPR` OPEN 2026-02-13 [P1] Improve tracker performance and responsiveness.
 - `IDEA` OPEN 2026-02-13 [P2] Integration with Auctionator/Auctioneer for search materials.
 - `FEAT` OPEN 2026-02-13 [P1] Add Korean language support.

@@ -14,7 +14,8 @@ local activeMap = {}
 
 local function CreateQuestEntry(parent, index)
     local e = CreateFrame("Frame", nil, parent)
-    local w = addon.GetPanelWidth() - addon.PADDING * 2
+    local _S = addon.Scaled or function(v) return v end
+    local w = addon.GetPanelWidth() - _S(addon.PADDING) * 2
     local textW = w
     e:SetSize(w, 20)
 
@@ -68,7 +69,7 @@ local function CreateQuestEntry(parent, index)
     -- Anchor is set dynamically by the renderer; default to top-right of entry.
     local btnName = "HSItemBtn" .. index
     e.itemBtn = CreateFrame("Button", btnName, e, "SecureActionButtonTemplate")
-    e.itemBtn:SetSize(addon.ITEM_BTN_SIZE, addon.ITEM_BTN_SIZE)
+    e.itemBtn:SetSize(_S(addon.ITEM_BTN_SIZE), _S(addon.ITEM_BTN_SIZE))
     e.itemBtn:SetPoint("TOPRIGHT", e, "TOPRIGHT", 0, 2)
     e.itemBtn:SetAttribute("type", "item")
     e.itemBtn:RegisterForClicks("AnyDown", "AnyUp")
@@ -101,16 +102,17 @@ local function CreateQuestEntry(parent, index)
 
     e.itemBtn:Hide()
 
+    local _S = addon.Scaled or function(v) return v end
     e.questTypeIcon = e:CreateTexture(nil, "ARTWORK")
-    e.questTypeIcon:SetSize(addon.QUEST_TYPE_ICON_SIZE, addon.QUEST_TYPE_ICON_SIZE)
-    local iconRight = (addon.BAR_LEFT_OFFSET or 12) + 2
+    e.questTypeIcon:SetSize(_S(addon.QUEST_TYPE_ICON_SIZE), _S(addon.QUEST_TYPE_ICON_SIZE))
+    local iconRight = _S((addon.BAR_LEFT_OFFSET or 12) + 2)
     e.questTypeIcon:SetPoint("TOPRIGHT", e, "TOPLEFT", -iconRight, 0)
     e.questTypeIcon:Hide()
 
     -- Join Group (LFG) button: shown for group-type quests.
     -- Positioned on the RIGHT side of the entry in its own column so it never
     -- overlaps the supertrack bar or gets clipped by the scroll frame.
-    local lfgBtnSize = addon.LFG_BTN_SIZE or 26
+    local lfgBtnSize = _S(addon.LFG_BTN_SIZE or 26)
     e.lfgBtn = CreateFrame("Button", nil, e)
     e.lfgBtn:SetSize(lfgBtnSize, lfgBtnSize)
     -- Anchor is set dynamically by the renderer; default to top-right of entry.
@@ -417,7 +419,7 @@ local function CreateQuestEntry(parent, index)
     e.wqProgressText:SetJustifyH("CENTER")
     e.wqProgressText:Hide()
 
-    -- Per-criteria scenario timer bars (KT-aligned; 1s tick driven).
+    -- Per-criteria scenario timer bars (KT-aligned; 1s tick driven). Same format as quest progress bars.
     local slots = addon.SCENARIO_TIMER_BAR_SLOTS or 5
     e.scenarioTimerBars = {}
     for si = 1, slots do
@@ -425,13 +427,13 @@ local function CreateQuestEntry(parent, index)
         bar:SetHeight(addon.WQ_TIMER_BAR_HEIGHT or 6)
         bar.Bg = bar:CreateTexture(nil, "BACKGROUND")
         bar.Bg:SetAllPoints()
-        bar.Bg:SetColorTexture(0.08, 0.06, 0.12, 0.5)
+        bar.Bg:SetColorTexture(0.15, 0.15, 0.18, 0.7)
         bar.Fill = bar:CreateTexture(nil, "ARTWORK")
         bar.Fill:SetPoint("TOPLEFT", bar, "TOPLEFT", 0, 0)
         bar.Fill:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 0, 0)
-        bar.Fill:SetColorTexture(0.45, 0.32, 0.75, 0.88)
+        bar.Fill:SetColorTexture(0.40, 0.65, 0.90, 0.85)
         bar.Label = bar:CreateFontString(nil, "OVERLAY")
-        bar.Label:SetFontObject(addon.ObjFont)
+        bar.Label:SetFontObject(addon.ProgressBarFont or addon.ObjFont)
         bar.Label:SetPoint("CENTER", bar, "CENTER", 0, 0)
         bar.Label:SetJustifyH("CENTER")
         bar.duration = nil
@@ -490,20 +492,18 @@ local function UpdateScenarioBar(bar, now)
     local m = math.floor(remaining / 60)
     local sec = math.floor(remaining % 60)
     bar.Label:SetText(("%02d:%02d"):format(m, sec))
-    -- Percentage-based color (KT: 66% white, 33% yellow, below red).
-    local pctLeft = (d > 0) and pct or 0
-    local r, g, b
-    if pctLeft > 0.66 then
-        local sc = addon.GetQuestColor and addon.GetQuestColor("SCENARIO") or (addon.QUEST_COLORS and addon.QUEST_COLORS.SCENARIO) or { 0.55, 0.35, 0.85 }
-        r, g, b = sc[1], sc[2], sc[3]
-    elseif pctLeft > 0.33 then
-        local blueOffset = (pctLeft - 0.33) / 0.33
-        r, g, b = 1, 1, blueOffset
+    -- Same format as quest progress bars: use progFillColor and progTextColor
+    local progFillColor
+    if addon.GetDB("progressBarUseCategoryColor", true) then
+        progFillColor = (addon.GetQuestColor and addon.GetQuestColor("SCENARIO")) or (addon.QUEST_COLORS and addon.QUEST_COLORS.SCENARIO) or { 0.55, 0.35, 0.85 }
     else
-        local greenOffset = pctLeft / 0.33
-        r, g, b = 1, greenOffset, 0
+        progFillColor = addon.GetDB("progressBarFillColor", nil)
+        if not progFillColor or type(progFillColor) ~= "table" then progFillColor = { 0.40, 0.65, 0.90 } end
     end
-    bar.Label:SetTextColor(r, g, b, 1)
+    local progTextColor = addon.GetDB("progressBarTextColor", nil)
+    if not progTextColor or type(progTextColor) ~= "table" then progTextColor = { 0.95, 0.95, 0.95 } end
+    bar.Fill:SetColorTexture(progFillColor[1], progFillColor[2], progFillColor[3], 0.85)
+    bar.Label:SetTextColor(progTextColor[1], progTextColor[2], progTextColor[3], 1)
 end
 
 function addon.UpdateScenarioTimerBars()
@@ -525,7 +525,8 @@ local sectionPool = {}
 
 local function CreateSectionHeader(parent)
     local s = CreateFrame("Button", nil, parent)
-    s:SetSize(addon.GetPanelWidth() - addon.PADDING * 2, addon.GetSectionHeaderHeight())
+    local _S = addon.Scaled or function(v) return v end
+    s:SetSize(addon.GetPanelWidth() - _S(addon.PADDING) * 2, addon.GetSectionHeaderHeight())
 
     s:RegisterForClicks("LeftButtonUp")
 
@@ -602,13 +603,14 @@ local function UpdateFontObjectsFromDB()
     local progBarSz   = tonumber(addon.GetDB("progressBarFontSize", 10)) or 10
 
     addon.FONT_PATH = fontPath
-    addon.HeaderFont:SetFont(fontPath, headerSz, outline)
-    addon.TitleFont:SetFont(titleFont, titleSz, outline)
-    addon.ObjFont:SetFont(objFont, objSz, outline)
-    addon.ZoneFont:SetFont(zoneFont, zoneSz, outline)
-    addon.SectionFont:SetFont(sectionFont, sectionSz, outline)
+    local S = addon.Scaled or function(v) return v end
+    addon.HeaderFont:SetFont(fontPath, S(headerSz), outline)
+    addon.TitleFont:SetFont(titleFont, S(titleSz), outline)
+    addon.ObjFont:SetFont(objFont, S(objSz), outline)
+    addon.ZoneFont:SetFont(zoneFont, S(zoneSz), outline)
+    addon.SectionFont:SetFont(sectionFont, S(sectionSz), outline)
     if addon.ProgressBarFont then
-        addon.ProgressBarFont:SetFont(progBarFont, progBarSz, outline)
+        addon.ProgressBarFont:SetFont(progBarFont, S(progBarSz), outline)
     end
 end
 
@@ -656,30 +658,35 @@ local function ApplyDimensions(widthOverride)
         return
     end
     addon.focus.pendingDimensionsAfterCombat = false
+    local S = addon.Scaled or function(v) return v end
     local w = (widthOverride and type(widthOverride) == "number") and widthOverride or addon.GetPanelWidth()
-    addon.HS:SetSize(w, addon.HS:GetHeight() or addon.MIN_HEIGHT)
-    addon.divider:SetSize(w - addon.PADDING * 2, addon.DIVIDER_HEIGHT)
-    addon.divider:SetPoint("TOP", addon.HS, "TOPLEFT", w / 2, -(addon.PADDING + addon.GetHeaderHeight()))
+    addon.HS:SetSize(w, addon.HS:GetHeight() or S(addon.MIN_HEIGHT))
+    addon.divider:SetSize(w - S(addon.PADDING) * 2, S(addon.DIVIDER_HEIGHT))
+    addon.divider:SetPoint("TOP", addon.HS, "TOPLEFT", w / 2, -(S(addon.PADDING) + addon.GetHeaderHeight()))
     addon.scrollChild:SetWidth(w)
-    local leftOffset = addon.GetContentLeftOffset and addon.GetContentLeftOffset() or (addon.PADDING + addon.ICON_COLUMN_WIDTH)
+    local leftOffset = addon.GetContentLeftOffset and addon.GetContentLeftOffset() or S(addon.PADDING + addon.ICON_COLUMN_WIDTH)
     for i = 1, addon.POOL_SIZE do
         local e = pool[i]
-        local contentW = w - addon.PADDING - leftOffset - (addon.CONTENT_RIGHT_PADDING or 0)
+        local contentW = w - S(addon.PADDING) - leftOffset - S(addon.CONTENT_RIGHT_PADDING or 0)
         local textW = contentW
         e:SetSize(contentW, 20)
         e.titleShadow:SetWidth(textW)
         e.titleText:SetWidth(textW)
         e.affixShadow:SetWidth(textW)
         e.affixText:SetWidth(textW)
+        if e.questTypeIcon then
+            local qs = S(addon.QUEST_TYPE_ICON_SIZE)
+            e.questTypeIcon:SetSize(qs, qs)
+        end
         for j = 1, addon.MAX_OBJECTIVES do
             local obj = e.objectives[j]
-            local objIndent = addon.GetObjIndent and addon.GetObjIndent() or addon.OBJ_INDENT
+            local objIndent = addon.GetObjIndent and addon.GetObjIndent() or S(addon.OBJ_INDENT)
             obj.shadow:SetWidth(textW - objIndent)
             obj.text:SetWidth(textW - objIndent)
         end
     end
     for i = 1, addon.SECTION_POOL_SIZE do
-        sectionPool[i]:SetSize(w - addon.PADDING - leftOffset - (addon.CONTENT_RIGHT_PADDING or 0), addon.GetSectionHeaderHeight())
+        sectionPool[i]:SetSize(w - S(addon.PADDING) - leftOffset - S(addon.CONTENT_RIGHT_PADDING or 0), addon.GetSectionHeaderHeight())
     end
     if addon.UpdateMplusBlock then addon.UpdateMplusBlock() end
 end
@@ -711,7 +718,9 @@ local function ClearEntry(entry, full)
     entry.isGroupQuest   = nil
     if full ~= false then
         entry:SetAlpha(0)
-        entry:SetHitRectInsets(0, 0, 0, 0)
+        if not InCombatLockdown() then
+            entry:SetHitRectInsets(0, 0, 0, 0)
+        end
         if entry.scenarioTimerBars then
             for _, bar in ipairs(entry.scenarioTimerBars) do
                 bar.duration = nil

@@ -98,7 +98,8 @@ local function GetRaresOnMap()
     end
     if not rares then return out end
 
-    local zoneName = (C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)) and C_Map.GetMapInfo(mapID).name or nil
+    local mapInfo = C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)
+    local zoneName = mapInfo and mapInfo.name or nil
     for _, t in ipairs(rares) do
         local creatureID, name = t[1], t[2]
         if creatureID and name then

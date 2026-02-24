@@ -302,7 +302,7 @@ local function RefreshContentInCombat()
         end
     end
 
-    local showObjectiveNumbers = addon.GetDB("showObjectiveNumbers", false)
+    local objectivePrefixStyle = addon.GetDB("objectivePrefixStyle", "none")
     local playerZone = addon.GetPlayerCurrentZoneName and addon.GetPlayerCurrentZoneName() or nil
 
     for i = 1, addon.POOL_SIZE do
@@ -453,7 +453,11 @@ local function RefreshContentInCombat()
                                 objText = objText .. (" (%d/%d)"):format(nf, nr)
                             end
                         end
-                        if showObjectiveNumbers then objText = ("%d. %s"):format(j, objText) end
+                        if objectivePrefixStyle == "numbers" then
+                            objText = ("%d. %s"):format(j, objText)
+                        elseif objectivePrefixStyle == "hyphens" then
+                            objText = "- " .. objText
+                        end
                         local useTick = oData.finished and addon.GetDB("useTickForCompletedObjectives", false) and not questData.isComplete
                         obj.text:SetText(objText)
                         obj.shadow:SetText(objText)
@@ -506,7 +510,9 @@ local function RefreshContentInCombat()
                 if questData.isComplete and (not objectives or #objectives == 0) then
                     local obj = entry.objectives[1]
                     if obj then
-                        local turnInText = showObjectiveNumbers and "1. Ready to turn in" or "Ready to turn in"
+                        local turnInText = objectivePrefixStyle == "numbers" and "1. Ready to turn in"
+                            or objectivePrefixStyle == "hyphens" and "- Ready to turn in"
+                            or "Ready to turn in"
                         obj.text:SetText(turnInText)
                         obj.shadow:SetText(turnInText)
                         obj.text:SetTextColor(doneColor[1], doneColor[2], doneColor[3], 1)

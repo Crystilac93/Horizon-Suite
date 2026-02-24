@@ -17,6 +17,7 @@ local function DbgWQ(...)
     addon.HSPrint("[Presence WQ] " .. table.concat(parts, " "))
 end
 
+
 -- ============================================================================
 -- FORMATTING & MARKUP
 -- ============================================================================
@@ -77,9 +78,24 @@ end
 local eventFrame = CreateFrame("Frame")
 local eventsRegistered = false
 
+--- Tracks the last zone name shown by Presence, used to detect same-zone subzone transitions.
+local lastKnownZone = nil
+
 --- True when we should suppress non-essential Presence notifications in Mythic+ (zone, quest, scenario).
 local function ShouldSuppressInMplus()
     return addon.GetDB and addon.GetDB("presenceSuppressZoneInMplus", true) and addon.IsInMythicDungeon and addon.IsInMythicDungeon()
+end
+
+--- Check if a Presence type is enabled, with optional fallback to a legacy grouped option.
+--- @param key string DB key for the per-type toggle (e.g. presenceQuestAccept)
+--- @param fallbackKey string|nil DB key for fallback when key is nil (e.g. presenceQuestEvents)
+--- @param fallbackDefault boolean Default when fallbackKey is nil or not used
+--- @return boolean
+local function IsPresenceTypeEnabled(key, fallbackKey, fallbackDefault)
+    if not addon.GetDB then return fallbackDefault end
+    local v = addon.GetDB(key, nil)
+    if v ~= nil then return v end
+    return (fallbackKey and addon.GetDB(fallbackKey, fallbackDefault)) or fallbackDefault
 end
 
 local PRESENCE_EVENTS = {
@@ -103,24 +119,29 @@ local PRESENCE_EVENTS = {
 
 local function OnAddonLoaded(addonName)
     if addonName == "Blizzard_WorldQuestComplete" and addon.Presence.KillWorldQuestBanner then
-        C_Timer.After(0, function()
+        C_Timer.After(0.1, function()
             addon.Presence.KillWorldQuestBanner()
         end)
-        C_Timer.After(0.5, function()
-            addon.Presence.KillWorldQuestBanner()
-            eventFrame:UnregisterEvent("ADDON_LOADED")
-        end)
+    end
+    if addonName == "Blizzard_LevelUpDisplay" or addonName == "Blizzard_RaidBossEmoteFrame" or addonName == "Blizzard_EventToastManager" then
+        if addon:IsModuleEnabled("presence") and addon.Presence.ApplyBlizzardSuppression then
+            C_Timer.After(0.05, function()
+                addon.Presence.ApplyBlizzardSuppression()
+            end)
+        end
     end
 end
 
 local function OnPlayerLevelUp(_, level)
     if addon.GetDB and not addon.GetDB("presenceLevelUp", true) then return end
+    if addon.Presence.ApplyBlizzardSuppression then addon.Presence.ApplyBlizzardSuppression() end
     local L = addon.L or {}
     addon.Presence.QueueOrPlay("LEVEL_UP", L["LEVEL UP"], L["You have reached level %s"]:format(level or "??"))
 end
 
 local function OnRaidBossEmote(_, msg, unitName)
     if addon.GetDB and not addon.GetDB("presenceBossEmote", true) then return end
+    if addon.Presence.ApplyBlizzardSuppression then addon.Presence.ApplyBlizzardSuppression() end
     local bossName = unitName or "Boss"
     local formatted = msg or ""
     formatted = formatted:gsub("|T.-|t", "")
@@ -139,27 +160,28 @@ local function OnAchievementEarned(_, achID)
 end
 
 local function OnQuestAccepted(_, questID)
-    if addon.GetDB and not addon.GetDB("presenceQuestEvents", true) then return end
     if ShouldSuppressInMplus() then return end
     local opts = (questID and { questID = questID }) or {}
     if C_QuestLog and C_QuestLog.GetTitleForQuestID then
         local questName = StripPresenceMarkup(C_QuestLog.GetTitleForQuestID(questID) or "New Quest")
         if IsDNTQuest(questName) then return end
         if addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(questID) then
+            if not IsPresenceTypeEnabled("presenceWorldQuestAccept", "presenceQuestEvents", true) then return end
             local L = addon.L or {}
             addon.Presence.QueueOrPlay("WORLD_QUEST_ACCEPT", L["WORLD QUEST ACCEPTED"], questName, opts)
         else
+            if not IsPresenceTypeEnabled("presenceQuestAccept", "presenceQuestEvents", true) then return end
             local L = addon.L or {}
             addon.Presence.QueueOrPlay("QUEST_ACCEPT", L["QUEST ACCEPTED"], questName, opts)
         end
     else
+        if not IsPresenceTypeEnabled("presenceQuestAccept", "presenceQuestEvents", true) then return end
         local L = addon.L or {}
         addon.Presence.QueueOrPlay("QUEST_ACCEPT", L["QUEST ACCEPTED"], L["New Quest"], opts)
     end
 end
 
 local function OnQuestTurnedIn(_, questID)
-    if addon.GetDB and not addon.GetDB("presenceQuestEvents", true) then return end
     if ShouldSuppressInMplus() then return end
     local opts = (questID and { questID = questID }) or {}
     local questName = "Objective"
@@ -169,11 +191,13 @@ local function OnQuestTurnedIn(_, questID)
         end
         if IsDNTQuest(questName) then return end
         if addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(questID) then
+            if not IsPresenceTypeEnabled("presenceWorldQuest", "presenceQuestEvents", true) then return end
             local L = addon.L or {}
             addon.Presence.QueueOrPlay("WORLD_QUEST", L["WORLD QUEST"], questName, opts)
             return
         end
     end
+    if not IsPresenceTypeEnabled("presenceQuestComplete", "presenceQuestEvents", true) then return end
     addon.Presence.QueueOrPlay("QUEST_COMPLETE", "QUEST COMPLETE", questName, opts)
 end
 
@@ -262,7 +286,7 @@ local function ExecuteQuestUpdate(questID, isBlindUpdate, source, isRetry)
     end
 
     -- 8. Trigger notification
-    if addon.GetDB and not addon.GetDB("presenceQuestEvents", true) then return end
+    if not IsPresenceTypeEnabled("presenceQuestUpdate", "presenceQuestEvents", true) then return end
     if ShouldSuppressInMplus() then return end
     local L = addon.L or {}
     addon.Presence.QueueOrPlay("QUEST_UPDATE", L["QUEST UPDATE"], normalized, { questID = questID, source = source })
@@ -348,7 +372,7 @@ local function OnUIInfoMessage(_, msgType, msg)
                 if t then hasPendingUpdate = true break end
             end
             if hasPendingUpdate then return end
-            if addon.GetDB and not addon.GetDB("presenceQuestEvents", true) then return end
+            if not IsPresenceTypeEnabled("presenceQuestUpdate", "presenceQuestEvents", true) then return end
             if ShouldSuppressInMplus() then return end
 
             local now = GetTime()
@@ -442,6 +466,7 @@ local function ExecuteScenarioCriteriaUpdate()
     if not addon.IsScenarioActive or not addon.IsScenarioActive() then return end
     if ShouldSuppressInMplus() then return end
     if addon.GetDB and not addon.GetDB("showScenarioEvents", true) then return end
+    if not IsPresenceTypeEnabled("presenceScenarioUpdate", "showScenarioEvents", true) then return end
     if not addon.GetScenarioDisplayInfo then return end
 
     local stateKey, objectives = GetMainStepCriteria()
@@ -559,6 +584,7 @@ local function TryShowScenarioStart()
     if addon.IsDelveActive and addon.IsDelveActive() then return end
     if ShouldSuppressInMplus() then return end
     if addon.GetDB and not addon.GetDB("showScenarioEvents", true) then return end
+    if not IsPresenceTypeEnabled("presenceScenarioStart", "showScenarioEvents", true) then return end
     if not addon.GetScenarioDisplayInfo then return end
 
     scenarioCheckPending = true
@@ -568,6 +594,7 @@ local function TryShowScenarioStart()
         if not addon.IsScenarioActive or not addon.IsScenarioActive() then return end
         if wasInScenario then return end
         if addon.GetDB and not addon.GetDB("showScenarioEvents", true) then return end
+        if not IsPresenceTypeEnabled("presenceScenarioStart", "showScenarioEvents", true) then return end
 
         local title, subtitle, category = addon.GetScenarioDisplayInfo()
         if not title or title == "" then return end
@@ -579,11 +606,14 @@ local function TryShowScenarioStart()
             lastScenarioCriteriaCache = seedKey
             lastScenarioObjectives = seedObjs
         end
+        if addon.Presence.ApplyBlizzardSuppression then addon.Presence.ApplyBlizzardSuppression() end
         addon.Presence.QueueOrPlay("SCENARIO_START", StripPresenceMarkup(title), StripPresenceMarkup(subtitle or ""), { category = category, source = "SCENARIO_UPDATE" })
     end)
 end
 
 local function OnPlayerEnteringWorld()
+    -- Seed zone name for subzone-only display feature
+    lastKnownZone = GetZoneText() or nil
     if not addon.Presence._scenarioInitDone then
         addon.Presence._scenarioInitDone = true
         -- Delve objective update disabled; don't treat delve as scenario for this flow
@@ -593,11 +623,19 @@ local function OnPlayerEnteringWorld()
     end
 end
 
-local function OnScenarioUpdate() TryShowScenarioStart() end
+local function OnScenarioUpdate()
+    if IsPresenceTypeEnabled("presenceScenarioStart", "showScenarioEvents", true) or IsPresenceTypeEnabled("presenceScenarioUpdate", "showScenarioEvents", true) then
+        if addon.Presence.ApplyBlizzardSuppression then addon.Presence.ApplyBlizzardSuppression() end
+    end
+    TryShowScenarioStart()
+end
 
 local function OnScenarioCriteriaUpdate()
     -- Delve objective update feature disabled; skip when in a delve
     if addon.IsDelveActive and addon.IsDelveActive() then return end
+    if IsPresenceTypeEnabled("presenceScenarioStart", "showScenarioEvents", true) or IsPresenceTypeEnabled("presenceScenarioUpdate", "showScenarioEvents", true) then
+        if addon.Presence.ApplyBlizzardSuppression then addon.Presence.ApplyBlizzardSuppression() end
+    end
     TryShowScenarioStart()
     if wasInScenario then
         RequestScenarioCriteriaUpdate()
@@ -614,30 +652,47 @@ local function OnScenarioCompleted()
     end
 end
 
-local function OnZoneChangedNewArea()
+-- ============================================================================
+-- ZONE / SUBZONE DEBOUNCE
+-- ============================================================================
+
+--- Pending zone-change timer. Cancelled whenever a newer zone event arrives so
+--- only the final state within the debounce window is shown.
+local pendingZoneTimer      = nil
+local ZONE_DEBOUNCE         = 0.25
+local lastSubzoneTitleShown = nil
+local lastSubzoneTitleTime  = 0
+local SUBZONE_DEDUP_TIME    = 2.0
+
+local function ScheduleZoneNotification(isNewArea)
     local zone = GetZoneText() or "Unknown Zone"
     local sub  = GetSubZoneText() or ""
-    local wait = addon.Presence.DISCOVERY_WAIT or 0.15
-    C_Timer.After(wait, function()
+
+    -- Skip transient state where WoW briefly returns zone==sub.
+    if not isNewArea and sub ~= "" and zone == sub then return end
+
+    if isNewArea then lastKnownZone = zone end
+
+    if pendingZoneTimer then
+        pendingZoneTimer:Cancel()
+        pendingZoneTimer = nil
+    end
+
+    pendingZoneTimer = C_Timer.After(ZONE_DEBOUNCE, function()
+        pendingZoneTimer = nil
         if not addon:IsModuleEnabled("presence") then return end
-        local active = addon.Presence.active and addon.Presence.active()
-        local activeTitle = addon.Presence.activeTitle and addon.Presence.activeTitle()
-        local phase = addon.Presence.animPhase and addon.Presence.animPhase()
-        if active and activeTitle == zone and (phase == "hold" or phase == "entrance") then
-            local updateSub = sub
-            if addon.IsDelveActive and addon.IsDelveActive() then
-                local tier = addon.GetActiveDelveTier and addon.GetActiveDelveTier()
-                if tier then updateSub = "Tier " .. tier end
-            end
-            addon.Presence.SoftUpdateSubtitle(updateSub)
-            if addon.Presence.pendingDiscovery then
-                addon.Presence.ShowDiscoveryLine()
-                addon.Presence.pendingDiscovery = nil
-            end
-        else
+        if ShouldSuppressInMplus() then return end
+
+        -- Re-sample at fire time to always use the freshest state.
+        zone = GetZoneText() or "Unknown Zone"
+        sub  = GetSubZoneText() or ""
+
+        if addon.Presence.CancelZoneAnim then addon.Presence.CancelZoneAnim() end
+
+        local opts = {}
+
+        if isNewArea then
             if addon.GetDB and not addon.GetDB("presenceZoneChange", true) then return end
-            if ShouldSuppressInMplus() then return end
-            local opts = {}
             local displaySub = sub
             if addon.IsDelveActive and addon.IsDelveActive() then
                 opts.category = "DELVES"
@@ -647,48 +702,63 @@ local function OnZoneChangedNewArea()
                 opts.category = "DUNGEON"
             end
             opts.source = "ZONE_CHANGED_NEW_AREA"
+            lastSubzoneTitleShown = nil
+            lastSubzoneTitleTime  = 0
             addon.Presence.QueueOrPlay("ZONE_CHANGE", StripPresenceMarkup(zone), StripPresenceMarkup(displaySub), opts)
+        else
+            if not IsPresenceTypeEnabled("presenceSubzoneChange", "presenceZoneChange", true) then return end
+            if sub == "" then return end
+            if addon.IsDelveActive and addon.IsDelveActive() then return end
+            if addon.IsInPartyDungeon and addon.IsInPartyDungeon() then
+                opts.category = "DUNGEON"
+            end
+            opts.source = "ZONE_CHANGED"
+
+            -- Interior zones: WoW sets zone=building, sub=parent (inverted vs normal subzones).
+            local isInterior = lastKnownZone and sub ~= "" and sub == lastKnownZone
+            local displayTitle = isInterior and zone or sub
+            local displayParent = isInterior and sub or zone
+
+            local hideZoneForSubzone = addon.GetDB and addon.GetDB("presenceHideZoneForSubzone", false)
+            local sameZone = lastKnownZone and (
+                (not isInterior and zone ~= "" and zone == lastKnownZone) or
+                (isInterior and sub ~= "" and sub == lastKnownZone)
+            )
+
+            local notifTitle = StripPresenceMarkup(displayTitle)
+            local notifSub   = hideZoneForSubzone and sameZone and "" or StripPresenceMarkup(displayParent)
+
+            local now = GetTime()
+            if notifTitle == lastSubzoneTitleShown and (now - lastSubzoneTitleTime) < SUBZONE_DEDUP_TIME then
+                return
+            end
+            lastSubzoneTitleShown = notifTitle
+            lastSubzoneTitleTime  = now
+            addon.Presence.QueueOrPlay("SUBZONE_CHANGE", notifTitle, notifSub, opts)
+        end
+
+        if addon.Presence.pendingDiscovery then
+            addon.Presence.ShowDiscoveryLine()
+            addon.Presence.pendingDiscovery = nil
         end
     end)
 end
 
-local function OnZoneChanged()
-    local sub = GetSubZoneText()
-    if sub and sub ~= "" then
-        local zone = GetZoneText() or ""
-        local wait = addon.Presence.DISCOVERY_WAIT or 0.15
-        C_Timer.After(wait, function()
-            if not addon:IsModuleEnabled("presence") then return end
-            local active = addon.Presence.active and addon.Presence.active()
-            local activeTitle = addon.Presence.activeTitle and addon.Presence.activeTitle()
-            local phase = addon.Presence.animPhase and addon.Presence.animPhase()
-            if active and activeTitle == zone and (phase == "hold" or phase == "entrance") then
-                local updateSub = sub
-                if addon.IsDelveActive and addon.IsDelveActive() then
-                    local tier = addon.GetActiveDelveTier and addon.GetActiveDelveTier()
-                    if tier then updateSub = "Tier " .. tier end
-                end
-                addon.Presence.SoftUpdateSubtitle(updateSub)
-                if addon.Presence.pendingDiscovery then
-                    addon.Presence.ShowDiscoveryLine()
-                    addon.Presence.pendingDiscovery = nil
-                end
-            else
-                -- In Delves, ZONE_CHANGE already showed delve+tier; suppress SUBZONE_CHANGE
-                -- to avoid duplicate or inverted toast (parent/delve swap from GetZoneText/GetSubZoneText).
-                if addon.IsDelveActive and addon.IsDelveActive() then return end
-                if addon.GetDB and not addon.GetDB("presenceZoneChange", true) then return end
-                if ShouldSuppressInMplus() then return end
+local function OnZoneChangedNewArea()
+    if addon.Presence.ReapplyZoneSuppression and C_Timer and C_Timer.After then
+        C_Timer.After(0, addon.Presence.ReapplyZoneSuppression)
+    end
+    ScheduleZoneNotification(true)
+end
 
-                local opts = {}
-                local displaySub = sub
-                if addon.IsInPartyDungeon and addon.IsInPartyDungeon() then
-                    opts.category = "DUNGEON"
-                end
-                opts.source = "ZONE_CHANGED"
-                addon.Presence.QueueOrPlay("SUBZONE_CHANGE", StripPresenceMarkup(zone), StripPresenceMarkup(displaySub), opts)
-            end
-        end)
+local function OnZoneChanged()
+    if addon.Presence.ReapplyZoneSuppression and C_Timer and C_Timer.After then
+        C_Timer.After(0, addon.Presence.ReapplyZoneSuppression)
+    end
+    local zone = GetZoneText() or ""
+    local sub  = GetSubZoneText()
+    if sub and sub ~= "" and sub ~= zone then
+        ScheduleZoneNotification(false)
     end
 end
 

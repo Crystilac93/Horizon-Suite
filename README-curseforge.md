@@ -1,6 +1,6 @@
 # 🌌 Horizon Suite
 
-[![Release](https://img.shields.io/github/v/release/Crystilac93/Horizon-Suite?display_name=release)](https://github.com/Crystilac93/Horizon-Suite/releases) [![Release Date](https://img.shields.io/github/release-date-pre/Crystilac93/Horizon-Suite)](https://github.com/Crystilac93/Horizon-Suite/releases) [![Beta](https://img.shields.io/github/release-date-pre/Crystilac93/Horizon-Suite?label=beta&color=orange)](https://github.com/Crystilac93/Horizon-Suite/releases/tag/beta)
+[![Release](https://img.shields.io/github/v/release/Crystilac93/Horizon-Suite)](https://github.com/Crystilac93/Horizon-Suite/releases) [![Release Date](https://img.shields.io/github/release-date/Crystilac93/Horizon-Suite)](https://github.com/Crystilac93/Horizon-Suite/releases) [![Beta](https://img.shields.io/github/release-date-pre/Crystilac93/Horizon-Suite?label=Beta&color=orange)](https://github.com/Crystilac93/Horizon-Suite/releases/tag/beta)
 
 [![Discord](https://img.shields.io/discord/1471477531805749412?label=Discord&labelColor=%237289da)](https://discord.gg/MndCSYQ2ra) [![Patreon](https://img.shields.io/badge/build-donate-orange?label=patreon)](https://www.patreon.com/c/HorizonSuite) [![Ko-fi](https://img.shields.io/badge/build-tip-purple?label=Ko-fi)](https://ko-fi.com/horizonsuite)
 
@@ -10,7 +10,7 @@
 
 ## 🎯 Focus (Objective Tracker)
 
-![Focus - Objective Tracker](https://raw.githubusercontent.com/Crystilac93/Horizon-Suite/main/docs/Focus.png)
+![Focus - Objective Tracker](https://raw.githubusercontent.com/Crystilac93/Horizon-Suite/main/docs/Focus.gif)
 
 - **Smart zone tracking** – Nearby quests float to the top; list updates as you move. Delves, scenarios, raids, and world events get their own sections with progress bars and timers.
 - **Track what matters** – Achievements, Endeavors (housing), Decor, and Traveler's Log objectives appear in the tracker. Full achievement progress tracking with criteria parsing and quantity strings. One-click to open achievement panel, housing dashboard, decor catalog, or Adventure Guide.
@@ -24,11 +24,30 @@
 
 ## 🎬 Presence (Zone Text & Notifications)
 
-![Presence - Zone Text & Notifications](https://raw.githubusercontent.com/Crystilac93/Horizon-Suite/main/docs/Presence.png)
+![Presence - Zone Text & Notifications](https://raw.githubusercontent.com/Crystilac93/Horizon-Suite/main/docs/Presence.gif)
 
-- **Cinematic notifications** – Zone text, subzone changes, "Discovered" lines. Level-up, boss emotes, achievements, quest accept/complete, scenario start, and objective progress in delves/scenarios appear as styled toasts with smooth animations.
+- **Cinematic notifications** – Replaces Blizzard's default zone text, level-up banner, boss emote frame, and achievement alerts with styled toasts: smooth entrance and exit animations, a dividing line between title and subtitle, and an optional "Discovered!" third line on first visits.
+- **Full notification coverage** – Zone entry, subzone changes, level-up, boss emotes, achievements, quest accepted/complete/progress, world quest accepted/complete, scenario start, and scenario or delve objective updates — 12 types in total.
+- **Per-type toggles** – Enable or disable each notification type individually. Mythic+ suppression silences zone, quest, and scenario notifications while inside a keystone dungeon.
+- **Prioritised queue** – Up to five notifications queue when one is already playing; higher-priority events (level-up, boss emotes, achievements) play ahead of routine quest updates.
+- **Visual customisation** – Vertical screen position, frame scale, and independent font types and sizes for title and subtitle. Entrance speed, exit speed, and hold-duration multiplier are all adjustable.
+
+## 🗺️ Vista (Minimap)
+
+![Vista - Minimap](https://raw.githubusercontent.com/Crystilac93/Horizon-Suite/main/docs/Vista.gif)
+
+- **Square or circular minimap** – Choose a square or circular mask. Adjust size (100–400px), lock position, or drag to relocate. Optional auto zoom-out after zooming.
+- **Zone text, coordinates, and time** – Zone name, player coordinates, and game time below the minimap. Each element has its own font, size, and colour; show or hide individually. Click the time to open the stopwatch.
+- **Instance difficulty** – Difficulty name and Mythic+ keystone level shown when in an instance.
+- **Mail and queue indicators** – New mail icon and queue status button appear automatically when relevant.
+- **Built-in buttons** – Tracking, calendar, and zoom (+/−) buttons. Show always or on mouseover. Each is draggable and resizable; lock to prevent accidental movement.
+- **Addon button collector** – Minimap buttons from other addons are grouped and presented in one of three modes: mouseover bar below the minimap, right-click panel, or floating drawer button. Per-addon filter to show only selected buttons.
+- **Customizable appearance** – Border (thickness, colour, opacity), panel background and border colours for button panels, and per-element typography. SharedMedia support for fonts.
+- **Mouse wheel zoom** – Scroll over the minimap to zoom in and out.
 
 ## 💎 Yield (Loot Toasts) - BETA
+
+![Yield - Loot Toasts](https://raw.githubusercontent.com/Crystilac93/Horizon-Suite/main/docs/Yield.gif)
 
 - **Cinematic loot notifications** – Items, money, currency, and reputation gains appear as styled toasts with quality-based colours and smooth slide-in animations.
 - **Epic and legendary flair** – Extra entrance time, shine effects, and optional sounds for high-value loot.
@@ -37,17 +56,12 @@
 
 - **Cinematic tooltips** – Dark backdrop, class-colored player names and borders, faction icons, spec/role display, and fade-in animation.
 - **Profile-backed settings** – Anchor mode (cursor or fixed) and position stored per profile.
-- **Quick options** – `/insight` for anchor toggle, move, reset, and test.
-
-## 🗺️ Vista (Minimap) - BETA
-
-- **Cinematic square minimap** – Zone text, coordinates, instance difficulty, mail indicator, and button collector. Draggable, scalable, with optional auto-zoom.
-- **Quick options** – `/mmm` for position reset, show/hide, and button collection.
 
 ## 🎨 Visuals & UI Design
 
 - **High-fidelity icons** – Distinct icons for Campaign, Legendary, and World Quests.
 - **Customizable colours** – Per-category colour control (title, objective, zone, section). Panel backdrop colour and opacity.
+- **Scaling** – Global UI scale (50–200%) for all modules, or per-module sliders for Focus, Presence, Vista, Insight, and Yield when WoW UI scale is lowered.
 - **Typography and spacing** – Fonts, sizes, outlines, and spacing sliders. Optional SharedMedia support for fonts from addon packs. Turn-in highlights and progress counts (e.g. 15/18) at a glance.
 - **Progress bar** – Optional bar under objectives with numeric progress (e.g. 3/250). Configurable font, size, and colours.
 - **Fluid motion** – Smooth entry/exit animations and a subtle pulse on objective completion.
@@ -57,7 +71,7 @@
 
 ## 📦 Modules & Roadmap
 
-**Focus** is the objective tracker. **Presence** adds cinematic zone text and notifications. **Insight** adds cinematic tooltips with class colors, spec display, and faction icons. **Vista** adds a cinematic square minimap. **Yield** adds cinematic loot toasts (items, money, currency, reputation). Enable them in options. More modules are planned: Quest Log, Combat Alerts, Unit Frames, Chat.
+**Focus** is the objective tracker. **Presence** adds cinematic zone text and notifications. **Insight** adds cinematic tooltips with class colors, spec display, and faction icons. **Vista** adds a cinematic minimap (square or circular) with zone text, coordinates, addon button collector, and full customisation. **Yield** adds cinematic loot toasts (items, money, currency, reputation). Enable them in options. More modules are planned: Quest Log, Combat Alerts, Unit Frames, Chat.
 
 ---
 
@@ -100,6 +114,7 @@ The options panel is localized for:
 - **French (frFR)** — `options/frFR.lua`
 - **Korean (koKR)** — `options/koKR.lua`
 - **Brazilian Portuguese (ptBR)** — `options/ptBR.lua`
+- **Russian (ruRU)** — `options/ruRU.lua`
 
 Contributions for additional locales are welcome via discord request.
 

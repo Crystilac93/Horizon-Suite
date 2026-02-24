@@ -12,10 +12,11 @@ Thumbs.db
 *.sublime-*
 
 # Local dev notes (not for version control)
+CLAUDE.md
 docs/plans/
 
 
 # Local dev tools
 tools/pipeline-viewer.html
 tools/serve-pipeline.ps1
-wowapi/
+wowapi/

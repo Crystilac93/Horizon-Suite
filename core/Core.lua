@@ -17,46 +17,111 @@ local EnsureProfilesAndMigrateLegacy
 -- DB AND DIMENSION HELPERS (depend on Config constants)
 -- ==========================================================================
 
+--- Returns the global UI scale factor from DB (default 1, range 0.5–2).
+--- All visual sizes should be multiplied by this value at render time.
+--- @return number
+function addon.GetUIScale()
+    local v = tonumber(addon.GetDB and addon.GetDB("globalUIScale", 1) or 1) or 1
+    return math.max(0.5, math.min(2, v))
+end
+
+--- Returns true when per-module scaling is enabled (overrides global scale).
+--- @return boolean
+function addon.IsPerModuleScaling()
+    return addon.GetDB and addon.GetDB("perModuleScaling", false) or false
+end
+
+--- Returns the scale factor for a specific module.
+--- When per-module scaling is on, reads the module-specific key; otherwise returns global scale.
+--- @param moduleName string  "focus"|"presence"|"vista"|"insight"|"yield"
+--- @return number
+function addon.GetModuleScale(moduleName)
+    if addon.IsPerModuleScaling() then
+        local key = moduleName .. "UIScale"
+        local v = tonumber(addon.GetDB and addon.GetDB(key, 1) or 1) or 1
+        return math.max(0.5, math.min(2, v))
+    end
+    return addon.GetUIScale()
+end
+
+--- Scale a value by the global UI scale factor.
+--- @param value number The base value (user-configured or constant).
+--- @return number
+function addon.Scaled(value)
+    if not value then return 0 end
+    return value * addon.GetModuleScale("focus")
+end
+
+--- Scale a value by a specific module's scale factor.
+--- @param value number
+--- @param moduleName string  "focus"|"presence"|"vista"|"insight"|"yield"
+--- @return number
+function addon.ScaledForModule(value, moduleName)
+    if not value then return 0 end
+    return value * addon.GetModuleScale(moduleName)
+end
+
+--- Scale and floor a value (pixel-snapping for frame sizes).
+--- @param value number
+--- @return number
+function addon.ScaledFloor(value)
+    return math.floor(addon.Scaled(value))
+end
+
+--- Frequently-used scaled constants (convenience wrappers).
+function addon.GetScaledPadding()       return addon.Scaled(addon.PADDING) end
+function addon.GetScaledDividerHeight() return addon.Scaled(addon.DIVIDER_HEIGHT) end
+function addon.GetScaledMinHeight()     return addon.Scaled(addon.MIN_HEIGHT) end
+function addon.GetScaledMinimalHeaderHeight() return addon.Scaled(addon.MINIMAL_HEADER_HEIGHT) end
+function addon.GetScaledContentRightPadding() return addon.Scaled(addon.CONTENT_RIGHT_PADDING or 0) end
+function addon.GetScaledItemBtnSize()   return addon.Scaled(addon.ITEM_BTN_SIZE) end
+function addon.GetScaledLfgBtnSize()    return addon.Scaled(addon.LFG_BTN_SIZE) end
+function addon.GetScaledBarLeftOffset() return addon.Scaled(addon.BAR_LEFT_OFFSET) end
+function addon.GetScaledScrollStep()    return addon.Scaled(addon.SCROLL_STEP) end
+
 
 function addon.GetTitleSpacing()
     if addon.GetDB("compactMode", false) then
-        return addon.COMPACT_TITLE_SPACING
+        return addon.Scaled(addon.COMPACT_TITLE_SPACING)
     end
     local v = tonumber(addon.GetDB("titleSpacing", addon.TITLE_SPACING)) or addon.TITLE_SPACING
-    return math.max(2, math.min(20, v))
+    return addon.Scaled(math.max(2, math.min(20, v)))
 end
 function addon.GetObjSpacing()
     if addon.GetDB("compactMode", false) then
-        return addon.COMPACT_OBJ_SPACING
+        return addon.Scaled(addon.COMPACT_OBJ_SPACING)
     end
     local v = tonumber(addon.GetDB("objSpacing", addon.OBJ_SPACING)) or addon.OBJ_SPACING
-    return math.max(0, math.min(8, v))
+    return addon.Scaled(math.max(0, math.min(8, v)))
 end
 function addon.GetSectionSpacing()
     local v = tonumber(addon.GetDB("sectionSpacing", addon.SECTION_SPACING)) or addon.SECTION_SPACING
-    return math.max(0, math.min(24, v))
+    return addon.Scaled(math.max(0, math.min(24, v)))
 end
 function addon.GetSectionToEntryGap()
     local v = tonumber(addon.GetDB("sectionToEntryGap", 6)) or 6
-    return math.max(0, math.min(16, v))
+    return addon.Scaled(math.max(0, math.min(16, v)))
 end
 
 --- Returns section header frame height from section font size so text is not clipped.
 --- @return number
 function addon.GetSectionHeaderHeight()
     local sz = tonumber(addon.GetDB("sectionFontSize", 10)) or 10
-    return math.max(addon.SECTION_SIZE + 4, sz + 6)
+    return addon.Scaled(math.max(addon.SECTION_SIZE + 4, sz + 6))
 end
 
 function addon.GetObjIndent()
-    return addon.GetDB("compactMode", false) and addon.COMPACT_OBJ_INDENT or addon.OBJ_INDENT
+    local v = addon.GetDB("compactMode", false) and addon.COMPACT_OBJ_INDENT or addon.OBJ_INDENT
+    return addon.Scaled(v)
 end
 
 function addon.GetPanelWidth()
-    return tonumber(addon.GetDB("panelWidth", addon.PANEL_WIDTH)) or addon.PANEL_WIDTH
+    local v = tonumber(addon.GetDB("panelWidth", addon.PANEL_WIDTH)) or addon.PANEL_WIDTH
+    return addon.Scaled(v)
 end
 function addon.GetMaxContentHeight()
-    return tonumber(addon.GetDB("maxContentHeight", addon.MAX_CONTENT_HEIGHT)) or addon.MAX_CONTENT_HEIGHT
+    local v = tonumber(addon.GetDB("maxContentHeight", addon.MAX_CONTENT_HEIGHT)) or addon.MAX_CONTENT_HEIGHT
+    return addon.Scaled(v)
 end
 
 --- Returns the header text color from DB or default.
@@ -73,7 +138,7 @@ end
 --- @return number
 function addon.GetHeaderHeight()
     local v = tonumber(addon.GetDB("headerHeight", addon.HEADER_HEIGHT)) or addon.HEADER_HEIGHT
-    return math.max(18, math.min(48, v))
+    return addon.Scaled(math.max(18, math.min(48, v)))
 end
 
 --- Returns boss emote colour from DB or default (Presence module).
@@ -101,7 +166,7 @@ function addon.GetContentLeftOffset()
     -- Quest item buttons live in the RIGHT gutter (shared with the LFG button).
     local showQuestIcons = addon.GetDB("showQuestTypeIcons", false)
     local base = addon.PADDING + (showQuestIcons and addon.ICON_COLUMN_WIDTH or 0)
-    return math.max(addon.PADDING, base)
+    return addon.Scaled(math.max(addon.PADDING, base))
 end
 
 -- ==========================================================================
@@ -1058,18 +1123,18 @@ divider:SetPoint("TOP", HS, "TOPLEFT", addon.GetPanelWidth() / 2, -(addon.PADDIN
 divider:SetColorTexture(addon.DIVIDER_COLOR[1], addon.DIVIDER_COLOR[2], addon.DIVIDER_COLOR[3], addon.DIVIDER_COLOR[4])
 
 function addon.GetHeaderToContentGap()
-    return math.max(0, math.min(24, tonumber(addon.GetDB("headerToContentGap", 6)) or 6))
+    return addon.Scaled(math.max(0, math.min(24, tonumber(addon.GetDB("headerToContentGap", 6)) or 6)))
 end
 
 function addon.GetContentTop()
     -- Super-minimal uses same offset as full header so categories/quests do not move up (no overlap with chevron/options)
-    return -(addon.PADDING + addon.GetHeaderHeight() + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap())
+    return -(addon.Scaled(addon.PADDING) + addon.GetHeaderHeight() + addon.Scaled(addon.DIVIDER_HEIGHT) + addon.GetHeaderToContentGap())
 end
 function addon.GetCollapsedHeight()
     if addon.GetDB("hideObjectivesHeader", false) then
-        return addon.MINIMAL_HEADER_HEIGHT + 6
+        return addon.GetScaledMinimalHeaderHeight() + addon.Scaled(6)
     end
-    return addon.PADDING + addon.GetHeaderHeight() + 6
+    return addon.GetScaledPadding() + addon.GetHeaderHeight() + addon.Scaled(6)
 end
 
 local scrollFrame = CreateFrame("ScrollFrame", nil, HS)
@@ -1096,7 +1161,7 @@ local function HandleScroll(delta)
     local frameH  = scrollFrame:GetHeight() or 0
     local maxScr  = math.max(math.floor(childH - frameH), 0)
     local lo = addon.focus.layout
-    lo.scrollOffset = math.floor(math.max(0, math.min((lo.scrollOffset or 0) - delta * addon.SCROLL_STEP, maxScr)))
+    lo.scrollOffset = math.max(0, math.min(lo.scrollOffset - delta * addon.GetScaledScrollStep(), maxScr))
     scrollFrame:SetVerticalScroll(lo.scrollOffset)
     if addon.UpdateScrollIndicators then addon.UpdateScrollIndicators() end
 end
@@ -1380,7 +1445,7 @@ end)
 local RESIZE_MIN, RESIZE_MAX = 180, 800
 local RESIZE_HEIGHT_MIN = addon.MIN_HEIGHT
 local function GetResizeHeightMax()
-    return addon.PADDING + addon.GetHeaderHeight() + addon.DIVIDER_HEIGHT + 24 + 1000 + addon.PADDING
+    return addon.GetScaledPadding() + addon.GetHeaderHeight() + addon.GetScaledDividerHeight() + addon.Scaled(24) + 1000 + addon.GetScaledPadding()
 end
 local RESIZE_CONTENT_HEIGHT_MIN, RESIZE_CONTENT_HEIGHT_MAX = 200, 1000
 
@@ -1440,8 +1505,8 @@ resizeHandle:SetScript("OnDragStop", function(self)
     local newWidth = HS:GetWidth()
     addon.SetDB("panelWidth", newWidth)
     local h = HS:GetHeight()
-    local headerArea = addon.PADDING + addon.GetHeaderHeight() + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap()
-    local contentH = h - headerArea - addon.PADDING
+    local headerArea = addon.GetScaledPadding() + addon.GetHeaderHeight() + addon.GetScaledDividerHeight() + addon.GetHeaderToContentGap()
+    local contentH = h - headerArea - addon.GetScaledPadding()
     local mplus = addon.mplusBlock
     local hasMplus = mplus and mplus:IsShown()
     if hasMplus and addon.GetMplusBlockHeight then

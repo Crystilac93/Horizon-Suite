@@ -37,6 +37,8 @@ local function RunWorldMapVisibilityCheck()
     end
 end
 
+local StopScenarioTimerHeartbeat  -- forward declaration
+
 local function StartScenarioTimerHeartbeat()
     if addon._scenarioTimerHeartbeat then return end
     addon._scenarioTimerHeartbeat = C_Timer.NewTicker(5, function()
@@ -45,11 +47,13 @@ local function StartScenarioTimerHeartbeat()
         if not addon.GetDB("showScenarioEvents", true) then return end
         if addon.IsScenarioActive and addon.IsScenarioActive() then
             if addon.ScheduleRefresh then addon.ScheduleRefresh() end
+        else
+            StopScenarioTimerHeartbeat()
         end
     end)
 end
 
-local function StopScenarioTimerHeartbeat()
+StopScenarioTimerHeartbeat = function()
     if addon._scenarioTimerHeartbeat then
         addon._scenarioTimerHeartbeat:Cancel()
         addon._scenarioTimerHeartbeat = nil
@@ -70,42 +74,29 @@ local function StopScenarioBarTicker()
     end
 end
 
-local function StartMapCheckTicker()
-    if addon._mapCheckTicker then return end
-    addon._mapCheckTicker = C_Timer.NewTicker(0.5, function()
+-- PLAYER_MAP_CHANGED fires with oldMapID/newMapID whenever the player's UI map
+-- changes (subzone, zone, continent). This replaces the 0.5s _mapCheckTicker poll.
+local mapChangedFrame = CreateFrame("Frame")
+local function StartMapChangedListener()
+    if addon._mapChangedListening then return end
+    addon._mapChangedListening = true
+    mapChangedFrame:RegisterEvent("PLAYER_MAP_CHANGED")
+    mapChangedFrame:SetScript("OnEvent", function(_, _, oldMapID, newMapID)
+        if not addon.focus.enabled then return end
+        -- Delegate to RunMapCheck which handles zone cache invalidation.
         if addon.RunMapCheck then addon.RunMapCheck() end
+        -- Also check world map visibility on map change.
         RunWorldMapVisibilityCheck()
     end)
 end
 
-local function StopMapCheckTicker()
-    if addon._mapCheckTicker then
-        addon._mapCheckTicker:Cancel()
-        addon._mapCheckTicker = nil
-    end
+local function StopMapChangedListener()
+    if not addon._mapChangedListening then return end
+    addon._mapChangedListening = nil
+    mapChangedFrame:UnregisterEvent("PLAYER_MAP_CHANGED")
 end
 
--- When "Show in-zone world quests" is off, run a 1s ticker to refresh proximity (Blizzard default:
--- WQs appear when you enter their quest area). Skips instances/delves where WQ proximity is irrelevant.
-local function StartProximityCheckTicker()
-    if addon._proximityCheckTicker then return end
-    addon._proximityCheckTicker = C_Timer.NewTicker(1, function()
-        if not addon.focus.enabled or addon.focus.collapsed then return end
-        if addon.GetDB("showWorldQuests", true) then return end
-        if addon.IsInPartyDungeon and addon.IsInPartyDungeon() then return end
-        if addon.IsDelveActive and addon.IsDelveActive() then return end
-        if addon.ScheduleRefresh then addon.ScheduleRefresh() end
-    end)
-end
-
-local function StopProximityCheckTicker()
-    if addon._proximityCheckTicker then
-        addon._proximityCheckTicker:Cancel()
-        addon._proximityCheckTicker = nil
-    end
-end
-
--- Called when Blizzard_WorldMap loads; reset visibility state so next ticker run resyncs.
+-- Called when Blizzard_WorldMap loads; reset visibility state so next check resyncs.
 local function tryHookWorldMap()
     addon._worldMapWasShown = nil
 end
@@ -113,6 +104,8 @@ end
 -- Expose for FocusEvents when Blizzard_WorldMap loads after us
 addon.FocusModuleHooks = addon.FocusModuleHooks or {}
 addon.FocusModuleHooks.WorldMap = tryHookWorldMap
+-- Also expose so FocusEvents SCENARIO_UPDATE can start the heartbeat on demand.
+addon.StartScenarioTimerHeartbeat = StartScenarioTimerHeartbeat
 
 addon:RegisterModule("focus", {
     title       = "Focus",
@@ -147,16 +140,19 @@ addon:RegisterModule("focus", {
             addon.focus.layout.targetHeight  = addon.GetCollapsedHeight()
             addon.focus.layout.currentHeight = addon.GetCollapsedHeight()
         end
-        StartScenarioTimerHeartbeat()
-        StartScenarioBarTicker()
-        StartMapCheckTicker()
-        StartProximityCheckTicker()
-        if addon.EnsureFocusUpdateRunning then addon.EnsureFocusUpdateRunning() end
-        C_Timer.After(0.5, tryHookWorldMap)
-        for attempt = 1, 5 do
-            C_Timer.After(1 + attempt, tryHookWorldMap)
+        -- Only start the scenario heartbeat if a scenario is already running on enable.
+        if addon.IsScenarioActive and addon.IsScenarioActive() then
+            StartScenarioTimerHeartbeat()
         end
-        C_Timer.After(1, tryHookWorldMap)
+        StartScenarioBarTicker()
+        StartMapChangedListener()
+        -- Proximity ticker removed: TASK_PROGRESS_UPDATE fires when the player enters
+        -- a WQ area (the exact moment a proximity WQ should appear), and ZONE_CHANGED
+        -- handles the broader zone-change WQ cache invalidation.
+        if addon.EnsureFocusUpdateRunning then addon.EnsureFocusUpdateRunning() end
+        -- tryHookWorldMap: ADDON_LOADED for Blizzard_WorldMap in FocusEvents handles this.
+        -- One deferred call covers the case where the map is already loaded at enable time.
+        C_Timer.After(0.5, tryHookWorldMap)
         if addon.TrySuppressTracker then addon.TrySuppressTracker() end
         if addon.ScheduleRefresh then addon.ScheduleRefresh() end
     end,
@@ -165,8 +161,7 @@ addon:RegisterModule("focus", {
         addon.focus.enabled = false
         StopScenarioTimerHeartbeat()
         StopScenarioBarTicker()
-        StopMapCheckTicker()
-        StopProximityCheckTicker()
+        StopMapChangedListener()
         if addon.HS then addon.HS:SetScript("OnUpdate", nil) end
         if addon.RestoreTracker then
             if InCombatLockdown() then

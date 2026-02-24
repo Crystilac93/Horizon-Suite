@@ -80,9 +80,19 @@ local function IsTaskQuestOnPlayerMaps(questID, mapIDSet)
 end
 
 --- Build sets of quest IDs visible on the player's current map(s) and from task/WQ APIs.
+-- Results are cached until addon.focus.nearbyQuestCacheDirty is set (done on zone change).
+-- When showWorldQuests is off the WQ map scan is skipped entirely; only bonus-objective task
+-- quests (non-WQ) are still included because they are zone-entered, not zone-scanned.
 -- @return table nearbySet Set of questID -> true for quests on player map or parent/children
 -- @return table taskQuestOnlySet Set of questID -> true for quests coming only from task/WQ map APIs
 local function GetNearbyQuestIDs()
+    -- Return cached result if the zone hasn't changed since the last scan.
+    if not addon.focus.nearbyQuestCacheDirty
+        and addon.focus.nearbyQuestCache
+        and addon.focus.nearbyTaskQuestCache then
+        return addon.focus.nearbyQuestCache, addon.focus.nearbyTaskQuestCache
+    end
+    addon.focus.nearbyQuestCacheDirty = nil
     local nearbySet = {}
     local taskQuestOnlySet = {}
 
@@ -118,8 +128,18 @@ local function GetNearbyQuestIDs()
         end
     end
 
-    if not C_Map or not C_Map.GetBestMapForUnit or not C_QuestLog.GetQuestsOnMap then return nearbySet, taskQuestOnlySet end
-    if not mapIDsToCheck then return nearbySet, taskQuestOnlySet end
+    if not C_Map or not C_Map.GetBestMapForUnit or not C_QuestLog.GetQuestsOnMap then
+        addon.focus.nearbyQuestCache = nearbySet
+        addon.focus.nearbyTaskQuestCache = taskQuestOnlySet
+        return nearbySet, taskQuestOnlySet
+    end
+    if not mapIDsToCheck then
+        addon.focus.nearbyQuestCache = nearbySet
+        addon.focus.nearbyTaskQuestCache = taskQuestOnlySet
+        return nearbySet, taskQuestOnlySet
+    end
+
+    local showWQ = addon.GetDB("showWorldQuests", true)
 
     for _, checkMapID in ipairs(mapIDsToCheck) do
         -- C_QuestLog.GetQuestsOnMap: regular quest map pins (accepted quests with POI locations).
@@ -146,9 +166,8 @@ local function GetNearbyQuestIDs()
         end
 
         -- C_TaskQuest.GetQuestsOnMap: authoritative source for active task/world quests.
-        -- We already requested quests for checkMapID, so results belong to this map
-        -- or its sub-areas. Only gate: IsTaskQuestCurrentlyActive (IsActive + time-left + not completed).
-        if addon.GetTaskQuestsForMap then
+        -- Only run when showWorldQuests is on; this is the expensive per-zone WQ scan.
+        if showWQ and addon.GetTaskQuestsForMap then
             local taskPOIs = addon.GetTaskQuestsForMap(checkMapID, checkMapID) or addon.GetTaskQuestsForMap(checkMapID)
             if taskPOIs then
                 for _, poi in ipairs(taskPOIs) do
@@ -164,10 +183,8 @@ local function GetNearbyQuestIDs()
         end
     end
 
-    -- Quest hub fallback (zone-scoped):
-    -- Some active WQs are associated to quest hubs and are best enumerated via Area POIs.
-    -- This also helps when GetQuestsOnMap returns an incomplete set for the zone map.
-    if ctx and ctx.zoneMapID and C_AreaPoiInfo and C_AreaPoiInfo.GetQuestHubsForMap and C_AreaPoiInfo.GetAreaPOIInfo then
+    -- Quest hub fallback (zone-scoped): only when showWorldQuests is on.
+    if showWQ and ctx and ctx.zoneMapID and C_AreaPoiInfo and C_AreaPoiInfo.GetQuestHubsForMap and C_AreaPoiInfo.GetAreaPOIInfo then
         local okHubs, hubs = pcall(C_AreaPoiInfo.GetQuestHubsForMap, ctx.zoneMapID)
         if okHubs and hubs and type(hubs) == "table" then
             for _, areaPoiID in ipairs(hubs) do
@@ -191,6 +208,25 @@ local function GetNearbyQuestIDs()
                                 end
                             end
                         end
+                    end
+                end
+            end
+        end
+    end
+
+    if not showWQ and C_QuestLog and C_QuestLog.GetNumQuestLogEntries and C_QuestLog.GetInfo then
+        for i = 1, C_QuestLog.GetNumQuestLogEntries() do
+            local info = C_QuestLog.GetInfo(i)
+            if info and not info.isHeader and info.questID and not nearbySet[info.questID] then
+                local questID = info.questID
+                local isWQ = (addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(questID))
+                    or (C_QuestLog.IsWorldQuest and C_QuestLog.IsWorldQuest(questID))
+                if isWQ and IsTaskQuestCurrentlyActive(questID) then
+                    -- Only include if the player is currently inside the quest area.
+                    local inArea = C_QuestLog.IsOnQuest and C_QuestLog.IsOnQuest(questID)
+                    if inArea then
+                        nearbySet[questID] = true
+                        taskQuestOnlySet[questID] = true
                     end
                 end
             end
@@ -243,6 +279,8 @@ local function GetNearbyQuestIDs()
         end
     end
 
+    addon.focus.nearbyQuestCache = nearbySet
+    addon.focus.nearbyTaskQuestCache = taskQuestOnlySet
     return nearbySet, taskQuestOnlySet
 end
 

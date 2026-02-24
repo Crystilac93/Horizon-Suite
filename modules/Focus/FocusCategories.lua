@@ -19,10 +19,6 @@ local function GetQuestFrequency(questID)
     if not questID or not C_QuestLog or not C_QuestLog.GetLogIndexForQuestID then return nil end
     local logIndex = C_QuestLog.GetLogIndexForQuestID(questID)
     if not logIndex then return nil end
-    if GetQuestLogTitle then
-        local ok, _, _, _, _, _, frequency = pcall(GetQuestLogTitle, logIndex)
-        if ok and frequency ~= nil then return frequency end
-    end
     if C_QuestLog.GetInfo then
         local ok, info = pcall(C_QuestLog.GetInfo, logIndex)
         if ok and info and info.frequency ~= nil then return info.frequency end
@@ -181,8 +177,6 @@ local function GetQuestZoneName(questID)
      end
      return nil
  end
-
---- Returns true when the quest is group-oriented content where a "Find Group"
 --- button is useful.  This includes explicit Group quests, World Bosses,
 --- Elite World Quests, and Raid quests.
 --- @param questID number

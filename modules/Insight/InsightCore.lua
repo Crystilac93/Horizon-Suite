@@ -96,16 +96,17 @@ local function StyleFonts(tooltip)
     if not tooltip then return end
     local name = tooltip:GetName()
     if not name then return end
+    local S = function(v) return (addon.ScaledForModule or addon.Scaled or function(x) return x end)(v, "insight") end
     local numLines = tooltip:NumLines()
     for i = 1, numLines do
         local left  = _G[name .. "TextLeft" .. i]
         local right = _G[name .. "TextRight" .. i]
         if left then
-            local sz = (i == 1) and HEADER_SIZE or BODY_SIZE
+            local sz = (i == 1) and S(HEADER_SIZE) or S(BODY_SIZE)
             left:SetFont(FONT_PATH, sz, "OUTLINE")
         end
         if right then
-            right:SetFont(FONT_PATH, BODY_SIZE, "OUTLINE")
+            right:SetFont(FONT_PATH, S(BODY_SIZE), "OUTLINE")
         end
     end
 end
@@ -327,13 +328,13 @@ anchorFrame:SetFrameStrata("DIALOG")
 anchorFrame:Hide()
 
 local anchorLabel = anchorFrame:CreateFontString(nil, "OVERLAY")
-anchorLabel:SetFont(FONT_PATH, BODY_SIZE, "OUTLINE")
+anchorLabel:SetFont(FONT_PATH, (addon.ScaledForModule or addon.Scaled or function(v) return v end)(BODY_SIZE, "insight"), "OUTLINE")
 anchorLabel:SetPoint("CENTER")
 anchorLabel:SetTextColor(0.50, 0.70, 1.0, 1)
 anchorLabel:SetText("TOOLTIP ANCHOR")
 
 local anchorHint = anchorFrame:CreateFontString(nil, "OVERLAY")
-anchorHint:SetFont(FONT_PATH, SMALL_SIZE, "OUTLINE")
+anchorHint:SetFont(FONT_PATH, (addon.ScaledForModule or addon.Scaled or function(v) return v end)(SMALL_SIZE, "insight"), "OUTLINE")
 anchorHint:SetPoint("TOP", anchorFrame, "BOTTOM", 0, -4)
 anchorHint:SetTextColor(0.60, 0.60, 0.60, 1)
 anchorHint:SetText("Drag to move · Right-click to confirm")

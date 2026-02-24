@@ -16,6 +16,8 @@ local L = addon.L
 local TYPOGRAPHY_KEYS = {
     fontPath = true,
     titleFontPath = true,
+    presenceTitleFontPath = true,
+    presenceSubtitleFontPath = true,
     zoneFontPath = true,
     objectiveFontPath = true,
     sectionFontPath = true,
@@ -42,17 +44,28 @@ local PRESENCE_KEYS = {
     presenceBossEmoteColor = true,
     presenceDiscoveryColor = true,
     presenceZoneChange = true,
+    presenceSubzoneChange = true,
+    presenceHideZoneForSubzone = true,
     presenceSuppressZoneInMplus = true,
     presenceLevelUp = true,
     presenceBossEmote = true,
     presenceAchievement = true,
     presenceQuestEvents = true,
+    presenceQuestAccept = true,
+    presenceWorldQuestAccept = true,
+    presenceQuestComplete = true,
+    presenceWorldQuest = true,
+    presenceQuestUpdate = true,
+    presenceScenarioStart = true,
+    presenceScenarioUpdate = true,
     presenceAnimations = true,
     presenceEntranceDur = true,
     presenceExitDur = true,
     presenceHoldScale = true,
     presenceMainSize = true,
     presenceSubSize = true,
+    presenceTitleFontPath = true,
+    presenceSubtitleFontPath = true,
 }
 
 local MPLUS_TYPOGRAPHY_KEYS = {
@@ -95,6 +108,84 @@ local COLOR_LIVE_KEYS = {
     mplusBossColorR = true, mplusBossColorG = true, mplusBossColorB = true,
     progressBarFillColor = true, progressBarTextColor = true,
     progressBarUseCategoryColor = true,
+    vistaBorderColorR = true, vistaBorderColorG = true, vistaBorderColorB = true, vistaBorderColorA = true,
+    vistaZoneColorR = true, vistaZoneColorG = true, vistaZoneColorB = true,
+    vistaCoordColorR = true, vistaCoordColorG = true, vistaCoordColorB = true,
+    vistaTimeColorR = true, vistaTimeColorG = true, vistaTimeColorB = true,
+    vistaDiffColorR = true, vistaDiffColorG = true, vistaDiffColorB = true,
+    vistaPanelBgR = true, vistaPanelBgG = true, vistaPanelBgB = true, vistaPanelBgA = true,
+    vistaPanelBorderR = true, vistaPanelBorderG = true, vistaPanelBorderB = true, vistaPanelBorderA = true,
+}
+
+-- Vista option keys — trigger Vista.ApplyOptions when changed
+local VISTA_KEYS = {
+    vistaMapSize = true,
+    vistaCircular = true,
+    vistaBorderShow = true, vistaBorderWidth = true,
+    vistaBorderColorR = true, vistaBorderColorG = true, vistaBorderColorB = true, vistaBorderColorA = true,
+    vistaZoneFontPath = true, vistaZoneFontSize = true,
+    vistaCoordFontPath = true, vistaCoordFontSize = true,
+    vistaTimeFontPath = true, vistaTimeFontSize = true,
+    vistaShowZoneText = true, vistaShowCoordText = true, vistaShowTimeText = true,
+    vistaZoneVerticalPos = true, vistaCoordVerticalPos = true, vistaTimeVerticalPos = true,
+    vistaShowDefaultMinimapButtons = true,  -- legacy key kept for compatibility
+    vistaLock = true,
+    vistaPoint = true, vistaRelPoint = true, vistaX = true, vistaY = true,
+    vistaDrawerBtnX = true, vistaDrawerBtnY = true,
+    vistaShowTracking = true, vistaMouseoverTracking = true,
+    vistaShowCalendar = true, vistaMouseoverCalendar = true,
+    vistaShowZoomBtns = true, vistaMouseoverZoomBtns = true,
+    vistaQueueBtnX = true, vistaQueueBtnY = true,
+    -- Draggable element positions (stored by MakeDraggable on drag-stop)
+    vistaEX_zone = true, vistaEY_zone = true,
+    vistaEX_coord = true, vistaEY_coord = true,
+    vistaEX_time = true, vistaEY_time = true,
+    -- Proxy button positions (tracking + calendar + queue only; landing page removed)
+    ["vistaEX_proxy_tracking"] = true, ["vistaEY_proxy_tracking"] = true,
+    ["vistaEX_proxy_calendar"] = true, ["vistaEY_proxy_calendar"] = true,
+    ["vistaEX_proxy_queue"]    = true, ["vistaEY_proxy_queue"]    = true,
+    -- Lock toggles
+    vistaLocked_zone = true, vistaLocked_coord = true, vistaLocked_time = true,
+    vistaLocked_zoomIn = true, vistaLocked_zoomOut = true,
+    ["vistaLocked_proxy_tracking"] = true,
+    ["vistaLocked_proxy_calendar"] = true,
+    ["vistaLocked_proxy_queue"]    = true,
+    vistaButtonMode = true, vistaHandleAddonButtons = true,
+    vistaDrawerButtonLocked = true, vistaButtonWhitelist = true,
+    -- Button sizes (separate per type)
+    vistaTrackingBtnSize = true, vistaCalendarBtnSize = true, vistaQueueBtnSize = true,
+    vistaZoomBtnSize = true, vistaMailIconSize = true, vistaAddonBtnSize = true,
+    -- Text colors
+    vistaZoneColorR = true, vistaZoneColorG = true, vistaZoneColorB = true,
+    vistaCoordColorR = true, vistaCoordColorG = true, vistaCoordColorB = true,
+    vistaTimeColorR = true, vistaTimeColorG = true, vistaTimeColorB = true,
+    vistaDiffColorR = true, vistaDiffColorG = true, vistaDiffColorB = true,
+    -- Panel colors
+    vistaPanelBgR = true, vistaPanelBgG = true, vistaPanelBgB = true, vistaPanelBgA = true,
+    vistaPanelBorderR = true, vistaPanelBorderG = true, vistaPanelBorderB = true, vistaPanelBorderA = true,
+}
+-- Vista border color keys: live updates without full layout
+local VISTA_COLOR_LIVE_KEYS = {
+    vistaBorderColorR = true, vistaBorderColorG = true, vistaBorderColorB = true, vistaBorderColorA = true,
+    vistaZoneColorR = true, vistaZoneColorG = true, vistaZoneColorB = true,
+    vistaCoordColorR = true, vistaCoordColorG = true, vistaCoordColorB = true,
+    vistaTimeColorR = true, vistaTimeColorG = true, vistaTimeColorB = true,
+    vistaDiffColorR = true, vistaDiffColorG = true, vistaDiffColorB = true,
+    vistaPanelBgR = true, vistaPanelBgG = true, vistaPanelBgB = true, vistaPanelBgA = true,
+    vistaPanelBorderR = true, vistaPanelBorderG = true, vistaPanelBorderB = true, vistaPanelBorderA = true,
+}
+
+-- Scale keys managed by debounced callbacks in the slider set lambdas.
+-- OptionsData_SetDB must NOT call OptionsData_NotifyMainAddon for these —
+-- doing so would trigger FullLayout synchronously on every integer drag step,
+-- defeating the debounce entirely.
+local SCALE_DEBOUNCE_KEYS = {
+    globalUIScale   = true,
+    focusUIScale    = true,
+    presenceUIScale = true,
+    vistaUIScale    = true,
+    insightUIScale  = true,
+    yieldUIScale    = true,
 }
 
 function OptionsData_GetDB(key, default)
@@ -115,7 +206,14 @@ function OptionsData_SetDB(key, value)
             addon.focus.collapse.pendingWQExpand = true
         end
     end
-    if (key == "fontPath" or key == "titleFontPath" or key == "zoneFontPath" or key == "objectiveFontPath" or key == "sectionFontPath" or key == "progressBarFontPath") and updateOptionsPanelFontsRef then
+    -- When the "Show in-zone world quests" toggle is flipped on, invalidate the nearby
+    -- WQ scan cache so the next FullLayout immediately re-scans for the current zone.
+    if key == "showWorldQuests" and value == true and addon.focus then
+        addon.focus.nearbyQuestCacheDirty = true
+        addon.focus.nearbyQuestCache = nil
+        addon.focus.nearbyTaskQuestCache = nil
+    end
+    if (key == "fontPath" or key == "titleFontPath" or key == "zoneFontPath" or key == "objectiveFontPath" or key == "sectionFontPath" or key == "progressBarFontPath" or key == "presenceTitleFontPath" or key == "presenceSubtitleFontPath") and updateOptionsPanelFontsRef then
         updateOptionsPanelFontsRef()
     end
     if TYPOGRAPHY_KEYS[key] and addon.UpdateFontObjectsFromDB then
@@ -124,11 +222,24 @@ function OptionsData_SetDB(key, value)
     if MPLUS_TYPOGRAPHY_KEYS[key] and addon.ApplyMplusTypography then
         addon.ApplyMplusTypography()
     end
-    if PRESENCE_KEYS[key] and addon.Presence and addon.Presence.ApplyPresenceOptions then
-        addon.Presence.ApplyPresenceOptions()
+    if PRESENCE_KEYS[key] and addon.Presence then
+        if addon.Presence.ApplyPresenceOptions then addon.Presence.ApplyPresenceOptions() end
+        if addon.Presence.ApplyBlizzardSuppression then addon.Presence.ApplyBlizzardSuppression() end
     end
     if INSIGHT_KEYS[key] and addon.Insight and addon.Insight.ApplyInsightOptions then
         addon.Insight.ApplyInsightOptions()
+    end
+    if VISTA_KEYS[key] and addon.Vista then
+        if addon._colorPickerLive and VISTA_COLOR_LIVE_KEYS[key] then
+            if addon.Vista.ApplyColors then addon.Vista.ApplyColors() end
+        elseif addon.Vista.ApplyOptions then
+            local fn = addon.Vista.ApplyOptions
+            if C_Timer and C_Timer.After then
+                C_Timer.After(0, fn)
+            else
+                fn()
+            end
+        end
     end
     if key == "lockPosition" and addon.UpdateResizeHandleVisibility then
         addon.UpdateResizeHandleVisibility()
@@ -140,6 +251,9 @@ function OptionsData_SetDB(key, value)
         OptionsData_NotifyMainAddon_Live()
         return
     end
+    -- Scale keys are handled by debounced callbacks in the slider set lambdas.
+    -- Do NOT call NotifyMainAddon here or FullLayout runs on every integer drag step.
+    if SCALE_DEBOUNCE_KEYS[key] then return end
     OptionsData_NotifyMainAddon()
 end
 
@@ -150,6 +264,7 @@ function OptionsData_NotifyMainAddon_Live()
     if addon.ApplyBackdropOpacity then addon.ApplyBackdropOpacity() end
     if addon.ApplyBorderVisibility then addon.ApplyBorderVisibility() end
     if addon.ApplyFocusColors then addon.ApplyFocusColors() end
+    if addon.Vista and addon.Vista.ApplyColors then addon.Vista.ApplyColors() end
 end
 
 function OptionsData_NotifyMainAddon()
@@ -657,6 +772,7 @@ local OptionCategories = {
                 { type = "section", name = "" },
                 { type = "toggle", name = L["Enable Focus module"], desc = L["Show the objective tracker for quests, world quests, rares, achievements, and scenarios."], dbKey = "_module_focus", get = function() return addon:IsModuleEnabled("focus") end, set = function(v) addon:SetModuleEnabled("focus", v) end },
                 { type = "toggle", name = L["Enable Presence module"], desc = L["Cinematic zone text and notifications (zone changes, level up, boss emotes, achievements, quest updates)."], dbKey = "_module_presence", get = function() return addon:IsModuleEnabled("presence") end, set = function(v) addon:SetModuleEnabled("presence", v) end },
+                { type = "toggle", name = L["Enable Vista module"] or "Enable Vista module", desc = L["Cinematic square minimap with zone text, coordinates, time, and button collector."] or "Cinematic square minimap with zone text, coordinates, time, and button collector.", dbKey = "_module_vista", get = function() return addon:IsModuleEnabled("vista") end, set = function(v) addon:SetModuleEnabled("vista", v) end },
             }
             if dev and dev.showInsightToggle then
                 opts[#opts + 1] = { type = "toggle", name = L["Enable Horizon Insight module"] .. betaSuffix, desc = L["Cinematic tooltips with class colors, spec display, and faction icons."], dbKey = "_module_insight", get = function() return addon:IsModuleEnabled("insight") end, set = function(v) addon:SetModuleEnabled("insight", v) end }
@@ -664,8 +780,98 @@ local OptionCategories = {
             if dev and dev.showYieldToggle then
                 opts[#opts + 1] = { type = "toggle", name = L["Enable Yield module"] .. betaSuffix, desc = L["Cinematic loot notifications (items, money, currency, reputation)."], dbKey = "_module_yield", get = function() return addon:IsModuleEnabled("yield") end, set = function(v) addon:SetModuleEnabled("yield", v) end }
             end
-            if dev and dev.showVistaToggle then
-                opts[#opts + 1] = { type = "toggle", name = L["Enable Vista module"] .. betaSuffix, desc = L["Cinematic square minimap with zone text, coordinates, and button collector."], dbKey = "_module_vista", get = function() return addon:IsModuleEnabled("vista") end, set = function(v) addon:SetModuleEnabled("vista", v) end }
+            opts[#opts + 1] = { type = "section", name = L["Scaling"] }
+            -- helper: refresh all modules after any scale change
+            local function refreshAllScaling()
+                if addon.ApplyTypography then addon.ApplyTypography() end
+                if addon.ApplyDimensions then addon.ApplyDimensions() end
+                if addon.ApplyMplusTypography then addon.ApplyMplusTypography() end
+                if addon.Presence and addon.Presence.ApplyPresenceOptions then addon.Presence.ApplyPresenceOptions() end
+                if addon.Vista and addon.Vista.ApplyScale then addon.Vista.ApplyScale() end
+                if addon.Yield and addon.Yield.ApplyScale then addon.Yield.ApplyScale() end
+                if _G.HorizonSuite_FullLayout and not InCombatLockdown() then _G.HorizonSuite_FullLayout() end
+            end
+            -- Debounce: write DB immediately on every slider step, but delay the heavy
+            -- apply call (typography, dimensions, FullLayout) until the user pauses.
+            -- Each call cancels any in-flight timer and schedules a fresh one.
+            local scalingDebounceTimers = {}
+            local SCALE_DEBOUNCE = 0.15  -- seconds to wait after last change
+            local function debouncedRefresh(key, applyFn)
+                if scalingDebounceTimers[key] then
+                    scalingDebounceTimers[key]:Cancel()
+                    scalingDebounceTimers[key] = nil
+                end
+                scalingDebounceTimers[key] = C_Timer.NewTimer(SCALE_DEBOUNCE, function()
+                    scalingDebounceTimers[key] = nil
+                    applyFn()
+                end)
+            end
+            local function isPerModule() return getDB("perModuleScaling", false) end
+            local function isNotPerModule() return not isPerModule() end
+            opts[#opts + 1] = { type = "slider", name = L["Global UI scale"], desc = L["Scale all sizes, spacings, and fonts by this factor (50–200%). Does not change your configured values."], dbKey = "globalUIScale_pct", min = 50, max = 200,
+                disabled = isPerModule,
+                get = function()
+                    return math.floor((tonumber(getDB("globalUIScale", 1)) or 1) * 100 + 0.5)
+                end, set = function(v)
+                    local scale = math.max(50, math.min(200, v)) / 100
+                    setDB("globalUIScale", scale)
+                    debouncedRefresh("global", refreshAllScaling)
+                end }
+            opts[#opts + 1] = { type = "toggle", name = L["Per-module scaling"], desc = L["Override the global scale with individual sliders for each module."], dbKey = "perModuleScaling", get = function() return isPerModule() end, set = function(v)
+                setDB("perModuleScaling", v)
+                refreshAllScaling()
+                if addon.OptionsPanel_Refresh then addon.OptionsPanel_Refresh() end
+            end }
+            -- Per-module sliders (visible always, but only active when per-module scaling is on)
+            opts[#opts + 1] = { type = "slider", name = L["Focus scale"], desc = L["Scale for the Focus objective tracker (50–200%)."], dbKey = "focusUIScale_pct", min = 50, max = 200,
+                disabled = isNotPerModule,
+                get = function()
+                    return math.floor((tonumber(getDB("focusUIScale", 1)) or 1) * 100 + 0.5)
+                end, set = function(v)
+                    setDB("focusUIScale", math.max(50, math.min(200, v)) / 100)
+                    debouncedRefresh("focus", refreshAllScaling)
+                end }
+            opts[#opts + 1] = { type = "slider", name = L["Presence scale"], desc = L["Scale for the Presence cinematic text (50–200%)."], dbKey = "presenceUIScale_pct", min = 50, max = 200,
+                disabled = isNotPerModule,
+                get = function()
+                    return math.floor((tonumber(getDB("presenceUIScale", 1)) or 1) * 100 + 0.5)
+                end, set = function(v)
+                    setDB("presenceUIScale", math.max(50, math.min(200, v)) / 100)
+                    debouncedRefresh("presence", function()
+                        if addon.Presence and addon.Presence.ApplyPresenceOptions then addon.Presence.ApplyPresenceOptions() end
+                    end)
+                end }
+            opts[#opts + 1] = { type = "slider", name = L["Vista scale"], desc = L["Scale for the Vista minimap module (50–200%)."], dbKey = "vistaUIScale_pct", min = 50, max = 200,
+                disabled = isNotPerModule,
+                get = function()
+                    return math.floor((tonumber(getDB("vistaUIScale", 1)) or 1) * 100 + 0.5)
+                end, set = function(v)
+                    setDB("vistaUIScale", math.max(50, math.min(200, v)) / 100)
+                    debouncedRefresh("vista", function()
+                        if addon.Vista and addon.Vista.ApplyScale then addon.Vista.ApplyScale() end
+                    end)
+                end }
+            if dev and dev.showInsightToggle then
+                opts[#opts + 1] = { type = "slider", name = L["Insight scale"], desc = L["Scale for the Insight tooltip module (50–200%)."], dbKey = "insightUIScale_pct", min = 50, max = 200,
+                    disabled = isNotPerModule,
+                    get = function()
+                        return math.floor((tonumber(getDB("insightUIScale", 1)) or 1) * 100 + 0.5)
+                    end, set = function(v)
+                        setDB("insightUIScale", math.max(50, math.min(200, v)) / 100)
+                        -- Insight has no heavy apply; no debounce needed.
+                    end }
+            end
+            if dev and dev.showYieldToggle then
+                opts[#opts + 1] = { type = "slider", name = L["Yield scale"], desc = L["Scale for the Yield loot toast module (50–200%)."], dbKey = "yieldUIScale_pct", min = 50, max = 200,
+                    disabled = isNotPerModule,
+                    get = function()
+                        return math.floor((tonumber(getDB("yieldUIScale", 1)) or 1) * 100 + 0.5)
+                    end, set = function(v)
+                        setDB("yieldUIScale", math.max(50, math.min(200, v)) / 100)
+                        debouncedRefresh("yield", function()
+                            if addon.Yield and addon.Yield.ApplyScale then addon.Yield.ApplyScale() end
+                        end)
+                    end }
             end
             return opts
         end)(),
@@ -723,7 +929,7 @@ local OptionCategories = {
             { type = "toggle", name = L["Show zone labels"], desc = L["Show zone name under each quest title."], dbKey = "showZoneLabels", get = function() return getDB("showZoneLabels", true) end, set = function(v) setDB("showZoneLabels", v) end },
             { type = "dropdown", name = L["Active quest highlight"], desc = L["How the focused quest is highlighted."], dbKey = "activeQuestHighlight", options = HIGHLIGHT_OPTIONS, get = getActiveQuestHighlight, set = function(v) setDB("activeQuestHighlight", v) end },
             { type = "toggle", name = L["Show quest item buttons"], desc = L["Show usable quest item button next to each quest."], dbKey = "showQuestItemButtons", get = function() return getDB("showQuestItemButtons", false) end, set = function(v) setDB("showQuestItemButtons", v) end },
-            { type = "toggle", name = L["Show objective numbers"], desc = L["Prefix objectives with 1., 2., 3."], dbKey = "showObjectiveNumbers", get = function() return getDB("showObjectiveNumbers", false) end, set = function(v) setDB("showObjectiveNumbers", v) end },
+            { type = "dropdown", name = L["Objective prefix"], desc = L["Prefix each objective with a number or hyphen."], dbKey = "objectivePrefixStyle", options = { { L["None"], "none" }, { L["Numbers (1. 2. 3.)"], "numbers" }, { L["Hyphens (-)"], "hyphens" } }, get = function() return getDB("objectivePrefixStyle", "none") end, set = function(v) setDB("objectivePrefixStyle", v) end },
             { type = "toggle", name = L["Show entry numbers"], desc = L["Prefix quest titles with 1., 2., 3. within each category."], dbKey = "showCategoryEntryNumbers", get = function() return getDB("showCategoryEntryNumbers", true) end, set = function(v) setDB("showCategoryEntryNumbers", v) end },
             { type = "toggle", name = L["Show completed count"], desc = L["Show X/Y progress in quest title."], dbKey = "showCompletedCount", get = function() return getDB("showCompletedCount", false) end, set = function(v) setDB("showCompletedCount", v) end },
             { type = "toggle", name = L["Show objective progress bar"], desc = L["Show a progress bar under objectives that have numeric progress (e.g. 3/250). Only applies to entries with a single arithmetic objective where the required amount is greater than 1."], dbKey = "showObjectiveProgressBar", get = function() return getDB("showObjectiveProgressBar", false) end, set = function(v)
@@ -780,7 +986,7 @@ local OptionCategories = {
             { type = "slider", name = L["Objective size"], desc = L["Objective text font size."], dbKey = "objectiveFontSize", min = 8, max = 20, get = function() return getDB("objectiveFontSize", 11) end, set = function(v) setDB("objectiveFontSize", v) end },
             { type = "slider", name = L["Zone size"], desc = L["Zone label font size."], dbKey = "zoneFontSize", min = 8, max = 18, get = function() return getDB("zoneFontSize", 10) end, set = function(v) setDB("zoneFontSize", v) end },
             { type = "slider", name = L["Section size"], desc = L["Section header font size."], dbKey = "sectionFontSize", min = 8, max = 18, get = function() return getDB("sectionFontSize", 10) end, set = function(v) setDB("sectionFontSize", v) end },
-            { type = "slider", name = L["Progress bar text size"], desc = L["Font size for the progress bar label. Also adjusts bar height."], dbKey = "progressBarFontSize", min = 7, max = 18, get = function() return getDB("progressBarFontSize", 10) end, set = function(v) setDB("progressBarFontSize", v) end },
+            { type = "slider", name = L["Progress bar text size"], desc = L["Font size for the progress bar label. Also adjusts bar height. Affects quest objectives, scenario progress, and scenario timer bars."], dbKey = "progressBarFontSize", min = 7, max = 18, get = function() return getDB("progressBarFontSize", 10) end, set = function(v) setDB("progressBarFontSize", v) end },
             { type = "dropdown", name = L["Outline"], desc = L["Font outline style."], dbKey = "fontOutline", options = OUTLINE_OPTIONS, get = function() return getDB("fontOutline", "OUTLINE") end, set = function(v) setDB("fontOutline", v) end },
             { type = "section", name = L["Text case"] },
             { type = "dropdown", name = L["Header text case"], desc = L["Display case for header."], dbKey = "headerTextCase", options = TEXT_CASE_OPTIONS, get = function() local v = getDB("headerTextCase", "proper"); return (v == "default") and "proper" or v end, set = function(v) setDB("headerTextCase", v) end },
@@ -873,8 +1079,6 @@ local OptionCategories = {
             { type = "toggle", name = L["Show affix names in Delves"], desc = L["Show season affix names on the first Delve entry. Requires Blizzard's objective tracker widgets to be populated; may not show when using a full tracker replacement."], dbKey = "showDelveAffixes", get = function() return getDB("showDelveAffixes", getDB("delveBlockShowAffixes", true)) end, set = function(v) setDB("showDelveAffixes", v); if addon.ScheduleRefresh then addon.ScheduleRefresh() end end },
             { type = "section", name = L["Scenario Bar"] },
             { type = "toggle", name = L["Cinematic scenario bar"], desc = L["Show timer and progress bar for scenario entries."], dbKey = "cinematicScenarioBar", get = function() return getDB("cinematicScenarioBar", true) end, set = function(v) setDB("cinematicScenarioBar", v) end },
-            { type = "slider", name = L["Scenario bar opacity"], desc = L["Opacity of scenario timer/progress bar (0–1)."], dbKey = "scenarioBarOpacity", min = 0.3, max = 1, get = function() return tonumber(getDB("scenarioBarOpacity", 0.85)) or 0.85 end, set = function(v) setDB("scenarioBarOpacity", v) end },
-            { type = "slider", name = L["Scenario bar height"], desc = L["Height of scenario progress bar (4–8 px)."], dbKey = "scenarioBarHeight", min = 4, max = 8, get = function() return math.max(4, math.min(8, tonumber(getDB("scenarioBarHeight", 6)) or 6)) end, set = function(v) setDB("scenarioBarHeight", math.max(4, math.min(8, v))) end },
         },
     },
     {
@@ -962,12 +1166,20 @@ local OptionCategories = {
         moduleKey = "presence",
         options = {
             { type = "section", name = L["Notification types"] },
-            { type = "toggle", name = L["Show zone changes"], desc = L["Show zone and subzone change notifications."], dbKey = "presenceZoneChange", get = function() return getDB("presenceZoneChange", true) end, set = function(v) setDB("presenceZoneChange", v) end },
+            { type = "toggle", name = L["Show zone entry"], desc = L["Show zone change when entering a new area."], dbKey = "presenceZoneChange", get = function() return getDB("presenceZoneChange", true) end, set = function(v) setDB("presenceZoneChange", v) end },
+            { type = "toggle", name = L["Show subzone changes"], desc = L["Show subzone change when moving within the same zone."], dbKey = "presenceSubzoneChange", get = function() local v = getDB("presenceSubzoneChange", nil); if v ~= nil then return v end; return getDB("presenceZoneChange", true) end, set = function(v) setDB("presenceSubzoneChange", v) end },
+            { type = "toggle", name = L["Hide zone name for subzone changes"], desc = L["When moving between subzones within the same zone, only show the subzone name. The zone name still appears when entering a new zone."], dbKey = "presenceHideZoneForSubzone", get = function() return getDB("presenceHideZoneForSubzone", false) end, set = function(v) setDB("presenceHideZoneForSubzone", v) end },
             { type = "toggle", name = L["Suppress zone changes in Mythic+"], desc = L["In Mythic+, only show boss emotes, achievements, and level-up. Hide zone, quest, and scenario notifications."], dbKey = "presenceSuppressZoneInMplus", get = function() return getDB("presenceSuppressZoneInMplus", true) end, set = function(v) setDB("presenceSuppressZoneInMplus", v) end },
             { type = "toggle", name = L["Show level up"], desc = L["Show level-up notification."], dbKey = "presenceLevelUp", get = function() return getDB("presenceLevelUp", true) end, set = function(v) setDB("presenceLevelUp", v) end },
             { type = "toggle", name = L["Show boss emotes"], desc = L["Show raid and dungeon boss emote notifications."], dbKey = "presenceBossEmote", get = function() return getDB("presenceBossEmote", true) end, set = function(v) setDB("presenceBossEmote", v) end },
             { type = "toggle", name = L["Show achievements"], desc = L["Show achievement earned notifications."], dbKey = "presenceAchievement", get = function() return getDB("presenceAchievement", true) end, set = function(v) setDB("presenceAchievement", v) end },
-            { type = "toggle", name = L["Show quest events"], desc = L["Show quest accept, complete, and progress notifications."], dbKey = "presenceQuestEvents", get = function() return getDB("presenceQuestEvents", true) end, set = function(v) setDB("presenceQuestEvents", v) end },
+            { type = "toggle", name = L["Show quest accept"], desc = L["Show notification when accepting a quest."], dbKey = "presenceQuestAccept", get = function() local v = getDB("presenceQuestAccept", nil); if v ~= nil then return v end; return getDB("presenceQuestEvents", true) end, set = function(v) setDB("presenceQuestAccept", v) end },
+            { type = "toggle", name = L["Show world quest accept"], desc = L["Show notification when accepting a world quest."], dbKey = "presenceWorldQuestAccept", get = function() local v = getDB("presenceWorldQuestAccept", nil); if v ~= nil then return v end; return getDB("presenceQuestEvents", true) end, set = function(v) setDB("presenceWorldQuestAccept", v) end },
+            { type = "toggle", name = L["Show quest complete"], desc = L["Show notification when completing a quest."], dbKey = "presenceQuestComplete", get = function() local v = getDB("presenceQuestComplete", nil); if v ~= nil then return v end; return getDB("presenceQuestEvents", true) end, set = function(v) setDB("presenceQuestComplete", v) end },
+            { type = "toggle", name = L["Show world quest complete"], desc = L["Show notification when completing a world quest."], dbKey = "presenceWorldQuest", get = function() local v = getDB("presenceWorldQuest", nil); if v ~= nil then return v end; return getDB("presenceQuestEvents", true) end, set = function(v) setDB("presenceWorldQuest", v) end },
+            { type = "toggle", name = L["Show quest progress"], desc = L["Show notification when quest objectives update."], dbKey = "presenceQuestUpdate", get = function() local v = getDB("presenceQuestUpdate", nil); if v ~= nil then return v end; return getDB("presenceQuestEvents", true) end, set = function(v) setDB("presenceQuestUpdate", v) end },
+            { type = "toggle", name = L["Show scenario start"], desc = L["Show notification when entering a scenario or Delve."], dbKey = "presenceScenarioStart", get = function() local v = getDB("presenceScenarioStart", nil); if v ~= nil then return v end; return getDB("showScenarioEvents", true) end, set = function(v) setDB("presenceScenarioStart", v) end },
+            { type = "toggle", name = L["Show scenario progress"], desc = L["Show notification when scenario or Delve objectives update."], dbKey = "presenceScenarioUpdate", get = function() local v = getDB("presenceScenarioUpdate", nil); if v ~= nil then return v end; return getDB("showScenarioEvents", true) end, set = function(v) setDB("presenceScenarioUpdate", v) end },
         },
     },
     {
@@ -977,9 +1189,9 @@ local OptionCategories = {
         options = {
             { type = "section", name = L["Animation"] },
             { type = "toggle", name = L["Enable animations"], desc = L["Enable entrance and exit animations for Presence notifications."], dbKey = "presenceAnimations", get = function() return getDB("presenceAnimations", true) end, set = function(v) setDB("presenceAnimations", v) end },
-            { type = "slider", name = L["Entrance duration"], desc = L["Duration of the entrance animation in seconds (0.2–1.5)."], dbKey = "presenceEntranceDur", min = 0.2, max = 1.5, get = function() return math.max(0.2, math.min(1.5, tonumber(getDB("presenceEntranceDur", 0.7)) or 0.7)) end, set = function(v) setDB("presenceEntranceDur", math.max(0.2, math.min(1.5, v))) end },
-            { type = "slider", name = L["Exit duration"], desc = L["Duration of the exit animation in seconds (0.2–1.5)."], dbKey = "presenceExitDur", min = 0.2, max = 1.5, get = function() return math.max(0.2, math.min(1.5, tonumber(getDB("presenceExitDur", 0.8)) or 0.8)) end, set = function(v) setDB("presenceExitDur", math.max(0.2, math.min(1.5, v))) end },
-            { type = "slider", name = L["Hold duration scale"], desc = L["Multiplier for how long each notification stays on screen (0.5–2)."], dbKey = "presenceHoldScale", min = 0.5, max = 2, get = function() return math.max(0.5, math.min(2, tonumber(getDB("presenceHoldScale", 1)) or 1)) end, set = function(v) setDB("presenceHoldScale", math.max(0.5, math.min(2, v))) end },
+            { type = "slider", name = L["Entrance duration"], desc = L["Duration of the entrance animation in seconds (0.2–1.5)."], dbKey = "presenceEntranceDur", min = 0.2, max = 1.5, step = 0.1, get = function() return math.max(0.2, math.min(1.5, tonumber(getDB("presenceEntranceDur", 0.7)) or 0.7)) end, set = function(v) setDB("presenceEntranceDur", math.max(0.2, math.min(1.5, v))) end },
+            { type = "slider", name = L["Exit duration"], desc = L["Duration of the exit animation in seconds (0.2–1.5)."], dbKey = "presenceExitDur", min = 0.2, max = 1.5, step = 0.1, get = function() return math.max(0.2, math.min(1.5, tonumber(getDB("presenceExitDur", 0.8)) or 0.8)) end, set = function(v) setDB("presenceExitDur", math.max(0.2, math.min(1.5, v))) end },
+            { type = "slider", name = L["Hold duration scale"], desc = L["Multiplier for how long each notification stays on screen (0.5–2)."], dbKey = "presenceHoldScale", min = 0.5, max = 2, step = 0.1, get = function() return math.max(0.5, math.min(2, tonumber(getDB("presenceHoldScale", 1)) or 1)) end, set = function(v) setDB("presenceHoldScale", math.max(0.5, math.min(2, v))) end },
         },
     },
     {
@@ -988,6 +1200,8 @@ local OptionCategories = {
         moduleKey = "presence",
         options = {
             { type = "section", name = L["Typography"] },
+            { type = "dropdown", name = L["Main title font"], desc = L["Font family for the main title."], dbKey = "presenceTitleFontPath", searchable = true, options = function() return GetPerElementFontDropdownOptions("presenceTitleFontPath") end, get = function() return getDB("presenceTitleFontPath", FONT_USE_GLOBAL) end, set = function(v) setDB("presenceTitleFontPath", v) end, displayFn = DisplayPerElementFont },
+            { type = "dropdown", name = L["Subtitle font"], desc = L["Font family for the subtitle."], dbKey = "presenceSubtitleFontPath", searchable = true, options = function() return GetPerElementFontDropdownOptions("presenceSubtitleFontPath") end, get = function() return getDB("presenceSubtitleFontPath", FONT_USE_GLOBAL) end, set = function(v) setDB("presenceSubtitleFontPath", v) end, displayFn = DisplayPerElementFont },
             { type = "slider", name = L["Main title size"], desc = L["Font size for the main title (24–72 px)."], dbKey = "presenceMainSize", min = 24, max = 72, get = function() return math.max(24, math.min(72, tonumber(getDB("presenceMainSize", 48)) or 48)) end, set = function(v) setDB("presenceMainSize", math.max(24, math.min(72, v))) end },
             { type = "slider", name = L["Subtitle size"], desc = L["Font size for the subtitle (12–40 px)."], dbKey = "presenceSubSize", min = 12, max = 40, get = function() return math.max(12, math.min(40, tonumber(getDB("presenceSubSize", 24)) or 24)) end, set = function(v) setDB("presenceSubSize", math.max(12, math.min(40, v))) end },
         },
@@ -1011,6 +1225,558 @@ local OptionCategories = {
         },
     },
     {
+        key = "VistaGeneral",
+        name = L["General"] or "General",
+        moduleKey = "vista",
+        options = {
+            { type = "section", name = L["Minimap"] or "Minimap" },
+            { type = "slider", name = L["Minimap size"] or "Minimap size",
+              desc = L["Width and height of the minimap in pixels (100–400)."] or "Width and height of the minimap in pixels (100–400).",
+              dbKey = "vistaMapSize", min = 100, max = 400,
+              get = function() return math.max(100, math.min(400, tonumber(getDB("vistaMapSize", 200)) or 200)) end,
+              set = function(v) setDB("vistaMapSize", math.max(100, math.min(400, v))) end },
+            { type = "toggle", name = L["Circular minimap"] or "Circular minimap",
+              desc = L["Use a circular minimap instead of square."] or "Use a circular minimap instead of square.",
+              dbKey = "vistaCircular",
+              get = function() return getDB("vistaCircular", false) end,
+              set = function(v) setDB("vistaCircular", v) end },
+            { type = "section", name = L["Position"] or "Position" },
+            { type = "toggle", name = L["Lock minimap position"] or "Lock minimap position",
+              desc = L["Prevent dragging the minimap."] or "Prevent dragging the minimap.",
+              dbKey = "vistaLock",
+              get = function() return getDB("vistaLock", true) end,
+              set = function(v) setDB("vistaLock", v) end },
+            { type = "button", name = L["Reset minimap position"] or "Reset minimap position",
+              desc = L["Reset minimap to its default position (top-right)."] or "Reset minimap to its default position (top-right).",
+              onClick = function()
+                  if addon.Vista and addon.Vista.ResetMinimapPosition then
+                      addon.Vista.ResetMinimapPosition()
+                  end
+              end },
+            { type = "section", name = L["Auto Zoom"] or "Auto Zoom" },
+            { type = "slider", name = L["Auto zoom-out delay"] or "Auto zoom-out delay",
+              desc = L["Seconds after zooming before auto zoom-out fires. Set to 0 to disable."] or "Seconds after zooming before auto zoom-out fires. Set to 0 to disable.",
+              dbKey = "vistaAutoZoom", min = 0, max = 30,
+              get = function() return math.max(0, math.min(30, tonumber(getDB("vistaAutoZoom", 5)) or 5)) end,
+              set = function(v) setDB("vistaAutoZoom", math.max(0, math.min(30, v))) end },
+        },
+    },
+    {
+        key = "VistaTypography",
+        name = L["Typography"] or "Typography",
+        moduleKey = "vista",
+        options = function()
+            local GLOBAL_SENTINEL = "__global__"
+            local GLOBAL_LABEL = L["Use global font"] or "Use global font"
+
+            -- Build font list with "Use global" as the first entry.
+            local function fontOpts(dbKey)
+                local list = { { GLOBAL_LABEL, GLOBAL_SENTINEL } }
+                local fontList = (addon.GetFontList and addon.GetFontList()) or {}
+                for _, f in ipairs(fontList) do list[#list + 1] = f end
+                -- If the saved value is a custom path not in the list, append it.
+                local saved = getDB(dbKey, GLOBAL_SENTINEL)
+                if saved and saved ~= GLOBAL_SENTINEL and saved ~= "" then
+                    local found = false
+                    for _, o in ipairs(list) do if o[2] == saved then found = true; break end end
+                    if not found then list[#list + 1] = { "Custom", saved } end
+                end
+                return list
+            end
+
+            -- Display name: global sentinel shows readable label, paths show font name.
+            local function displayFont(v)
+                if v == GLOBAL_SENTINEL or v == nil or v == "" then return GLOBAL_LABEL end
+                if addon.GetFontNameForPath then return addon.GetFontNameForPath(v) end
+                return v
+            end
+
+            -- Get: return sentinel when nothing (or sentinel) is stored.
+            local function getFont(dbKey)
+                local v = getDB(dbKey, GLOBAL_SENTINEL)
+                if v == nil or v == "" then return GLOBAL_SENTINEL end
+                return v
+            end
+
+            return {
+                { type = "section", name = L["Zone Text"] or "Zone Text" },
+                { type = "dropdown", name = L["Zone font"] or "Zone font",
+                  desc = L["Font for the zone name below the minimap."] or "Font for the zone name below the minimap.",
+                  dbKey = "vistaZoneFontPath", searchable = true,
+                  options = function() return fontOpts("vistaZoneFontPath") end,
+                  get = function() return getFont("vistaZoneFontPath") end,
+                  set = function(v) setDB("vistaZoneFontPath", v) end,
+                  displayFn = displayFont },
+                { type = "slider", name = L["Zone font size"] or "Zone font size",
+                  dbKey = "vistaZoneFontSize", min = 7, max = 24,
+                  get = function() return math.max(7, math.min(24, tonumber(getDB("vistaZoneFontSize", 12)) or 12)) end,
+                  set = function(v) setDB("vistaZoneFontSize", math.max(7, math.min(24, v))) end },
+                { type = "color", name = L["Zone text color"] or "Zone text color",
+                  desc = L["Color of the zone name text."] or "Color of the zone name text.",
+                  dbKey = "vistaZoneColor",
+                  get = function()
+                      return getDB("vistaZoneColorR", 1), getDB("vistaZoneColorG", 1), getDB("vistaZoneColorB", 1)
+                  end,
+                  set = function(r, g, b)
+                      setDB("vistaZoneColorR", r); setDB("vistaZoneColorG", g); setDB("vistaZoneColorB", b)
+                  end },
+
+                { type = "section", name = L["Coordinates Text"] or "Coordinates Text" },
+                { type = "dropdown", name = L["Coordinates font"] or "Coordinates font",
+                  desc = L["Font for the coordinates text below the minimap."] or "Font for the coordinates text below the minimap.",
+                  dbKey = "vistaCoordFontPath", searchable = true,
+                  options = function() return fontOpts("vistaCoordFontPath") end,
+                  get = function() return getFont("vistaCoordFontPath") end,
+                  set = function(v) setDB("vistaCoordFontPath", v) end,
+                  displayFn = displayFont },
+                { type = "slider", name = L["Coordinates font size"] or "Coordinates font size",
+                  dbKey = "vistaCoordFontSize", min = 7, max = 20,
+                  get = function() return math.max(7, math.min(20, tonumber(getDB("vistaCoordFontSize", 10)) or 10)) end,
+                  set = function(v) setDB("vistaCoordFontSize", math.max(7, math.min(20, v))) end },
+                { type = "color", name = L["Coordinates text color"] or "Coordinates text color",
+                  desc = L["Color of the coordinates text."] or "Color of the coordinates text.",
+                  dbKey = "vistaCoordColor",
+                  get = function()
+                      return getDB("vistaCoordColorR", 0.55), getDB("vistaCoordColorG", 0.65), getDB("vistaCoordColorB", 0.75)
+                  end,
+                  set = function(r, g, b)
+                      setDB("vistaCoordColorR", r); setDB("vistaCoordColorG", g); setDB("vistaCoordColorB", b)
+                  end },
+
+                { type = "section", name = L["Time Text"] or "Time Text" },
+                { type = "dropdown", name = L["Time font"] or "Time font",
+                  desc = L["Font for the time text below the minimap."] or "Font for the time text below the minimap.",
+                  dbKey = "vistaTimeFontPath", searchable = true,
+                  options = function() return fontOpts("vistaTimeFontPath") end,
+                  get = function() return getFont("vistaTimeFontPath") end,
+                  set = function(v) setDB("vistaTimeFontPath", v) end,
+                  displayFn = displayFont },
+                { type = "slider", name = L["Time font size"] or "Time font size",
+                  dbKey = "vistaTimeFontSize", min = 7, max = 20,
+                  get = function() return math.max(7, math.min(20, tonumber(getDB("vistaTimeFontSize", 10)) or 10)) end,
+                  set = function(v) setDB("vistaTimeFontSize", math.max(7, math.min(20, v))) end },
+                { type = "color", name = L["Time text color"] or "Time text color",
+                  desc = L["Color of the time text."] or "Color of the time text.",
+                  dbKey = "vistaTimeColor",
+                  get = function()
+                      return getDB("vistaTimeColorR", 0.55), getDB("vistaTimeColorG", 0.65), getDB("vistaTimeColorB", 0.75)
+                  end,
+                  set = function(r, g, b)
+                      setDB("vistaTimeColorR", r); setDB("vistaTimeColorG", g); setDB("vistaTimeColorB", b)
+                  end },
+
+                { type = "section", name = L["Difficulty Text"] or "Difficulty Text" },
+                { type = "color", name = L["Difficulty text color"] or "Difficulty text color",
+                  desc = L["Color of the instance difficulty text below zone name."] or "Color of the instance difficulty text below zone name.",
+                  dbKey = "vistaDiffColor",
+                  get = function()
+                      return getDB("vistaDiffColorR", 0.55), getDB("vistaDiffColorG", 0.65), getDB("vistaDiffColorB", 0.75)
+                  end,
+                  set = function(r, g, b)
+                      setDB("vistaDiffColorR", r); setDB("vistaDiffColorG", g); setDB("vistaDiffColorB", b)
+                  end },
+            }
+        end,
+    },
+    {
+        key = "VistaVisibility",
+        name = L["Visibility"] or "Visibility",
+        moduleKey = "vista",
+        options = {
+            { type = "section", name = L["Text Elements"] or "Text Elements" },
+            { type = "toggle", name = L["Show zone text"] or "Show zone text",
+              desc = L["Show the zone name below the minimap."] or "Show the zone name below the minimap.",
+              dbKey = "vistaShowZoneText",
+              get = function() return getDB("vistaShowZoneText", true) end,
+              set = function(v) setDB("vistaShowZoneText", v) end },
+            { type = "toggle", name = L["Show coordinates"] or "Show coordinates",
+              desc = L["Show player coordinates below the minimap."] or "Show player coordinates below the minimap.",
+              dbKey = "vistaShowCoordText",
+              get = function() return getDB("vistaShowCoordText", true) end,
+              set = function(v) setDB("vistaShowCoordText", v) end },
+            { type = "toggle", name = L["Show time"] or "Show time",
+              desc = L["Show current game time below the minimap."] or "Show current game time below the minimap.",
+              dbKey = "vistaShowTimeText",
+              get = function() return getDB("vistaShowTimeText", false) end,
+              set = function(v) setDB("vistaShowTimeText", v) end },
+            { type = "section", name = L["Minimap Buttons"] or "Minimap Buttons" },
+            { type = "header", name = L["Queue status and mail indicator are always shown when relevant."] or "Queue status and mail indicator are always shown when relevant." },
+            -- Tracking
+            { type = "toggle", name = L["Show tracking button"] or "Show tracking button",
+              desc = L["Show the minimap tracking button."] or "Show the minimap tracking button.",
+              dbKey = "vistaShowTracking",
+              get = function() return getDB("vistaShowTracking", true) end,
+              set = function(v)
+                  setDB("vistaShowTracking", v)
+                  if addon.OptionsPanel_Refresh and C_Timer and C_Timer.After then
+                      C_Timer.After(0, addon.OptionsPanel_Refresh)
+                  elseif addon.OptionsPanel_Refresh then
+                      addon.OptionsPanel_Refresh()
+                  end
+              end },
+            { type = "toggle", name = L["Tracking button on mouseover only"] or "Tracking button on mouseover only",
+              desc = L["Hide tracking button until you hover over the minimap."] or "Hide tracking button until you hover over the minimap.",
+              dbKey = "vistaMouseoverTracking",
+              get = function() return getDB("vistaMouseoverTracking", true) end,
+              set = function(v) setDB("vistaMouseoverTracking", v) end,
+              disabled = function() return not getDB("vistaShowTracking", true) end },
+            -- Calendar
+            { type = "toggle", name = L["Show calendar button"] or "Show calendar button",
+              desc = L["Show the minimap calendar button."] or "Show the minimap calendar button.",
+              dbKey = "vistaShowCalendar",
+              get = function() return getDB("vistaShowCalendar", true) end,
+              set = function(v)
+                  setDB("vistaShowCalendar", v)
+                  if addon.OptionsPanel_Refresh and C_Timer and C_Timer.After then
+                      C_Timer.After(0, addon.OptionsPanel_Refresh)
+                  elseif addon.OptionsPanel_Refresh then
+                      addon.OptionsPanel_Refresh()
+                  end
+              end },
+            { type = "toggle", name = L["Calendar button on mouseover only"] or "Calendar button on mouseover only",
+              desc = L["Hide calendar button until you hover over the minimap."] or "Hide calendar button until you hover over the minimap.",
+              dbKey = "vistaMouseoverCalendar",
+              get = function() return getDB("vistaMouseoverCalendar", true) end,
+              set = function(v) setDB("vistaMouseoverCalendar", v) end,
+              disabled = function() return not getDB("vistaShowCalendar", true) end },
+            -- Zoom buttons
+            { type = "toggle", name = L["Show zoom buttons"] or "Show zoom buttons",
+              desc = L["Show the + and - zoom buttons on the minimap."] or "Show the + and - zoom buttons on the minimap.",
+              dbKey = "vistaShowZoomBtns",
+              get = function() return getDB("vistaShowZoomBtns", true) end,
+              set = function(v)
+                  setDB("vistaShowZoomBtns", v)
+                  if addon.OptionsPanel_Refresh and C_Timer and C_Timer.After then
+                      C_Timer.After(0, addon.OptionsPanel_Refresh)
+                  elseif addon.OptionsPanel_Refresh then
+                      addon.OptionsPanel_Refresh()
+                  end
+              end },
+            { type = "toggle", name = L["Zoom buttons on mouseover only"] or "Zoom buttons on mouseover only",
+              desc = L["Hide zoom buttons until you hover over the minimap."] or "Hide zoom buttons until you hover over the minimap.",
+              dbKey = "vistaMouseoverZoomBtns",
+              get = function() return getDB("vistaMouseoverZoomBtns", true) end,
+              set = function(v) setDB("vistaMouseoverZoomBtns", v) end,
+              disabled = function() return not getDB("vistaShowZoomBtns", true) end },
+        },
+    },
+    {
+        key = "VistaDisplay",
+        name = L["Display"] or "Display",
+        moduleKey = "vista",
+        options = {
+            { type = "section", name = L["Border"] or "Border" },
+            { type = "toggle", name = L["Show border"] or "Show border",
+              desc = L["Show a border around the minimap."] or "Show a border around the minimap.",
+              dbKey = "vistaBorderShow",
+              get = function() return getDB("vistaBorderShow", true) end,
+              set = function(v) setDB("vistaBorderShow", v) end },
+            { type = "color", name = L["Border color"] or "Border color",
+              desc = L["Color (and opacity) of the minimap border."] or "Color (and opacity) of the minimap border.",
+              dbKey = "vistaBorderColor",
+              get = function()
+                  return getDB("vistaBorderColorR", 1), getDB("vistaBorderColorG", 1),
+                         getDB("vistaBorderColorB", 1), getDB("vistaBorderColorA", 0.15)
+              end,
+              set = function(r, g, b, a)
+                  setDB("vistaBorderColorR", r); setDB("vistaBorderColorG", g)
+                  setDB("vistaBorderColorB", b)
+                  if a then setDB("vistaBorderColorA", a) end
+              end,
+              hasAlpha = true },
+            { type = "slider", name = L["Border thickness"] or "Border thickness",
+              desc = L["Thickness of the minimap border in pixels (1–8)."] or "Thickness of the minimap border in pixels (1–8).",
+              dbKey = "vistaBorderWidth", min = 1, max = 8,
+              get = function() return math.max(1, math.min(8, tonumber(getDB("vistaBorderWidth", 1)) or 1)) end,
+              set = function(v) setDB("vistaBorderWidth", math.max(1, math.min(8, v))) end },
+
+            { type = "section", name = L["Text Positions"] or "Text Positions" },
+            { type = "header", name = L["Drag text elements to reposition them. Lock to prevent accidental movement."] or "Drag text elements to reposition them. Lock to prevent accidental movement." },
+            { type = "dropdown", name = L["Location position"] or "Location position",
+              desc = L["Place the zone name above or below the minimap."] or "Place the zone name above or below the minimap.",
+              dbKey = "vistaZoneVerticalPos",
+              options = function() return { { L["Top"] or "Top", "top" }, { L["Bottom"] or "Bottom", "bottom" } } end,
+              get = function() return getDB("vistaZoneVerticalPos", "bottom") or "bottom" end,
+              set = function(v)
+                  setDB("vistaZoneVerticalPos", v)
+                  setDB("vistaEX_zone", nil); setDB("vistaEY_zone", nil)
+              end },
+            { type = "toggle", name = L["Lock zone text position"] or "Lock zone text position",
+              desc = L["When on, the zone text cannot be dragged."] or "When on, the zone text cannot be dragged.",
+              dbKey = "vistaLocked_zone",
+              get = function() return getDB("vistaLocked_zone", true) end,
+              set = function(v) setDB("vistaLocked_zone", v) end },
+            { type = "dropdown", name = L["Coordinates position"] or "Coordinates position",
+              desc = L["Place the coordinates above or below the minimap."] or "Place the coordinates above or below the minimap.",
+              dbKey = "vistaCoordVerticalPos",
+              options = function() return { { L["Top"] or "Top", "top" }, { L["Bottom"] or "Bottom", "bottom" } } end,
+              get = function() return getDB("vistaCoordVerticalPos", "bottom") or "bottom" end,
+              set = function(v)
+                  setDB("vistaCoordVerticalPos", v)
+                  setDB("vistaEX_coord", nil); setDB("vistaEY_coord", nil)
+              end },
+            { type = "toggle", name = L["Lock coordinates position"] or "Lock coordinates position",
+              desc = L["When on, the coordinates text cannot be dragged."] or "When on, the coordinates text cannot be dragged.",
+              dbKey = "vistaLocked_coord",
+              get = function() return getDB("vistaLocked_coord", true) end,
+              set = function(v) setDB("vistaLocked_coord", v) end },
+            { type = "dropdown", name = L["Clock position"] or "Clock position",
+              desc = L["Place the clock above or below the minimap."] or "Place the clock above or below the minimap.",
+              dbKey = "vistaTimeVerticalPos",
+              options = function() return { { L["Top"] or "Top", "top" }, { L["Bottom"] or "Bottom", "bottom" } } end,
+              get = function() return getDB("vistaTimeVerticalPos", "bottom") or "bottom" end,
+              set = function(v)
+                  setDB("vistaTimeVerticalPos", v)
+                  setDB("vistaEX_time", nil); setDB("vistaEY_time", nil)
+              end },
+            { type = "toggle", name = L["Lock time position"] or "Lock time position",
+              desc = L["When on, the time text cannot be dragged."] or "When on, the time text cannot be dragged.",
+              dbKey = "vistaLocked_time",
+              get = function() return getDB("vistaLocked_time", true) end,
+              set = function(v) setDB("vistaLocked_time", v) end },
+            { type = "section", name = L["Button Positions"] or "Button Positions" },
+            { type = "header", name = L["Drag buttons to reposition them. Lock to prevent movement."] or "Drag buttons to reposition them. Lock to prevent movement." },
+            { type = "toggle", name = L["Lock Zoom In button"] or "Lock Zoom In button",
+              desc = L["Prevent dragging the + zoom button."] or "Prevent dragging the + zoom button.",
+              dbKey = "vistaLocked_zoomIn",
+              get = function() return getDB("vistaLocked_zoomIn", false) end,
+              set = function(v) setDB("vistaLocked_zoomIn", v) end },
+            { type = "toggle", name = L["Lock Zoom Out button"] or "Lock Zoom Out button",
+              desc = L["Prevent dragging the - zoom button."] or "Prevent dragging the - zoom button.",
+              dbKey = "vistaLocked_zoomOut",
+              get = function() return getDB("vistaLocked_zoomOut", false) end,
+              set = function(v) setDB("vistaLocked_zoomOut", v) end },
+            { type = "toggle", name = L["Lock Tracking button"] or "Lock Tracking button",
+              desc = L["Prevent dragging the tracking button."] or "Prevent dragging the tracking button.",
+              dbKey = "vistaLocked_proxy_tracking",
+              get = function() return getDB("vistaLocked_proxy_tracking", false) end,
+              set = function(v) setDB("vistaLocked_proxy_tracking", v) end },
+            { type = "toggle", name = L["Lock Calendar button"] or "Lock Calendar button",
+              desc = L["Prevent dragging the calendar button."] or "Prevent dragging the calendar button.",
+              dbKey = "vistaLocked_proxy_calendar",
+              get = function() return getDB("vistaLocked_proxy_calendar", false) end,
+              set = function(v) setDB("vistaLocked_proxy_calendar", v) end },
+            { type = "toggle", name = L["Lock Queue button"] or "Lock Queue button",
+              desc = L["Prevent dragging the queue status button."] or "Prevent dragging the queue status button.",
+              dbKey = "vistaLocked_proxy_queue",
+              get = function() return getDB("vistaLocked_proxy_queue", false) end,
+              set = function(v) setDB("vistaLocked_proxy_queue", v) end },
+            { type = "section", name = L["Button Sizes"] or "Button Sizes" },
+            { type = "header", name = L["Adjust the size of minimap overlay buttons."] or "Adjust the size of minimap overlay buttons." },
+            { type = "slider", name = L["Tracking button size"] or "Tracking button size",
+              desc = L["Size of the tracking button (pixels)."] or "Size of the tracking button (pixels).",
+              dbKey = "vistaTrackingBtnSize", min = 14, max = 40,
+              get = function() return math.max(14, math.min(40, tonumber(getDB("vistaTrackingBtnSize", 22)) or 22)) end,
+              set = function(v) setDB("vistaTrackingBtnSize", math.max(14, math.min(40, v))) end },
+            { type = "slider", name = L["Calendar button size"] or "Calendar button size",
+              desc = L["Size of the calendar button (pixels)."] or "Size of the calendar button (pixels).",
+              dbKey = "vistaCalendarBtnSize", min = 14, max = 40,
+              get = function() return math.max(14, math.min(40, tonumber(getDB("vistaCalendarBtnSize", 22)) or 22)) end,
+              set = function(v) setDB("vistaCalendarBtnSize", math.max(14, math.min(40, v))) end },
+            { type = "slider", name = L["Queue button size"] or "Queue button size",
+              desc = L["Size of the queue status button (pixels)."] or "Size of the queue status button (pixels).",
+              dbKey = "vistaQueueBtnSize", min = 14, max = 40,
+              get = function() return math.max(14, math.min(40, tonumber(getDB("vistaQueueBtnSize", 22)) or 22)) end,
+              set = function(v) setDB("vistaQueueBtnSize", math.max(14, math.min(40, v))) end },
+            { type = "slider", name = L["Zoom button size"] or "Zoom button size",
+              desc = L["Size of the zoom in / zoom out buttons (pixels)."] or "Size of the zoom in / zoom out buttons (pixels).",
+              dbKey = "vistaZoomBtnSize", min = 10, max = 32,
+              get = function() return math.max(10, math.min(32, tonumber(getDB("vistaZoomBtnSize", 16)) or 16)) end,
+              set = function(v) setDB("vistaZoomBtnSize", math.max(10, math.min(32, v))) end },
+            { type = "slider", name = L["Mail indicator size"] or "Mail indicator size",
+              desc = L["Size of the new mail icon (pixels)."] or "Size of the new mail icon (pixels).",
+              dbKey = "vistaMailIconSize", min = 14, max = 40,
+              get = function() return math.max(14, math.min(40, tonumber(getDB("vistaMailIconSize", 20)) or 20)) end,
+              set = function(v) setDB("vistaMailIconSize", math.max(14, math.min(40, v))) end },
+            { type = "slider", name = L["Addon button size"] or "Addon button size",
+              desc = L["Size of collected addon minimap buttons (pixels)."] or "Size of collected addon minimap buttons (pixels).",
+              dbKey = "vistaAddonBtnSize", min = 16, max = 48,
+              get = function() return math.max(16, math.min(48, tonumber(getDB("vistaAddonBtnSize", 26)) or 26)) end,
+              set = function(v) setDB("vistaAddonBtnSize", math.max(16, math.min(48, v))) end },
+        },
+    },
+    {
+        key = "VistaButtons",
+        name = L["Minimap Addon Buttons"] or "Minimap Addon Buttons",
+        moduleKey = "vista",
+        options = function()
+            local BUTTON_MODE_OPTIONS = {
+                { L["Mouseover bar"] or "Mouseover bar", "mouseover" },
+                { L["Right-click panel"] or "Right-click panel", "rightclick" },
+                { L["Floating drawer"] or "Floating drawer", "drawer" },
+            }
+
+            local opts = {
+                { type = "section", name = L["Button Management"] or "Button Management" },
+                { type = "toggle", name = L["Manage addon minimap buttons"] or "Manage addon minimap buttons",
+                  desc = L["When on, Vista takes control of addon minimap buttons and groups them by the selected mode."] or "When on, Vista takes control of addon minimap buttons and groups them by the selected mode.",
+                  dbKey = "vistaHandleAddonButtons",
+                  get = function() return getDB("vistaHandleAddonButtons", true) end,
+                  set = function(v)
+                      setDB("vistaHandleAddonButtons", v)
+                      if addon.OptionsPanel_Refresh and C_Timer and C_Timer.After then
+                          C_Timer.After(0, addon.OptionsPanel_Refresh)
+                      elseif addon.OptionsPanel_Refresh then
+                          addon.OptionsPanel_Refresh()
+                      end
+                  end },
+                { type = "dropdown", name = L["Button mode"] or "Button mode",
+                  desc = L["How addon buttons are presented: hover bar below minimap, panel on right-click, or floating drawer button."] or "How addon buttons are presented: hover bar below minimap, panel on right-click, or floating drawer button.",
+                  dbKey = "vistaButtonMode",
+                  options = BUTTON_MODE_OPTIONS,
+                  get = function() return getDB("vistaButtonMode", "mouseover") end,
+                  set = function(v)
+                      if not getDB("vistaHandleAddonButtons", true) then return end
+                      setDB("vistaButtonMode", v)
+                      if addon.OptionsPanel_Refresh and C_Timer and C_Timer.After then
+                          C_Timer.After(0, addon.OptionsPanel_Refresh)
+                      elseif addon.OptionsPanel_Refresh then
+                          addon.OptionsPanel_Refresh()
+                      end
+                  end,
+                  disabled = function() return not getDB("vistaHandleAddonButtons", true) end },
+                { type = "toggle", name = L["Lock drawer button position"] or "Lock drawer button position",
+                  desc = L["Prevent dragging the floating drawer button."] or "Prevent dragging the floating drawer button.",
+                  dbKey = "vistaDrawerButtonLocked",
+                  get = function() return getDB("vistaDrawerButtonLocked", false) end,
+                  set = function(v)
+                      if not getDB("vistaHandleAddonButtons", true) then return end
+                      if getDB("vistaButtonMode", "mouseover") ~= "drawer" then return end
+                      setDB("vistaDrawerButtonLocked", v)
+                  end,
+                  disabled = function()
+                      return not getDB("vistaHandleAddonButtons", true) or getDB("vistaButtonMode", "mouseover") ~= "drawer"
+                  end },
+                { type = "section", name = L["Panel Appearance"] or "Panel Appearance" },
+                { type = "header", name = L["Colors for the drawer and right-click button panels."] or "Colors for the drawer and right-click button panels." },
+                { type = "color", name = L["Panel background color"] or "Panel background color",
+                  desc = L["Background color of the addon button panels."] or "Background color of the addon button panels.",
+                  dbKey = "vistaPanelBg",
+                  get = function()
+                      return getDB("vistaPanelBgR", 0.08), getDB("vistaPanelBgG", 0.08),
+                             getDB("vistaPanelBgB", 0.12), getDB("vistaPanelBgA", 0.95)
+                  end,
+                  set = function(r, g, b, a)
+                      setDB("vistaPanelBgR", r); setDB("vistaPanelBgG", g)
+                      setDB("vistaPanelBgB", b)
+                      if a then setDB("vistaPanelBgA", a) end
+                  end,
+                  hasAlpha = true },
+                { type = "color", name = L["Panel border color"] or "Panel border color",
+                  desc = L["Border color of the addon button panels."] or "Border color of the addon button panels.",
+                  dbKey = "vistaPanelBorder",
+                  get = function()
+                      return getDB("vistaPanelBorderR", 0.3), getDB("vistaPanelBorderG", 0.4),
+                             getDB("vistaPanelBorderB", 0.6), getDB("vistaPanelBorderA", 0.7)
+                  end,
+                  set = function(r, g, b, a)
+                      setDB("vistaPanelBorderR", r); setDB("vistaPanelBorderG", g)
+                      setDB("vistaPanelBorderB", b)
+                      if a then setDB("vistaPanelBorderA", a) end
+                  end,
+                  hasAlpha = true },
+                { type = "section", name = L["Button Filter"] or "Button Filter" },
+            }
+
+            -- Per-button filter toggles from discovered minimap buttons
+            local function getButtonNames()
+                if addon.Vista and addon.Vista.GetDiscoveredButtonNames then
+                    return addon.Vista.GetDiscoveredButtonNames()
+                end
+                return {}
+            end
+
+            opts[#opts + 1] = {
+                type = "toggle",
+                name = L["Filter to selected buttons only"] or "Filter to selected buttons only",
+                desc = L["When on, only buttons checked below will appear. Unchecked buttons are hidden everywhere including the minimap."] or "When on, only buttons checked below will appear. Unchecked buttons are hidden everywhere including the minimap.",
+                dbKey = "vistaButtonFilterEnabled",
+                get = function()
+                    local wl = getDB("vistaButtonWhitelist", nil)
+                    if not wl or type(wl) ~= "table" then return false end
+                    local hasAny = false
+                    for _ in pairs(wl) do hasAny = true; break end
+                    return hasAny
+                end,
+                set = function(v)
+                    if not v then
+                        setDB("vistaButtonWhitelist", nil)
+                    else
+                        local names = getButtonNames()
+                        local wl = {}
+                        for _, n in ipairs(names) do wl[n] = true end
+                        setDB("vistaButtonWhitelist", wl)
+                    end
+                end,
+                disabled = function() return not getDB("vistaHandleAddonButtons", true) end,
+            }
+
+            opts[#opts + 1] = {
+                type = "section",
+                name = L["Visible buttons (check to include)"] or "Visible buttons (check to include)",
+            }
+
+            local names = getButtonNames()
+            for _, btnName in ipairs(names) do
+                local localName = btnName
+                local displayName = localName
+                if addon.Vista and addon.Vista.GetButtonDisplayName then
+                    displayName = addon.Vista.GetButtonDisplayName(localName) or localName
+                end
+                local label
+                if displayName ~= localName and displayName ~= "" then
+                    label = displayName
+                else
+                    label = localName
+                end
+                opts[#opts + 1] = {
+                    type = "toggle",
+                    name = label,
+                    dbKey = "vistaBtn_" .. localName,
+                    disabled = function()
+                        return not getDB("vistaHandleAddonButtons", true)
+                    end,
+                    get = function()
+                        local wl = getDB("vistaButtonWhitelist", nil)
+                        if not wl or type(wl) ~= "table" then return true end  -- no filter = all visible
+                        return wl[localName] == true
+                    end,
+                    set = function(v)
+                        local wl = getDB("vistaButtonWhitelist", nil)
+                        if not wl or type(wl) ~= "table" then
+                            -- Build whitelist from all known buttons
+                            local allNames = getButtonNames()
+                            wl = {}
+                            for _, n in ipairs(allNames) do wl[n] = true end
+                        end
+                        wl[localName] = v or nil
+                        -- If whitelist is now all-true or empty, clear it
+                        local hasAny = false
+                        local hasFalse = false
+                        for n, val in pairs(wl) do
+                            if val then hasAny = true else hasFalse = true end
+                        end
+                        if not hasAny then wl = nil end
+                        setDB("vistaButtonWhitelist", wl)
+                    end,
+                }
+            end
+
+            if #names == 0 then
+                opts[#opts + 1] = {
+                    type = "toggle",
+                    name = L["(No addon buttons detected yet — open your minimap first)"] or "(No addon buttons detected yet — open your minimap first)",
+                    dbKey = "_vista_no_buttons_placeholder",
+                    get = function() return false end,
+                    set = function() end,
+                    disabled = function() return true end,
+                }
+            end
+
+            return opts
+        end,
+    },
+    {
         key = "YieldGeneral",
         name = L["General"],
         moduleKey = "yield",
@@ -1030,10 +1796,11 @@ local OptionCategories = {
 
 function OptionsData_BuildSearchIndex()
     local index = {}
-    for catIdx, cat in ipairs(OptionCategories) do
+    local cats = addon.OptionCategories
+    for catIdx, cat in ipairs(cats) do
         local currentSection = ""
         local moduleKey = cat.moduleKey
-        local moduleLabel = (moduleKey == "focus" and L["Focus"]) or (moduleKey == "presence" and L["Presence"]) or (moduleKey == "insight" and (L["Insight"] or "Insight")) or (moduleKey == "yield" and L["Yield"]) or L["Modules"]
+        local moduleLabel = (moduleKey == "focus" and L["Focus"]) or (moduleKey == "presence" and L["Presence"]) or (moduleKey == "insight" and (L["Insight"] or "Insight")) or (moduleKey == "yield" and L["Yield"]) or (moduleKey == "vista" and (L["Vista"] or "Vista")) or L["Modules"]
         local catOpts = type(cat.options) == "function" and cat.options() or cat.options
         for _, opt in ipairs(catOpts) do
             if opt.type == "section" then
@@ -1062,12 +1829,31 @@ function OptionsData_BuildSearchIndex()
     return index
 end
 
+-- Filter out Insight/Yield categories when dev addon does not show their toggles.
+local function getVisibleCategories()
+    local dev = _G.HorizonSuiteDevOverride
+    local showInsight = dev and dev.showInsightToggle
+    local showYield = dev and dev.showYieldToggle
+    local out = {}
+    for _, cat in ipairs(OptionCategories) do
+        local mk = cat.moduleKey
+        if mk == "insight" and not showInsight then
+            -- skip
+        elseif mk == "yield" and not showYield then
+            -- skip
+        else
+            out[#out + 1] = cat
+        end
+    end
+    return out
+end
+
 -- Export for panel
 addon.OptionsData_GetDB = OptionsData_GetDB
 addon.OptionsData_SetDB = OptionsData_SetDB
 addon.OptionsData_NotifyMainAddon = OptionsData_NotifyMainAddon
 addon.OptionsData_SetUpdateFontsRef = OptionsData_SetUpdateFontsRef
-addon.OptionCategories = OptionCategories
+addon.OptionCategories = getVisibleCategories()
 addon.OptionsData_BuildSearchIndex = OptionsData_BuildSearchIndex
 addon.COLOR_KEYS_ORDER = COLOR_KEYS_ORDER
 addon.ZONE_COLOR_DEFAULT = ZONE_COLOR_DEFAULT

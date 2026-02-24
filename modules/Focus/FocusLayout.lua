@@ -15,24 +15,48 @@ local sectionPool = addon.sectionPool
 local scrollChild = addon.scrollChild
 local scrollFrame = addon.scrollFrame
 
+--- Returns the maximum height the panel can grow to without pushing past the screen bottom.
+--- Uses the panel's current top position minus UIParent bottom (accounting for scale).
+--- Falls back to a large sentinel when the panel isn't yet visible.
+local function GetMaxPanelHeight()
+    if not addon.HS or not addon.HS.GetTop then return 99999 end
+    local top = addon.HS:GetTop()
+    if not top then return 99999 end
+    local uiBottom = UIParent and UIParent:GetBottom() or 0
+    local maxH = top - uiBottom
+    return (maxH > 0) and maxH or 99999
+end
+
 --- Player's current zone name from map API. Used to suppress redundant zone labels for in-zone quests.
 --- Schedule deferred refreshes when Endeavors or Decor have placeholder names (API data not yet loaded).
+--- Retries up to 3 times at 2s intervals; stops as soon as no placeholder is detected.
 local function SchedulePlaceholderRefreshes(quests)
     if addon.focus.placeholderRefreshScheduled then return end
+    local hasPlaceholder = false
     for _, q in ipairs(quests) do
         local isEndeavorPlaceholder = q.isEndeavor and q.endeavorID and q.title == ("Endeavor " .. tostring(q.endeavorID))
         local isDecorPlaceholder = q.isDecor and q.decorID and q.title == ("Decor " .. tostring(q.decorID))
         if isEndeavorPlaceholder or isDecorPlaceholder then
-            addon.focus.placeholderRefreshScheduled = true
-            C_Timer.After(2, function()
-                if addon.focus.enabled and addon.ScheduleRefresh then addon.ScheduleRefresh() end
-            end)
-            C_Timer.After(4, function()
-                if addon.focus.enabled and addon.ScheduleRefresh then addon.ScheduleRefresh() end
-            end)
+            hasPlaceholder = true
             break
         end
     end
+    if not hasPlaceholder then return end
+
+    addon.focus.placeholderRefreshScheduled = true
+    local retriesLeft = 3
+    local function retry()
+        retriesLeft = retriesLeft - 1
+        if not addon.focus.enabled then return end
+        if addon.ScheduleRefresh then addon.ScheduleRefresh() end
+        -- Only reschedule if we still have retries and placeholders might still exist.
+        if retriesLeft > 0 then
+            C_Timer.After(2, retry)
+        else
+            addon.focus.placeholderRefreshScheduled = false
+        end
+    end
+    C_Timer.After(2, retry)
 end
 
 --- Player's current zone name. Uses Zone tier (whole zone, e.g. K'aresh), not continent or micro.
@@ -60,6 +84,7 @@ local function GetPlayerCurrentZoneName()
     local UIMAPTYPE_ZONE = 3
     local current = mapID
     local info = C_Map.GetMapInfo(current)
+    local firstInfo = info  -- keep the original mapID's info for final fallback
     while info do
         if info.mapType == UIMAPTYPE_ZONE then
             return info.name
@@ -70,8 +95,8 @@ local function GetPlayerCurrentZoneName()
         current = info.parentMapID
         info = C_Map.GetMapInfo(current)
     end
-    info = C_Map.GetMapInfo(mapID)
-    return info and info.name or nil
+    -- Fall back to the name of the original mapID (firstInfo already fetched above).
+    return firstInfo and firstInfo.name or nil
 end
 
 local function AcquireEntry()
@@ -125,7 +150,7 @@ end
 local headerBtn = CreateFrame("Button", nil, addon.HS)
 headerBtn:SetPoint("TOPLEFT", addon.HS, "TOPLEFT", 0, 0)
 headerBtn:SetPoint("TOPRIGHT", addon.HS, "TOPRIGHT", 0, 0)
-headerBtn:SetHeight(addon.PADDING + addon.GetHeaderHeight())
+headerBtn:SetHeight(addon.GetScaledPadding() + addon.GetHeaderHeight())
 headerBtn:RegisterForClicks("LeftButtonUp")
 headerBtn:SetScript("OnClick", function()
     addon.ToggleCollapse()
@@ -262,7 +287,7 @@ local function FullLayout()
         addon.divider:Hide()
         addon.optionsBtn:SetFrameLevel(headerBtn:GetFrameLevel() + 1)
         addon.optionsBtn:SetParent(addon.HS)
-        headerBtn:SetHeight(addon.MINIMAL_HEADER_HEIGHT)
+        headerBtn:SetHeight(addon.GetScaledMinimalHeaderHeight())
         addon.chevron:Show()
         if hideOptBtn then
             addon.optionsBtn:Hide()
@@ -296,7 +321,7 @@ local function FullLayout()
             addon.optionsBtn:SetWidth(math.max(addon.optionsLabel:GetStringWidth() + 4, 44))
         end
         addon.divider:SetShown(addon.GetDB("showHeaderDivider", true))
-        headerBtn:SetHeight(addon.PADDING + addon.GetHeaderHeight())
+        headerBtn:SetHeight(addon.GetScaledPadding() + addon.GetHeaderHeight())
     end
     lastMinimal = minimal
 
@@ -311,20 +336,20 @@ local function FullLayout()
     local mplus = addon.mplusBlock
     local hasMplus = mplus and mplus:IsShown()
     local mplusPos = addon.GetDB("mplusBlockPosition", "top") or "top"
-    local gap = 4
+    local gap = addon.Scaled(4)
 
     local blockFrame = hasMplus and mplus or nil
     local blockPos = hasMplus and mplusPos or "top"
 
     if blockFrame and blockPos == "top" then
         scrollFrame:SetPoint("TOPLEFT", blockFrame, "BOTTOMLEFT", 0, -gap)
-        scrollFrame:SetPoint("BOTTOMRIGHT", addon.HS, "BOTTOMRIGHT", 0, addon.PADDING)
+        scrollFrame:SetPoint("BOTTOMRIGHT", addon.HS, "BOTTOMRIGHT", 0, addon.GetScaledPadding())
     elseif blockFrame and blockPos == "bottom" then
         scrollFrame:SetPoint("TOPLEFT", addon.HS, "TOPLEFT", 0, contentTop)
         scrollFrame:SetPoint("BOTTOMRIGHT", blockFrame, "TOPRIGHT", 0, gap)
     else
         scrollFrame:SetPoint("TOPLEFT", addon.HS, "TOPLEFT", 0, contentTop)
-        scrollFrame:SetPoint("BOTTOMRIGHT", addon.HS, "BOTTOMRIGHT", 0, addon.PADDING)
+        scrollFrame:SetPoint("BOTTOMRIGHT", addon.HS, "BOTTOMRIGHT", 0, addon.GetScaledPadding())
     end
 
     local rares = addon.GetDB("showRareBosses", true) and addon.GetRaresOnMap() or {}
@@ -399,21 +424,22 @@ local function FullLayout()
                     local sec = addon.AcquireSectionHeader(grp.key, focusedGroupKey)
                     if sec then
                         sec:ClearAllPoints()
-                        local x = addon.PADDING
+                        local x = addon.GetScaledPadding()
                         sec:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", x, yOff)
                         sec.finalX, sec.finalY = x, yOff
                         yOff = yOff - addon.GetSectionHeaderHeight() - addon.GetSectionToEntryGap()
                     end
-                end
-                local totalContentH = math.floor(math.max(-yOff, 1))
-                scrollChild:SetHeight(totalContentH)
-                scrollFrame:SetVerticalScroll(0)
-                addon.focus.layout.scrollOffset = 0
-                if addon.UpdateScrollIndicators then addon.UpdateScrollIndicators() end
-                local headerArea = addon.PADDING + addon.GetHeaderHeight() + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap()
-                local visibleH = math.floor(math.min(totalContentH, addon.GetMaxContentHeight()))
-                local blockHeight = (hasMplus and addon.GetMplusBlockHeight and (addon.GetMplusBlockHeight() + gap * 2)) or 0
-                addon.focus.layout.targetHeight = math.floor(math.max(addon.MIN_HEIGHT, headerArea + visibleH + addon.PADDING + blockHeight))
+            end
+            local totalContentH = math.max(-yOff, 1)
+            scrollChild:SetHeight(totalContentH)
+            scrollFrame:SetVerticalScroll(0)
+            addon.focus.layout.scrollOffset = 0
+            if addon.UpdateScrollIndicators then addon.UpdateScrollIndicators() end
+            local headerArea = addon.GetScaledPadding() + addon.GetHeaderHeight() + addon.GetScaledDividerHeight() + addon.GetHeaderToContentGap()
+            local visibleH = math.min(totalContentH, addon.GetMaxContentHeight())
+            local blockHeight = (hasMplus and addon.GetMplusBlockHeight and (addon.GetMplusBlockHeight() + gap * 2)) or 0
+            local desiredH = math.max(addon.GetScaledMinHeight(), headerArea + visibleH + addon.GetScaledPadding() + blockHeight)
+            addon.focus.layout.targetHeight = math.min(desiredH, GetMaxPanelHeight())
             else
                 scrollFrame:Hide()
                 addon.focus.layout.targetHeight = addon.GetCollapsedHeight()
@@ -449,6 +475,10 @@ local function FullLayout()
     if addon.ReadTrackedAdventureGuide then
         for _, ag in ipairs(addon.ReadTrackedAdventureGuide()) do quests[#quests + 1] = ag end
     end
+    -- Allow SchedulePlaceholderRefreshes to re-evaluate on every FullLayout call.
+    -- The retry loop will have set this to false after its last attempt; clearing it here
+    -- ensures an event-driven layout (e.g. INITIATIVE_TASKS_TRACKED_UPDATED) re-checks.
+    addon.focus.placeholderRefreshScheduled = false
     SchedulePlaceholderRefreshes(quests)
     addon.UpdateFloatingQuestItem(quests)
     local grouped = addon.SortAndGroupQuests(quests)
@@ -702,7 +732,7 @@ local function FullLayout()
             local sec = addon.AcquireSectionHeader(grp.key, focusedGroupKey)
             if sec then
                 sec:ClearAllPoints()
-                local x = addon.PADDING
+                local x = addon.GetScaledPadding()
                 sec:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", x, yOff)
                 sec.finalX, sec.finalY = x, yOff
                 sec._scrollFadeSpacing = addon.GetSectionToEntryGap()
@@ -722,7 +752,7 @@ local function FullLayout()
                 end
             end
         else
-            local entrySpacing = ((grp.key == "DELVES" or grp.key == "DUNGEON") and addon.DELVE_ENTRY_SPACING) or addon.GetTitleSpacing()
+            local entrySpacing = ((grp.key == "DELVES" or grp.key == "DUNGEON") and addon.Scaled(addon.DELVE_ENTRY_SPACING)) or addon.GetTitleSpacing()
             local categoryCounter = 0
             for _, qData in ipairs(grp.quests) do
                 categoryCounter = categoryCounter + 1
@@ -734,7 +764,7 @@ local function FullLayout()
 
                     -- Use the same base X as section headers so entries stay aligned with categories.
                     -- Keep a small indent for entries (for numbering/chevron separation) via layout.entryIndentPx.
-                    local entryBaseX = addon.PADDING
+                    local entryBaseX = addon.GetScaledPadding()
                     local entryIndentPx = (addon.focus and addon.focus.layout and addon.focus.layout.entryIndentPx) or 0
 
                     -- Extra cushion when quest icons are enabled:
@@ -754,9 +784,9 @@ local function FullLayout()
                     entry:ClearAllPoints()
                     entry:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", entryX, yOff)
 
-                    local sfLeftInset = (blockFrame and blockPos == "top") and addon.PADDING or 0
+                    local sfLeftInset = (blockFrame and blockPos == "top") and addon.GetScaledPadding() or 0
                     local sfVisibleW = addon.GetPanelWidth() - sfLeftInset
-                    local entryW = sfVisibleW - entryX - (addon.CONTENT_RIGHT_PADDING or 0)
+                    local entryW = sfVisibleW - entryX - addon.GetScaledContentRightPadding()
                     if entryW > 0 then
                         entry:SetWidth(entryW)
                     end
@@ -769,20 +799,20 @@ local function FullLayout()
                             -- Place icon to the right of the supertracked highlight bar so the bar is always leftmost.
                             local highlightStyle = addon.NormalizeHighlightStyle(addon.GetDB("activeQuestHighlight", "bar-left")) or "bar-left"
                             local barW = math.max(2, math.min(6, tonumber(addon.GetDB("highlightBarWidth", 2)) or 2))
-                            local barLeft = addon.BAR_LEFT_OFFSET or 12
-                            local padAfterBar = 6
+                            local barLeft = addon.Scaled(addon.BAR_LEFT_OFFSET or 12)
+                            local padAfterBar = addon.Scaled(6)
 
                             if highlightStyle == "bar-left" or highlightStyle == "pill-left" then
                                 -- bar starts at -barLeft; its right edge is (-barLeft + barW)
                                 entry.questTypeIcon:SetPoint("TOPLEFT", entry, "TOPLEFT", -barLeft + barW + padAfterBar, 0)
                             else
                                 -- Fallback to legacy off-to-the-left placement for non-left-bar styles.
-                                local iconRight = (addon.BAR_LEFT_OFFSET or 12) + 2
+                                local iconRight = addon.Scaled((addon.BAR_LEFT_OFFSET or 12) + 2)
                                 entry.questTypeIcon:SetPoint("TOPRIGHT", entry, "TOPLEFT", -iconRight, 0)
                             end
                         else
                             -- Icons off: keep the legacy off-to-the-left placement so text alignment remains unchanged.
-                            local iconRight = (addon.BAR_LEFT_OFFSET or 12) + 2
+                            local iconRight = addon.Scaled((addon.BAR_LEFT_OFFSET or 12) + 2)
                             entry.questTypeIcon:SetPoint("TOPRIGHT", entry, "TOPLEFT", -iconRight, 0)
                         end
                     end
@@ -837,10 +867,11 @@ local function FullLayout()
     scrollFrame:SetVerticalScroll(addon.focus.layout.scrollOffset)
     if addon.UpdateScrollIndicators then addon.UpdateScrollIndicators() end
 
-    local headerArea    = addon.PADDING + addon.GetHeaderHeight() + addon.DIVIDER_HEIGHT + addon.GetHeaderToContentGap()
-    local visibleH      = math.floor(math.min(totalContentH, addon.GetMaxContentHeight()))
+    local headerArea    = addon.GetScaledPadding() + addon.GetHeaderHeight() + addon.GetScaledDividerHeight() + addon.GetHeaderToContentGap()
+    local visibleH      = math.min(totalContentH, addon.GetMaxContentHeight())
     local blockHeight   = (hasMplus and addon.GetMplusBlockHeight and (addon.GetMplusBlockHeight() + gap * 2)) or 0
-    addon.focus.layout.targetHeight  = math.floor(math.max(addon.MIN_HEIGHT, headerArea + visibleH + addon.PADDING + blockHeight))
+    local desiredH      = math.max(addon.GetScaledMinHeight(), headerArea + visibleH + addon.GetScaledPadding() + blockHeight)
+    addon.focus.layout.targetHeight  = math.min(desiredH, GetMaxPanelHeight())
 
     if #quests > 0 then
         ApplyShowAlpha()

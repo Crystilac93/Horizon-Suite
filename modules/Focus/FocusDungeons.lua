@@ -12,13 +12,13 @@ local function IsInPartyDungeon()
 end
 
 local function IsInMythicDungeon()
-    local _, instanceType, difficultyID = GetInstanceInfo()
-    return instanceType == "party" and (difficultyID == 8 or difficultyID == 23)
+    local ok, name, instanceType, difficultyID = pcall(GetInstanceInfo)
+    return ok and instanceType == "party" and (difficultyID == 8 or difficultyID == 23)
 end
 
 local function GetMythicDungeonName()
-    local name = GetInstanceInfo()
-    return name or nil
+    local ok, name = pcall(GetInstanceInfo)
+    return ok and name or nil
 end
 
 --- Returns nearby non-WQ, non-Calling quests when in a party dungeon.

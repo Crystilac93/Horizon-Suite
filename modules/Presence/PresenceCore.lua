@@ -68,7 +68,9 @@ end
 
 local function getFrameScale()
     local v = addon.GetDB and tonumber(addon.GetDB("presenceFrameScale", 1)) or 1
-    return math.max(0.5, math.min(1.5, v))
+    local base = math.max(0.5, math.min(1.5, v))
+    local moduleScale = (addon.GetModuleScale and addon.GetModuleScale("presence")) or 1
+    return base * moduleScale
 end
 
 local function getEntranceDur()
@@ -88,8 +90,23 @@ local function getHoldScale()
     return math.max(0.5, math.min(2, v))
 end
 
+local PRESENCE_FONT_USE_GLOBAL = "__global__"
+local defaultFontPath = (addon.GetDefaultFontPath and addon.GetDefaultFontPath()) or "Fonts\\FRIZQT__.TTF"
+
 local function getPresenceFontPath()
-    local raw = addon.GetDB and addon.GetDB("fontPath", addon.GetDefaultFontPath and addon.GetDefaultFontPath() or "Fonts\\FRIZQT__.TTF") or "Fonts\\FRIZQT__.TTF"
+    local raw = addon.GetDB and addon.GetDB("fontPath", defaultFontPath) or defaultFontPath
+    return (addon.ResolveFontPath and addon.ResolveFontPath(raw)) or raw
+end
+
+local function getPresenceTitleFontPath()
+    local raw = addon.GetDB and addon.GetDB("presenceTitleFontPath", PRESENCE_FONT_USE_GLOBAL) or PRESENCE_FONT_USE_GLOBAL
+    if raw == PRESENCE_FONT_USE_GLOBAL or not raw or raw == "" then return getPresenceFontPath() end
+    return (addon.ResolveFontPath and addon.ResolveFontPath(raw)) or raw
+end
+
+local function getPresenceSubtitleFontPath()
+    local raw = addon.GetDB and addon.GetDB("presenceSubtitleFontPath", PRESENCE_FONT_USE_GLOBAL) or PRESENCE_FONT_USE_GLOBAL
+    if raw == PRESENCE_FONT_USE_GLOBAL or not raw or raw == "" then return getPresenceFontPath() end
     return (addon.ResolveFontPath and addon.ResolveFontPath(raw)) or raw
 end
 
@@ -149,12 +166,12 @@ local function CreateLayer(parent)
     local shadowY = (addon.GetDB and tonumber(addon.GetDB("shadowOffsetY", -2))) or addon.SHADOW_OY or -2
 
     L.titleShadow = parent:CreateFontString(nil, "BORDER")
-    L.titleShadow:SetFont(getPresenceFontPath(), MAIN_SIZE, "OUTLINE")
+    L.titleShadow:SetFont(getPresenceTitleFontPath(), MAIN_SIZE, "OUTLINE")
     L.titleShadow:SetTextColor(0, 0, 0, shadowA)
     L.titleShadow:SetJustifyH("CENTER")
 
     L.titleText = parent:CreateFontString(nil, "OVERLAY")
-    L.titleText:SetFont(getPresenceFontPath(), MAIN_SIZE, "OUTLINE")
+    L.titleText:SetFont(getPresenceTitleFontPath(), MAIN_SIZE, "OUTLINE")
     L.titleText:SetTextColor(1, 1, 1, 1)
     L.titleText:SetJustifyH("CENTER")
     L.titleText:SetPoint("TOP", 0, 0)
@@ -173,24 +190,24 @@ local function CreateLayer(parent)
     L.divider:SetAlpha(0)
 
     L.subShadow = parent:CreateFontString(nil, "BORDER")
-    L.subShadow:SetFont(getPresenceFontPath(), SUB_SIZE, "OUTLINE")
+    L.subShadow:SetFont(getPresenceSubtitleFontPath(), SUB_SIZE, "OUTLINE")
     L.subShadow:SetTextColor(0, 0, 0, shadowA)
     L.subShadow:SetJustifyH("CENTER")
 
     L.subText = parent:CreateFontString(nil, "OVERLAY")
-    L.subText:SetFont(getPresenceFontPath(), SUB_SIZE, "OUTLINE")
+    L.subText:SetFont(getPresenceSubtitleFontPath(), SUB_SIZE, "OUTLINE")
     L.subText:SetTextColor(1, 1, 1, 1)  -- neutral; resolved at play via resolveColors
     L.subText:SetJustifyH("CENTER")
     L.subText:SetPoint("TOP", L.divider, "BOTTOM", 0, -10)
     L.subShadow:SetPoint("CENTER", L.subText, "CENTER", shadowX, shadowY)
 
     L.discoveryShadow = parent:CreateFontString(nil, "BORDER")
-    L.discoveryShadow:SetFont(getPresenceFontPath(), DISCOVERY_SIZE, "OUTLINE")
+    L.discoveryShadow:SetFont(getPresenceSubtitleFontPath(), DISCOVERY_SIZE, "OUTLINE")
     L.discoveryShadow:SetTextColor(0, 0, 0, shadowA)
     L.discoveryShadow:SetJustifyH("CENTER")
 
     L.discoveryText = parent:CreateFontString(nil, "OVERLAY")
-    L.discoveryText:SetFont(getPresenceFontPath(), DISCOVERY_SIZE, "OUTLINE")
+    L.discoveryText:SetFont(getPresenceSubtitleFontPath(), DISCOVERY_SIZE, "OUTLINE")
     L.discoveryText:SetTextColor(1, 1, 1, 1)  -- neutral; resolved at show via getDiscoveryColor
     L.discoveryText:SetJustifyH("CENTER")
     L.discoveryText:SetPoint("TOP", L.subText, "BOTTOM", 0, -5)
@@ -207,6 +224,16 @@ local active, activeTitle, activeTypeName
 local queue, crossfadeStartAlpha
 local subtitleTransition  -- { phase = "fadeOut"|"fadeIn", elapsed = 0, newText = string }
 local PlayCinematic
+
+-- Cached at PlayCinematic time so OnUpdate never calls GetDB.
+local cachedEntranceDur  = 0.7
+local cachedExitDur      = 0.8
+local cachedHasDiscovery = false
+
+-- Skip-trackers: avoid redundant layout calls when value hasn't changed.
+local lastTitleOffsetY = nil
+local lastSubOffsetY   = nil
+local lastDividerWidth = nil
 
 local QUEST_UPDATE_DEDUPE_TIME = 1.5
 local lastQuestUpdateNorm, lastQuestUpdateTime
@@ -372,6 +399,31 @@ local function resetLayer(L)
     if L.questTypeIcon then L.questTypeIcon:Hide() end
 end
 
+-- Layout helpers: only call through when the value changes.
+local function setTitleOffset(L, offsetY)
+    if lastTitleOffsetY ~= offsetY then
+        lastTitleOffsetY = offsetY
+        L.titleText:ClearAllPoints()
+        L.titleText:SetPoint("TOP", 0, offsetY)
+    end
+end
+
+local function setSubOffset(L, offsetY)
+    if lastSubOffsetY ~= offsetY then
+        lastSubOffsetY = offsetY
+        L.subText:ClearAllPoints()
+        L.subText:SetPoint("TOP", L.divider, "BOTTOM", 0, -10 + offsetY)
+    end
+end
+
+local function setDividerWidth(L, w)
+    w = math.max(w, 0.01)
+    if lastDividerWidth ~= w then
+        lastDividerWidth = w
+        L.divider:SetSize(w, DIVIDER_H)
+    end
+end
+
 local function updateEntrance()
     local L  = curLayer
     local e  = anim.elapsed
@@ -382,18 +434,16 @@ local function updateEntrance()
     L.titleText:SetAlpha(te)
     L.titleShadow:SetAlpha(te * 0.8)
     if L.questTypeIcon and L.questTypeIcon:IsShown() then L.questTypeIcon:SetAlpha(te) end
-    L.titleText:ClearAllPoints()
-    L.titleText:SetPoint("TOP", 0, (1 - te) * 20)
+    setTitleOffset(L, (1 - te) * 20)
 
     L.divider:SetAlpha(de * 0.5)
-    L.divider:SetSize(math.max(DIVIDER_W * de, 0.01), DIVIDER_H)
+    setDividerWidth(L, DIVIDER_W * de)
 
     L.subText:SetAlpha(se)
     L.subShadow:SetAlpha(se * 0.8)
-    L.subText:ClearAllPoints()
-    L.subText:SetPoint("TOP", L.divider, "BOTTOM", 0, -10 + (1 - se) * (-10))
+    setSubOffset(L, (1 - se) * (-10))
 
-    if (L.discoveryText:GetText() or "") ~= "" then
+    if cachedHasDiscovery then
         local dse = entEase(e, DELAY_DISCOVERY)
         L.discoveryText:SetAlpha(dse)
         L.discoveryShadow:SetAlpha(dse * 0.8)
@@ -418,26 +468,22 @@ end
 
 local function updateExit()
     local L   = curLayer
-    -- Linear fade for smoother exit; easeIn (t^2) was abrupt in the final 20%
-    local exitDur = getExitDur()
-    local e   = (exitDur > 0) and math.min(anim.elapsed / exitDur, 1) or 1
+    local e   = (cachedExitDur > 0) and math.min(anim.elapsed / cachedExitDur, 1) or 1
     local inv = 1 - e
 
     L.titleText:SetAlpha(inv)
     L.titleShadow:SetAlpha(inv * 0.8)
     if L.questTypeIcon and L.questTypeIcon:IsShown() then L.questTypeIcon:SetAlpha(inv) end
-    L.titleText:ClearAllPoints()
-    L.titleText:SetPoint("TOP", 0, e * 15)
+    setTitleOffset(L, e * 15)
 
     L.divider:SetAlpha(0.5 * inv)
-    L.divider:SetSize(math.max(DIVIDER_W * inv, 0.01), DIVIDER_H)
+    setDividerWidth(L, DIVIDER_W * inv)
 
     L.subText:SetAlpha(inv)
     L.subShadow:SetAlpha(inv * 0.8)
-    L.subText:ClearAllPoints()
-    L.subText:SetPoint("TOP", L.divider, "BOTTOM", 0, -10 + e * (-10))
+    setSubOffset(L, e * (-10))
 
-    if (L.discoveryText:GetText() or "") ~= "" then
+    if cachedHasDiscovery then
         L.discoveryText:SetAlpha(inv)
         L.discoveryShadow:SetAlpha(inv * 0.8)
     end
@@ -477,15 +523,13 @@ local function finalizeEntrance()
     L.titleText:SetAlpha(1)
     L.titleShadow:SetAlpha(0.8)
     if L.questTypeIcon and L.questTypeIcon:IsShown() then L.questTypeIcon:SetAlpha(1) end
-    L.titleText:ClearAllPoints()
-    L.titleText:SetPoint("TOP", 0, 0)
+    setTitleOffset(L, 0)
     L.divider:SetAlpha(0.5)
-    L.divider:SetSize(DIVIDER_W, DIVIDER_H)
+    setDividerWidth(L, DIVIDER_W)
     L.subText:SetAlpha(1)
     L.subShadow:SetAlpha(0.8)
-    L.subText:ClearAllPoints()
-    L.subText:SetPoint("TOP", L.divider, "BOTTOM", 0, -10)
-    if (L.discoveryText:GetText() or "") ~= "" then
+    setSubOffset(L, 0)
+    if cachedHasDiscovery then
         L.discoveryText:SetAlpha(1)
         L.discoveryShadow:SetAlpha(0.8)
     end
@@ -502,21 +546,19 @@ local function PresenceOnUpdate(_, dt)
     end
 
     if anim.phase == "entrance" then
-        local entDur = getEntranceDur()
-        if entDur > 0 then
+        if cachedEntranceDur > 0 then
             updateEntrance()
         else
             finalizeEntrance()
         end
-        if anim.elapsed >= entDur then
+        if anim.elapsed >= cachedEntranceDur then
             finalizeEntrance()
             anim.phase   = "hold"
             anim.elapsed = 0
         end
     elseif anim.phase == "crossfade" then
         updateCrossfade()
-        local entDur = getEntranceDur()
-        if anim.elapsed >= entDur then
+        if anim.elapsed >= cachedEntranceDur then
             finalizeEntrance()
             resetLayer(oldLayer)
             anim.phase   = "hold"
@@ -529,8 +571,7 @@ local function PresenceOnUpdate(_, dt)
         end
     elseif anim.phase == "exit" then
         updateExit()
-        local exitDur = getExitDur()
-        if anim.elapsed >= exitDur then
+        if anim.elapsed >= cachedExitDur then
             onComplete()
         end
     end
@@ -617,10 +658,10 @@ PlayCinematic = function(typeName, title, subtitle, opts)
     local mainSz = math.max(12, math.min(72, math.floor(cfg.sz * (getMainSize() / MAIN_SIZE))))
     local subSz  = math.max(12, math.min(40, math.floor(((cfg.sz >= SUB_SIZE) and SUB_SIZE or cfg.sz) * (getSubSize() / SUB_SIZE))))
 
-    L.titleText:SetFont(getPresenceFontPath(), mainSz, "OUTLINE")
-    L.titleShadow:SetFont(getPresenceFontPath(), mainSz, "OUTLINE")
-    L.subText:SetFont(getPresenceFontPath(), subSz, "OUTLINE")
-    L.subShadow:SetFont(getPresenceFontPath(), subSz, "OUTLINE")
+    L.titleText:SetFont(getPresenceTitleFontPath(), mainSz, "OUTLINE")
+    L.titleShadow:SetFont(getPresenceTitleFontPath(), mainSz, "OUTLINE")
+    L.subText:SetFont(getPresenceSubtitleFontPath(), subSz, "OUTLINE")
+    L.subShadow:SetFont(getPresenceSubtitleFontPath(), subSz, "OUTLINE")
 
     L.titleText:SetTextColor(c[1], c[2], c[3], 1)
     L.subText:SetTextColor(sc[1], sc[2], sc[3], 1)
@@ -687,6 +728,14 @@ PlayCinematic = function(typeName, title, subtitle, opts)
     anim.elapsed = 0
     anim.holdDur = cfg.dur * getHoldScale()
 
+    -- Cache per-animation values; reset trackers so first frame always writes.
+    cachedEntranceDur  = getEntranceDur()
+    cachedExitDur      = getExitDur()
+    cachedHasDiscovery = (L.discoveryText:GetText() or "") ~= ""
+    lastTitleOffsetY   = nil
+    lastSubOffsetY     = nil
+    lastDividerWidth   = nil
+
     if oldLayer.titleText:GetAlpha() > 0 then
         anim.phase = "crossfade"
     else
@@ -729,6 +778,7 @@ local function ShowDiscoveryLine()
     local dc = getDiscoveryColor()
     curLayer.discoveryText:SetTextColor(dc[1], dc[2], dc[3], 1)
     curLayer.discoveryShadow:SetTextColor(0, 0, 0, (addon.SHADOW_A ~= nil) and addon.SHADOW_A or 0.8)
+    cachedHasDiscovery = true
     if anim.phase == "hold" then
         curLayer.discoveryText:SetAlpha(1)
         curLayer.discoveryShadow:SetAlpha(0.8)
@@ -747,6 +797,32 @@ local function interruptCurrent()
     active         = nil
     activeTitle    = nil
     activeTypeName = nil
+end
+
+local ZONE_ANIM_TYPES = { ZONE_CHANGE = true, SUBZONE_CHANGE = true }
+
+--- Stops any active zone/subzone animation and purges zone entries from the queue.
+local function CancelZoneAnim()
+    if not F then return end
+    if activeTypeName and ZONE_ANIM_TYPES[activeTypeName] then
+        F:SetScript("OnUpdate", nil)
+        subtitleTransition = nil
+        anim.phase      = "idle"
+        anim.elapsed    = 0
+        active          = nil
+        activeTitle     = nil
+        activeTypeName  = nil
+        resetLayer(curLayer)
+        resetLayer(oldLayer)
+        F:Hide()
+    end
+    if queue then
+        local kept = {}
+        for _, entry in ipairs(queue) do
+            if not ZONE_ANIM_TYPES[entry[1]] then kept[#kept + 1] = entry end
+        end
+        queue = kept
+    end
 end
 
 --- Queue or immediately play a cinematic notification.
@@ -844,6 +920,10 @@ local function DumpDebug()
         p("Current zone: " .. tostring(GetZoneText()) .. " / " .. tostring(GetSubZoneText()))
     end
 
+    if addon.Presence.DumpBlizzardSuppression then
+        addon.Presence.DumpBlizzardSuppression(p)
+    end
+
     p("|cFF00CCFF--- End Presence debug ---|r")
 end
 
@@ -863,6 +943,7 @@ end
 addon.Presence.Init               = Init
 addon.Presence.ApplyPresenceOptions = ApplyPresenceOptions
 addon.Presence.QueueOrPlay        = QueueOrPlay
+addon.Presence.CancelZoneAnim     = CancelZoneAnim
 addon.Presence.SoftUpdateSubtitle = SoftUpdateSubtitle
 addon.Presence.ShowDiscoveryLine  = ShowDiscoveryLine
 addon.Presence.SetPendingDiscovery = SetPendingDiscovery

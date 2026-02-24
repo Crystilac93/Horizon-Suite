@@ -16,7 +16,10 @@ local TICK_TEXT_GAP = " "
 -- Parented to UIParent so it stays visible even when the main tracker
 -- panel (addon.HS) is hidden by "Show in dungeon" being OFF.
 local mplusBlock = CreateFrame("Frame", nil, UIParent)
-mplusBlock:SetSize(addon.GetPanelWidth() - addon.PADDING * 2, MPLUS_MIN_HEIGHT)
+do
+    local S = addon.Scaled or function(v) return v end
+    mplusBlock:SetSize(addon.GetPanelWidth() - S(addon.PADDING) * 2, S(MPLUS_MIN_HEIGHT))
+end
 mplusBlock:SetFrameStrata(addon.HS:GetFrameStrata())
 mplusBlock:SetFrameLevel(addon.HS:GetFrameLevel() + 5)
 mplusBlock:EnableMouse(true)
@@ -255,46 +258,49 @@ end
 -- avoid anchor-chain issues (hidden frames collapse anchors).
 
 local function GetBlockContentWidth()
+    local S = addon.Scaled or function(v) return v end
     local w = (addon.HS and addon.HS.GetWidth and addon.HS:GetWidth()) or addon.GetPanelWidth()
-    return (w or addon.PANEL_WIDTH) - addon.PADDING * 2
+    return (w or S(addon.PANEL_WIDTH)) - S(addon.PADDING) * 2
 end
 
 local function PositionMplusBlock(pos)
     if InCombatLockdown() then return end
+    local S = addon.Scaled or function(v) return v end
     local panelWidth = GetBlockContentWidth()
     mplusBlock:SetWidth(panelWidth)
     mplusBlock:ClearAllPoints()
     if pos == "bottom" then
-        mplusBlock:SetPoint("BOTTOMLEFT", addon.HS, "BOTTOMLEFT", addon.PADDING, addon.PADDING)
+        mplusBlock:SetPoint("BOTTOMLEFT", addon.HS, "BOTTOMLEFT", S(addon.PADDING), S(addon.PADDING))
     else
         local topOffset = addon.GetContentTop()
-        mplusBlock:SetPoint("TOPLEFT", addon.HS, "TOPLEFT", addon.PADDING, topOffset)
+        mplusBlock:SetPoint("TOPLEFT", addon.HS, "TOPLEFT", S(addon.PADDING), topOffset)
     end
 end
 
 local function ApplyMplusTypography()
+    local S = addon.Scaled or function(v) return v end
     local rawFont = addon.GetDB("fontPath", (addon.GetDefaultFontPath and addon.GetDefaultFontPath()) or "Fonts\\FRIZQT__.TTF")
     local fontPath = (addon.ResolveFontPath and addon.ResolveFontPath(rawFont)) or rawFont
     local fontOutline = addon.GetDB("fontOutline", "OUTLINE")
 
-    local dungeonSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusDungeonSize", 14)) or 14))
+    local dungeonSize = S(math.max(8, math.min(32, tonumber(addon.GetDB("mplusDungeonSize", 14)) or 14)))
     local dungeonR = addon.GetDB("mplusDungeonColorR", 0.96)
     local dungeonG = addon.GetDB("mplusDungeonColorG", 0.96)
     local dungeonB = addon.GetDB("mplusDungeonColorB", 1.0)
 
-    local timerSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusTimerSize", 13)) or 13))
+    local timerSize = S(math.max(8, math.min(32, tonumber(addon.GetDB("mplusTimerSize", 13)) or 13)))
 
-    local progressSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusProgressSize", 12)) or 12))
+    local progressSize = S(math.max(8, math.min(32, tonumber(addon.GetDB("mplusProgressSize", 12)) or 12)))
     local progressR = addon.GetDB("mplusProgressColorR", 0.72)
     local progressG = addon.GetDB("mplusProgressColorG", 0.76)
     local progressB = addon.GetDB("mplusProgressColorB", 0.88)
 
-    local affixSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusAffixSize", 12)) or 12))
+    local affixSize = S(math.max(8, math.min(32, tonumber(addon.GetDB("mplusAffixSize", 12)) or 12)))
     local affixR = addon.GetDB("mplusAffixColorR", 0.85)
     local affixG = addon.GetDB("mplusAffixColorG", 0.85)
     local affixB = addon.GetDB("mplusAffixColorB", 0.95)
 
-    local bossSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusBossSize", 12)) or 12))
+    local bossSize = S(math.max(8, math.min(32, tonumber(addon.GetDB("mplusBossSize", 12)) or 12)))
     local bossR = addon.GetDB("mplusBossColorR", 0.78)
     local bossG = addon.GetDB("mplusBossColorG", 0.82)
     local bossB = addon.GetDB("mplusBossColorB", 0.92)
@@ -335,13 +341,14 @@ end
 
 local function UpdateMplusBlockDisplay(data)
     if not data then return end
+    local S = addon.Scaled or function(v) return v end
 
     -- Sizes for layout (ty applied in ApplyMplusTypography)
-    local dungeonSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusDungeonSize", 14)) or 14))
-    local timerSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusTimerSize", 13)) or 13))
-    local progressSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusProgressSize", 12)) or 12))
-    local affixSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusAffixSize", 12)) or 12))
-    local bossSize = math.max(8, math.min(32, tonumber(addon.GetDB("mplusBossSize", 12)) or 12))
+    local dungeonSize = S(math.max(8, math.min(32, tonumber(addon.GetDB("mplusDungeonSize", 14)) or 14)))
+    local timerSize = S(math.max(8, math.min(32, tonumber(addon.GetDB("mplusTimerSize", 13)) or 13)))
+    local progressSize = S(math.max(8, math.min(32, tonumber(addon.GetDB("mplusProgressSize", 12)) or 12)))
+    local affixSize = S(math.max(8, math.min(32, tonumber(addon.GetDB("mplusAffixSize", 12)) or 12)))
+    local bossSize = S(math.max(8, math.min(32, tonumber(addon.GetDB("mplusBossSize", 12)) or 12)))
 
     local timerR = addon.GetDB("mplusTimerColorR", 0.6)
     local timerG = addon.GetDB("mplusTimerColorG", 0.88)

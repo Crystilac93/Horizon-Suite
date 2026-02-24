@@ -43,13 +43,20 @@ local function GetQuestTimerInfo(questID)
         end
     end
 
-    -- C_TaskQuest.GetQuestTimeLeftMinutes: mins remaining -> duration = mins*60, startTime = GetTime()
-    if C_TaskQuest and C_TaskQuest.GetQuestTimeLeftMinutes then
-        local ok, mins = pcall(C_TaskQuest.GetQuestTimeLeftMinutes, questID)
-        if ok and mins and mins > 0 then
-            local duration = mins * 60
-            local startTime = GetTime()
-            return duration, startTime
+    -- C_TaskQuest.GetQuestTimeLeftSeconds: seconds remaining (second-precision).
+    -- Falls back to GetQuestTimeLeftMinutes if the newer API isn't available.
+    if C_TaskQuest then
+        if C_TaskQuest.GetQuestTimeLeftSeconds then
+            local ok, secs = pcall(C_TaskQuest.GetQuestTimeLeftSeconds, questID)
+            if ok and secs and secs > 0 then
+                -- secs is time *remaining*, so duration = secs, startTime = GetTime()
+                return secs, GetTime()
+            end
+        elseif C_TaskQuest.GetQuestTimeLeftMinutes then
+            local ok, mins = pcall(C_TaskQuest.GetQuestTimeLeftMinutes, questID)
+            if ok and mins and mins > 0 then
+                return mins * 60, GetTime()
+            end
         end
     end
 

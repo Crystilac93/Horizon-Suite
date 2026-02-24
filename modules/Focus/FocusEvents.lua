@@ -23,6 +23,9 @@ eventFrame:RegisterEvent("UNIT_QUEST_LOG_CHANGED")
 eventFrame:RegisterEvent("SUPER_TRACKING_CHANGED")
 eventFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 eventFrame:RegisterEvent("ZONE_CHANGED")
+pcall(function() eventFrame:RegisterEvent("ZONE_CHANGED_INDOORS") end)
+-- VIGNETTE/POI/TASK events: handlers are intentional no-ops for these noisy events
+-- (kept registered so they don't fall through to the ScheduleRefresh else-branch).
 eventFrame:RegisterEvent("VIGNETTE_MINIMAP_UPDATED")
 eventFrame:RegisterEvent("VIGNETTES_UPDATED")
 pcall(function() eventFrame:RegisterEvent("AREA_POIS_UPDATED") end)
@@ -36,6 +39,8 @@ eventFrame:RegisterEvent("SCENARIO_CRITERIA_UPDATE")
 eventFrame:RegisterEvent("SCENARIO_CRITERIA_SHOW_STATE_UPDATE")
 eventFrame:RegisterEvent("SCENARIO_COMPLETED")
 eventFrame:RegisterEvent("SCENARIO_SPELL_UPDATE")
+pcall(function() eventFrame:RegisterEvent("SCENARIO_BONUS_OBJECTIVE_COMPLETE") end)
+pcall(function() eventFrame:RegisterEvent("SCENARIO_BONUS_VISIBILITY_UPDATE") end)
 eventFrame:RegisterEvent("CRITERIA_COMPLETE")
 eventFrame:RegisterEvent("TRACKED_ACHIEVEMENT_UPDATE")
 eventFrame:RegisterEvent("CRITERIA_UPDATE")
@@ -53,6 +58,11 @@ pcall(function() eventFrame:RegisterEvent("INITIATIVE_TASKS_TRACKED_LIST_CHANGED
 pcall(function() eventFrame:RegisterEvent("TRACKING_TARGET_INFO_UPDATE") end)
 pcall(function() eventFrame:RegisterEvent("TRACKABLE_INFO_UPDATE") end)
 pcall(function() eventFrame:RegisterEvent("TRACKED_RECIPE_UPDATE") end)
+-- CHALLENGE_MODE_START: fires when an M+ run begins. Replaces the instance-state
+-- recursive poll for detecting that the player is now inside a dungeon.
+pcall(function() eventFrame:RegisterEvent("CHALLENGE_MODE_START") end)
+-- WORLD_MAP_OPEN: fires when the world map is opened. Used to sync watch-list state.
+eventFrame:RegisterEvent("WORLD_MAP_OPEN")
 
 local function ScheduleRefresh()
     if not addon.focus.enabled then return end
@@ -152,11 +162,10 @@ local function OnAddonLoaded(addonName)
         addon:EnsureModulesDB()
         local dev = _G.HorizonSuiteDevOverride
         for key in pairs(addon.modules or {}) do
-            -- Beta modules (Insight, Yield, Vista): only enable when dev addon shows their toggle
-            if key == "insight" or key == "yield" or key == "vista" then
+            -- Beta modules (Insight, Yield): only enable when dev addon shows their toggle
+            if key == "insight" or key == "yield" then
                 local showToggle = (key == "insight" and dev and dev.showInsightToggle)
                     or (key == "yield" and dev and dev.showYieldToggle)
-                    or (key == "vista" and dev and dev.showVistaToggle)
                 if not showToggle then
                     if HorizonDB and HorizonDB.modules and HorizonDB.modules[key] then
                         HorizonDB.modules[key].enabled = false
@@ -246,32 +255,26 @@ local function OnPlayerRegenEnabled()
     end
 end
 
--- When entering a Delve/dungeon, APIs can lag. Poll until instance state is true, then run FullLayout directly
--- (same as options toggle path) so "hide other categories in Delve/Dungeon" is applied even if ScheduleRefresh was no-op.
-local function StartInstanceStatePoll()
-    if not addon.focus.enabled or not (addon.IsDelveActive or addon.IsInPartyDungeon) then return end
-    local attempts = 0
-    local function poll()
-        attempts = attempts + 1
+-- When entering a Delve/dungeon, APIs can lag by one frame.
+-- ACTIVE_DELVE_DATA_UPDATE, WALK_IN_DATA_UPDATE, and CHALLENGE_MODE_START
+-- fire at the exact right moment, so we just need a single short defer.
+local function OnInstanceEntered()
+    if not addon.focus.enabled then return end
+    C_Timer.After(0.2, function()
         if not addon.focus.enabled then return end
-        local inDelve = addon.IsDelveActive and addon.IsDelveActive()
-        local inDungeon = addon.IsInPartyDungeon and addon.IsInPartyDungeon()
-        if inDelve or inDungeon then
-            if addon.FullLayout and not InCombatLockdown() then
-                addon.FullLayout()
-            end
-            return
+        if addon.FullLayout and not InCombatLockdown() then
+            addon.FullLayout()
         end
-        if attempts < 10 then
-            C_Timer.After(0.5, poll)
-        end
-    end
-    C_Timer.After(0.2, poll)
+    end)
 end
 
 local function OnPlayerLoginOrEnteringWorld()
     if addon.focus.enabled then
         addon.focus.zoneJustChanged = true
+        -- Invalidate the nearby WQ scan cache so we scan fresh for the current zone.
+        addon.focus.nearbyQuestCacheDirty = true
+        addon.focus.nearbyQuestCache = nil
+        addon.focus.nearbyTaskQuestCache = nil
         addon.TrySuppressTracker()
         ScheduleRefresh()
         C_Timer.After(0.4, function()
@@ -283,7 +286,6 @@ local function OnPlayerLoginOrEnteringWorld()
             end
         end)
         C_Timer.After(1.5, function() if addon.focus.enabled then ScheduleRefresh() end end)
-        StartInstanceStatePoll()
         -- Prime endeavor cache so GetInitiativeTaskInfo returns objectives without user opening the panel (Blizz bug workaround)
         C_Timer.After(0.2, function()
             if addon.focus.enabled and addon.GetTrackedEndeavorIDs and addon.RequestEndeavorTaskInfo then
@@ -325,14 +327,21 @@ end
 local function OnQuestAccepted(questID)
     if not addon.focus.enabled then ScheduleRefresh(); return end
     if not questID or questID <= 0 then ScheduleRefresh(); return end
-    
+
+    local isWQ = (addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(questID))
+        or (C_QuestLog and C_QuestLog.IsWorldQuest and C_QuestLog.IsWorldQuest(questID))
+
     if addon.GetDB("autoTrackOnAccept", true) then
-        local isWQ = (addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(questID))
-            or (C_QuestLog and C_QuestLog.IsWorldQuest and C_QuestLog.IsWorldQuest(questID))
         if not isWQ and C_QuestLog and C_QuestLog.AddQuestWatch then
             C_QuestLog.AddQuestWatch(questID)
         end
     end
+    if isWQ and not addon.GetDB("showWorldQuests", true) then
+        addon.focus.nearbyQuestCacheDirty = true
+        addon.focus.nearbyQuestCache = nil
+        addon.focus.nearbyTaskQuestCache = nil
+    end
+
     ScheduleRefresh()
 end
 
@@ -396,6 +405,10 @@ local function OnZoneChanged(event)
     addon.focus.zoneJustChanged = true
     addon.focus.lastPlayerMapID = nil
     addon.focus.lastZoneMapID = nil
+    -- Invalidate the nearby WQ scan cache so the next layout re-scans for the new zone.
+    addon.focus.nearbyQuestCacheDirty = true
+    addon.focus.nearbyQuestCache = nil
+    addon.focus.nearbyTaskQuestCache = nil
     RunMplusHeightTransitionCheck()
     -- Only clear right-click suppression on major area change (return to main zone), not on subzone change—unless option is "suppress until reload".
     if event == "ZONE_CHANGED_NEW_AREA" then
@@ -416,7 +429,6 @@ local function OnZoneChanged(event)
         end
     end)
     C_Timer.After(1.5, function() if addon.focus.enabled then ScheduleRefresh() end end)
-    StartInstanceStatePoll()
 end
 
 local eventHandlers = {
@@ -427,20 +439,66 @@ local eventHandlers = {
     PLAYER_ENTERING_WORLD    = function() OnPlayerLoginOrEnteringWorld() end,
     QUEST_TURNED_IN          = function(_, questID) OnQuestTurnedIn(questID) end,
     QUEST_ACCEPTED           = function(_, questID) OnQuestAccepted(questID) end,
+    QUEST_REMOVED            = function(_, questID)
+        if not addon.focus.enabled then ScheduleRefresh(); return end
+        if questID then
+            local isWQ = (addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(questID))
+                or (C_QuestLog and C_QuestLog.IsWorldQuest and C_QuestLog.IsWorldQuest(questID))
+            if isWQ then
+                addon.focus.nearbyQuestCacheDirty = true
+                addon.focus.nearbyQuestCache = nil
+                addon.focus.nearbyTaskQuestCache = nil
+            end
+        end
+        ScheduleRefresh()
+    end,
     QUEST_LOG_UPDATE         = function() OnQuestLogUpdate() end,
     UNIT_QUEST_LOG_CHANGED   = function(_, unitToken) OnUnitQuestLogChanged(_, unitToken) end,
     QUEST_WATCH_UPDATE       = function(_, questID) OnQuestWatchUpdate(questID) end,
     QUEST_WATCH_LIST_CHANGED = function(_, questID, added) OnQuestWatchListChanged(questID, added) end,
     SUPER_TRACKING_CHANGED   = function() ScheduleRefresh() end,
-    VIGNETTE_MINIMAP_UPDATED = function() ScheduleRefresh() end,
-    VIGNETTES_UPDATED        = function() ScheduleRefresh() end,
+    -- Minimap vignette events and POI update events fire constantly in WQ zones.
+    -- The nearby WQ scan is now cache-based and only re-runs on zone change, so
+    -- these events no longer need to drive a layout refresh.
+    VIGNETTE_MINIMAP_UPDATED = function() end,
+    VIGNETTES_UPDATED        = function() end,
+    AREA_POIS_UPDATED        = function() end,
+    QUEST_POI_UPDATE         = function() end,
+    -- TASK_PROGRESS_UPDATE: fires when the player enters a WQ/task area (proximity).
+    -- Invalidate the WQ cache so the next layout picks up the newly-in-range quest.
+    TASK_PROGRESS_UPDATE     = function()
+        if not addon.focus.enabled then return end
+        addon.focus.nearbyQuestCacheDirty = true
+        addon.focus.nearbyQuestCache = nil
+        addon.focus.nearbyTaskQuestCache = nil
+        ScheduleRefresh()
+        if not addon.GetDB("showWorldQuests", true) then
+            C_Timer.After(0.5, function()
+                if not addon.focus.enabled then return end
+                addon.focus.nearbyQuestCacheDirty = true
+                addon.focus.nearbyQuestCache = nil
+                addon.focus.nearbyTaskQuestCache = nil
+                ScheduleRefresh()
+            end)
+        end
+    end,
     ZONE_CHANGED             = function(evt) OnZoneChanged(evt) end,
     ZONE_CHANGED_NEW_AREA    = function(evt) OnZoneChanged(evt) end,
-    SCENARIO_UPDATE          = function() ScheduleRefresh() end,
+    ZONE_CHANGED_INDOORS     = function(evt) OnZoneChanged(evt) end,
+    -- SCENARIO_UPDATE: fires when a scenario starts/steps/ends. Start the 5s heartbeat
+    -- (for timer countdown display) when a scenario becomes active; it self-cancels on end.
+    SCENARIO_UPDATE          = function()
+        if addon.focus.enabled and addon.IsScenarioActive and addon.IsScenarioActive() then
+            if addon.StartScenarioTimerHeartbeat then addon.StartScenarioTimerHeartbeat() end
+        end
+        ScheduleRefresh()
+    end,
     SCENARIO_CRITERIA_UPDATE = function() ScheduleRefresh() end,
     SCENARIO_CRITERIA_SHOW_STATE_UPDATE = function() ScheduleRefresh() end,
     SCENARIO_COMPLETED       = function() ScheduleRefresh() end,
     SCENARIO_SPELL_UPDATE    = function() ScheduleRefresh() end,
+    SCENARIO_BONUS_OBJECTIVE_COMPLETE = function() ScheduleRefresh() end,
+    SCENARIO_BONUS_VISIBILITY_UPDATE  = function() ScheduleRefresh() end,
     CRITERIA_COMPLETE        = function() ScheduleRefresh() end,
     TRACKED_ACHIEVEMENT_UPDATE = function() ScheduleRefresh() end,
     CRITERIA_UPDATE          = function() ScheduleRefresh() end,
@@ -456,14 +514,24 @@ local eventHandlers = {
     PERKS_ACTIVITIES_TRACKED_UPDATED = function() ScheduleRefresh() end,
     PERKS_ACTIVITY_COMPLETED = function() ScheduleRefresh() end,
     PERKS_ACTIVITIES_TRACKED_LIST_CHANGED = function() ScheduleRefresh() end,
-    ACTIVE_DELVE_DATA_UPDATE = function() ScheduleRefresh() end,
-    WALK_IN_DATA_UPDATE      = function() ScheduleRefresh() end,
+    -- ACTIVE_DELVE_DATA_UPDATE / WALK_IN_DATA_UPDATE: fire when entering a delve/walk-in.
+    -- Replace the old recursive instance-state poll with a single short defer.
+    ACTIVE_DELVE_DATA_UPDATE = function() OnInstanceEntered() end,
+    WALK_IN_DATA_UPDATE      = function() OnInstanceEntered() end,
+    -- CHALLENGE_MODE_START: fires when an M+ key is activated (dungeon begins).
+    -- Replaces the recursive instance-state poll for the M+ case.
+    CHALLENGE_MODE_START     = function() OnInstanceEntered() end,
     UPDATE_UI_WIDGET         = function() if addon.IsDelveActive and addon.IsDelveActive() then ScheduleRefresh() end end,
     INITIATIVE_TASKS_TRACKED_UPDATED = function() ScheduleRefresh() end,
     INITIATIVE_TASKS_TRACKED_LIST_CHANGED = function() ScheduleRefresh() end,
     TRACKING_TARGET_INFO_UPDATE = function() ScheduleRefresh() end,
     TRACKABLE_INFO_UPDATE = function() ScheduleRefresh() end,
     TRACKED_RECIPE_UPDATE = function() ScheduleRefresh() end,
+    -- WORLD_MAP_OPEN: fires when the world map opens. Sync watch-list state immediately
+    -- rather than waiting for the 0.5s map ticker to detect the visibility change.
+    WORLD_MAP_OPEN           = function()
+        if addon.focus.enabled then ScheduleRefresh() end
+    end,
 }
 
 --- OnEvent: table-dispatch to eventHandlers[event]; falls back to ScheduleRefresh for unhandled events.
