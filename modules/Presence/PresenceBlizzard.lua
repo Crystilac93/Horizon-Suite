@@ -35,6 +35,8 @@ end
 -- pcall: frame methods can throw on protected or invalid frames.
 local function KillBlizzardFrame(frame)
     if not frame then return end
+    -- Already suppressed — skip to avoid overwriting original parent/alpha data
+    if suppressedFrames[frame] then return end
     local ok1, err1 = pcall(function()
         frame:UnregisterAllEvents()
         suppressedFrames[frame] = true

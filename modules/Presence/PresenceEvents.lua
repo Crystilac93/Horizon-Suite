@@ -123,10 +123,14 @@ local function OnAddonLoaded(addonName)
             addon.Presence.KillWorldQuestBanner()
         end)
     end
-    if addonName == "Blizzard_LevelUpDisplay" or addonName == "Blizzard_RaidBossEmoteFrame" or addonName == "Blizzard_EventToastManager" then
+    if addonName == "Blizzard_LevelUpDisplay"
+    or addonName == "Blizzard_RaidBossEmoteFrame"
+    or addonName == "Blizzard_EventToastManager"
+    or addonName == "Blizzard_ObjectiveTracker" then
         if addon:IsModuleEnabled("presence") and addon.Presence.ApplyBlizzardSuppression then
+            addon.Presence.ApplyBlizzardSuppression()           -- immediate
             C_Timer.After(0.05, function()
-                addon.Presence.ApplyBlizzardSuppression()
+                addon.Presence.ApplyBlizzardSuppression()       -- backup after layout settles
             end)
         end
     end
@@ -154,6 +158,7 @@ end
 
 local function OnAchievementEarned(_, achID)
     if addon.GetDB and not addon.GetDB("presenceAchievement", true) then return end
+    if addon.Presence.ApplyBlizzardSuppression then addon.Presence.ApplyBlizzardSuppression() end
     local _, name = GetAchievementInfo(achID)
     local L = addon.L or {}
     addon.Presence.QueueOrPlay("ACHIEVEMENT", L["ACHIEVEMENT EARNED"], StripPresenceMarkup(name or ""))
@@ -161,6 +166,7 @@ end
 
 local function OnQuestAccepted(_, questID)
     if ShouldSuppressInMplus() then return end
+    if addon.Presence.ApplyBlizzardSuppression then addon.Presence.ApplyBlizzardSuppression() end
     local opts = (questID and { questID = questID }) or {}
     if C_QuestLog and C_QuestLog.GetTitleForQuestID then
         local questName = StripPresenceMarkup(C_QuestLog.GetTitleForQuestID(questID) or "New Quest")
@@ -183,6 +189,7 @@ end
 
 local function OnQuestTurnedIn(_, questID)
     if ShouldSuppressInMplus() then return end
+    if addon.Presence.ApplyBlizzardSuppression then addon.Presence.ApplyBlizzardSuppression() end
     local opts = (questID and { questID = questID }) or {}
     local questName = "Objective"
     if C_QuestLog then
@@ -479,6 +486,7 @@ local function ExecuteScenarioCriteriaUpdate()
     lastScenarioObjectives = objectives
 
     local msg = nil
+    local foundProgressBelowThreshold = false
     -- Match by criteriaID (per Blizzard API) so we correctly identify which objective completed when list order changes.
     if oldObjectives and #oldObjectives > 0 then
         local oldByID = {}
@@ -503,8 +511,19 @@ local function ExecuteScenarioCriteriaUpdate()
             for id, newO in pairs(newByID) do
                 local oldO = oldByID[id]
                 if oldO and oldO.numFulfilled ~= newO.numFulfilled then
-                    msg = formatObjectiveMsg(newO)
-                    break
+                    local shouldNotify = true
+                    if oldO.numFulfilled ~= nil and newO.numFulfilled ~= nil
+                    and newO.numRequired ~= nil and newO.numRequired > 0 then
+                        local oldBucket = math.floor(oldO.numFulfilled / newO.numRequired * 10)
+                        local newBucket = math.floor(newO.numFulfilled / newO.numRequired * 10)
+                        shouldNotify = (newBucket > oldBucket)
+                    end
+                    if shouldNotify then
+                        msg = formatObjectiveMsg(newO)
+                        break
+                    else
+                        foundProgressBelowThreshold = true
+                    end
                 end
             end
         end
@@ -536,9 +555,23 @@ local function ExecuteScenarioCriteriaUpdate()
                 local progressed = (oldO.numFulfilled ~= newO.numFulfilled)
                 local finished = (not oldO.finished and newO.finished)
                 local textChanged = (oldO.text ~= newO.text)
-                if finished or progressed then
+                if finished then
                     msg = formatObjectiveMsg(newO)
                     break
+                elseif progressed then
+                    local shouldNotify = true
+                    if oldO.numFulfilled ~= nil and newO.numFulfilled ~= nil
+                    and newO.numRequired ~= nil and newO.numRequired > 0 then
+                        local oldBucket = math.floor(oldO.numFulfilled / newO.numRequired * 10)
+                        local newBucket = math.floor(newO.numFulfilled / newO.numRequired * 10)
+                        shouldNotify = (newBucket > oldBucket)
+                    end
+                    if shouldNotify then
+                        msg = formatObjectiveMsg(newO)
+                        break
+                    else
+                        foundProgressBelowThreshold = true
+                    end
                 elseif textChanged and not oldO.finished then
                     msg = formatObjectiveMsg(oldO) or formatObjectiveMsg(newO)
                     break
@@ -549,6 +582,8 @@ local function ExecuteScenarioCriteriaUpdate()
             end
         end
     end
+    -- If progress changed but didn't cross a 10% boundary, suppress fallback notifications.
+    if foundProgressBelowThreshold then return end
     -- Fallback: first unfinished objective (first run, structure change, or no diff).
     if not msg then
         for i = 1, #objectives do
@@ -562,9 +597,24 @@ local function ExecuteScenarioCriteriaUpdate()
     if not msg and #objectives > 0 then
         msg = formatObjectiveMsg(objectives[1])
     end
-    if not msg or msg == "" or msg == "0" then msg = "Objective updated" end
-
     local title, _, category = addon.GetScenarioDisplayInfo()
+    -- When the entire scenario is complete (not just the current step), show completion text instead of raw criteria (e.g. "1").
+    local allFinished = (#objectives > 0)
+    for _, o in ipairs(objectives) do
+        if not o.finished then allFinished = false break end
+    end
+    local scenarioComplete = false
+    if allFinished and C_ScenarioInfo and C_ScenarioInfo.GetScenarioInfo then
+        local ok, info = pcall(C_ScenarioInfo.GetScenarioInfo)
+        if ok and info and type(info) == "table" then
+            scenarioComplete = info.isComplete == true
+                or (info.currentStage and info.numStages and info.numStages > 0 and info.currentStage >= info.numStages)
+        end
+    end
+    if scenarioComplete then
+        msg = (category == "DELVES" and "Delve Completed") or (category == "DUNGEON" and "Dungeon Completed") or "Scenario Completed"
+    end
+    if not msg or msg == "" or msg == "0" then msg = "Objective updated" end
     addon.Presence.QueueOrPlay("SCENARIO_UPDATE", StripPresenceMarkup(title or "Scenario"), StripPresenceMarkup(msg), { category = category or "SCENARIO", source = "SCENARIO_CRITERIA_UPDATE" })
 end
 
@@ -574,6 +624,29 @@ local function RequestScenarioCriteriaUpdate()
         scenarioCriteriaUpdateTimer:Cancel()
     end
     scenarioCriteriaUpdateTimer = C_Timer.After(SCENARIO_UPDATE_BUFFER_TIME, ExecuteScenarioCriteriaUpdate)
+end
+
+--- Returns true if the current scenario criteria state has a newly-finished objective
+--- compared to lastScenarioObjectives. Calls GetMainStepCriteria() once.
+local function HasNewlyFinishedObjective()
+    if not lastScenarioObjectives then return false end
+    local stateKey, newObjs = GetMainStepCriteria()
+    if not stateKey or stateKey == "" or stateKey == lastScenarioCriteriaCache then return false end
+    if not newObjs then return false end
+    local oldByID = {}
+    for _, o in ipairs(lastScenarioObjectives) do
+        if o.criteriaID ~= nil then oldByID[o.criteriaID] = o end
+    end
+    for _, newO in ipairs(newObjs) do
+        local oldO = oldByID[newO.criteriaID]
+        if oldO and not oldO.finished and newO.finished then return true end
+    end
+    -- Index-based fallback for scenarios where criteriaID may be nil
+    for i, newO in ipairs(newObjs) do
+        local oldO = lastScenarioObjectives[i]
+        if oldO and not oldO.finished and newO.finished then return true end
+    end
+    return false
 end
 
 local function TryShowScenarioStart()
@@ -621,6 +694,16 @@ local function OnPlayerEnteringWorld()
         if inScenario and addon.IsDelveActive and addon.IsDelveActive() then inScenario = false end
         wasInScenario = inScenario
     end
+    -- Re-suppress Blizzard frames: Blizzard may show banner/scenario frames during
+    -- PLAYER_ENTERING_WORLD or via deferred timers (e.g. after /reload with stale state).
+    if addon.Presence.ApplyBlizzardSuppression then
+        addon.Presence.ApplyBlizzardSuppression()
+        C_Timer.After(0.1, function()
+            if addon:IsModuleEnabled("presence") and addon.Presence.ApplyBlizzardSuppression then
+                addon.Presence.ApplyBlizzardSuppression()
+            end
+        end)
+    end
 end
 
 local function OnScenarioUpdate()
@@ -638,6 +721,12 @@ local function OnScenarioCriteriaUpdate()
     end
     TryShowScenarioStart()
     if wasInScenario then
+        -- Fire immediately if an objective just completed, so SCENARIO_COMPLETED cannot cancel
+        -- the debounce timer before the finished toast fires. The sync call updates the cache,
+        -- so the subsequent debounced call will find no diff and return early (no duplicate).
+        if addon.IsScenarioActive and addon.IsScenarioActive() and HasNewlyFinishedObjective() then
+            ExecuteScenarioCriteriaUpdate()
+        end
         RequestScenarioCriteriaUpdate()
     end
 end
