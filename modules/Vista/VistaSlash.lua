@@ -34,7 +34,7 @@ local function HandleVistaSlash(msg)
     end
 
     if cmd == "lock" then
-        local lock = not addon.GetDB("vistaLock", false)
+        local lock = not addon.GetDB("vistaLock", true)
         addon.SetDB("vistaLock", lock)
         Minimap:SetMovable(not lock)
         HSPrint("Vista: Minimap " .. (lock and "|cFFFF0000locked|r" or "|cFF00FF00unlocked|r"))

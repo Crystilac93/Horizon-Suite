@@ -666,7 +666,7 @@ local function CreateDecor()
     Minimap:SetClampedToScreen(true)
     Minimap:RegisterForDrag("LeftButton")
     Minimap:SetScript("OnDragStart", function(self)
-        local lock = DB("vistaLock", false)
+        local lock = DB("vistaLock", true)
         if not lock and self:IsMovable() then
             if not InCombatLockdown() then self:StartMoving() end
         end
@@ -2564,7 +2564,7 @@ end
 -- ============================================================================
 
 local function ApplyOptions_Minimap()
-    Minimap:SetMovable(not DB("vistaLock", false))
+    Minimap:SetMovable(not DB("vistaLock", true))
     local sz       = GetMapSize()
     local mapScale = sz / MINIMAP_BASE_SIZE
     Minimap:SetSize(MINIMAP_BASE_SIZE, MINIMAP_BASE_SIZE)
@@ -2780,12 +2780,31 @@ function Vista.Init()
         hoverTarget = 0; hoverElapsed = 0
     end)
 
-    -- Transparent overlay to intercept right-clicks and suppress minimap pinging in right-click panel mode
+    -- Transparent overlay to intercept right-clicks and suppress minimap pinging in right-click panel mode.
+    -- When enabled, it blocks left-drag from reaching Minimap; forward left-drag so minimap can move when unlocked.
     local minimapClickGuard = CreateFrame("Button", nil, Minimap)
     minimapClickGuard:SetAllPoints(Minimap)
     minimapClickGuard:SetFrameLevel(Minimap:GetFrameLevel() + 5)
     minimapClickGuard:EnableMouse(false)
     minimapClickGuard:RegisterForClicks("RightButtonDown", "RightButtonUp")
+    minimapClickGuard:RegisterForDrag("LeftButton")
+    minimapClickGuard:SetScript("OnDragStart", function()
+        local lock = DB("vistaLock", true)
+        if lock then return end
+        if InCombatLockdown() then return end
+        if Minimap and Minimap:IsMovable() then Minimap:StartMoving() end
+    end)
+    minimapClickGuard:SetScript("OnDragStop", function()
+        if InCombatLockdown() then return end
+        if Minimap then
+            Minimap:StopMovingOrSizing()
+            if addon.SetDB then
+                local p, _, rp, x, y = Minimap:GetPoint()
+                SetDB("vistaPoint", p); SetDB("vistaRelPoint", rp)
+                SetDB("vistaX", x);     SetDB("vistaY", y)
+            end
+        end
+    end)
     minimapClickGuard:SetScript("OnClick", function(_, button, down)
         -- Only act on release; the down event is consumed purely to suppress the minimap ping
         if button == "RightButton" and not down and GetButtonMode() == BTN_MODE_RIGHTCLICK then

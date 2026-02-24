@@ -256,7 +256,10 @@ function OptionsData_SetDB(key, value)
             if addon.Vista.ApplyColors then addon.Vista.ApplyColors() end
         elseif addon.Vista.ApplyOptions then
             local fn = addon.Vista.ApplyOptions
-            if C_Timer and C_Timer.After then
+            -- vistaLock: apply immediately when not in combat for responsive toggle feedback
+            if key == "vistaLock" and not InCombatLockdown() then
+                fn()
+            elseif C_Timer and C_Timer.After then
                 C_Timer.After(0, fn)
             else
                 fn()
