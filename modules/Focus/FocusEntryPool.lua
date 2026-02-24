@@ -479,6 +479,11 @@ local function ApplyTypography()
     local headerC = addon.GetHeaderColor()
     addon.headerText:SetTextColor(headerC[1], headerC[2], headerC[3], 1)
 
+    if addon.divider and addon.GetHeaderDividerColor then
+        local dc = addon.GetHeaderDividerColor()
+        addon.divider:SetColorTexture(dc[1], dc[2], dc[3], dc[4])
+    end
+
     addon.countShadow:SetTextColor(0, 0, 0, shadowA)
     addon.countShadow:SetPoint("CENTER", addon.countText, "CENTER", shadowOx, shadowOy)
 

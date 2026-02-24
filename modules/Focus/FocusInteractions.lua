@@ -43,6 +43,90 @@ local function TryCompleteQuestFromClick(questID)
     return false
 end
 
+--- Show share/abandon context menu for a quest (classic click mode).
+--- Always shows at least one actionable item; mimics Blizzard behaviour.
+--- @param questID number
+--- @param questName string
+--- @param anchor frame|nil Frame to anchor menu to; if nil, uses cursor
+local function ShowQuestContextMenu(questID, questName, anchor)
+    if not questID then return end
+    local L = addon.L or {}
+    local menuList = {}
+    if C_QuestLog and C_QuestLog.IsPushableQuest and C_QuestLog.IsPushableQuest(questID) then
+        local inGroup = (GetNumGroupMembers and GetNumGroupMembers() > 1) or (UnitInParty and UnitInParty("player"))
+        if inGroup then
+            menuList[#menuList + 1] = {
+                text = _G.SHARE_QUEST or L["Share with party"] or "Share with party",
+                notCheckable = true,
+                func = function()
+                    if C_QuestLog and C_QuestLog.SetSelectedQuest then C_QuestLog.SetSelectedQuest(questID) end
+                    if QuestLogPushQuest then QuestLogPushQuest() end
+                end,
+            }
+        end
+    end
+    if C_QuestLog and C_QuestLog.CanAbandonQuest and C_QuestLog.CanAbandonQuest(questID) then
+        menuList[#menuList + 1] = {
+            text = _G.ABANDON_QUEST or L["Abandon quest"] or "Abandon quest",
+            notCheckable = true,
+            func = function()
+                StaticPopup_Show("HORIZONSUITE_ABANDON_QUEST", questName or "this quest", nil, { questID = questID })
+            end,
+        }
+    end
+    if addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(questID) then
+        menuList[#menuList + 1] = {
+            text = L["Stop tracking"] or "Stop tracking",
+            notCheckable = true,
+            func = function()
+                if addon.RemoveWorldQuestWatch then addon.RemoveWorldQuestWatch(questID) end
+                addon.ScheduleRefresh()
+            end,
+        }
+    else
+        menuList[#menuList + 1] = {
+            text = L["Stop tracking"] or "Stop tracking",
+            notCheckable = true,
+            func = function()
+                if C_QuestLog and C_QuestLog.RemoveQuestWatch then C_QuestLog.RemoveQuestWatch(questID) end
+                addon.ScheduleRefresh()
+            end,
+        }
+    end
+    if #menuList == 0 then return end
+    if C_AddOns and C_AddOns.LoadAddOn then
+        pcall(C_AddOns.LoadAddOn, "Blizzard_UIDropDownMenu")
+    end
+    local menuFrame = _G.HorizonSuite_QuestContextMenu
+    if not menuFrame then
+        menuFrame = CreateFrame("Frame", "HorizonSuite_QuestContextMenu", UIParent, "UIDropDownMenuTemplate")
+        if not menuFrame then return end
+    end
+    local anchorFrame = anchor or UIParent
+    if EasyMenu then
+        if CloseDropDownMenus then CloseDropDownMenus() end
+        C_Timer.After(0, function()
+            EasyMenu(menuList, menuFrame, "cursor", 0, 0, "MENU")
+        end)
+    elseif UIDropDownMenu_Initialize and ToggleDropDownMenu and UIDropDownMenu_CreateInfo and UIDropDownMenu_AddButton then
+        local items = menuList
+        UIDropDownMenu_Initialize(menuFrame, function(dropdown, level, list)
+            if not level or level ~= 1 then return end
+            for _, item in ipairs(items) do
+                local info = UIDropDownMenu_CreateInfo()
+                info.text = item.text
+                info.notCheckable = true
+                info.func = item.func
+                UIDropDownMenu_AddButton(info, level)
+            end
+        end, "MENU", 1, nil)
+        if CloseDropDownMenus then CloseDropDownMenus() end
+        C_Timer.After(0, function()
+            ToggleDropDownMenu(1, nil, menuFrame, anchorFrame, 0, 0)
+        end)
+    end
+end
+
 StaticPopupDialogs["HORIZONSUITE_ABANDON_QUEST"] = StaticPopupDialogs["HORIZONSUITE_ABANDON_QUEST"] or {
     text = "Abandon %s?",
     button1 = YES,
@@ -215,6 +299,12 @@ for i = 1, addon.POOL_SIZE do
             end
             if not self.questID then return end
 
+            local useClassic = addon.GetDB("useClassicClickBehaviour", false)
+            if useClassic then
+                if addon.OpenQuestDetails then addon.OpenQuestDetails(self.questID) end
+                return
+            end
+
             local requireCtrl = addon.GetDB("requireCtrlForQuestClicks", false)
             local isWorldQuest = addon.IsQuestWorldQuest and addon.IsQuestWorldQuest(self.questID)
 
@@ -353,6 +443,31 @@ for i = 1, addon.POOL_SIZE do
                         StaticPopup_Show("HORIZONSUITE_ABANDON_QUEST", questName, nil, { questID = self.questID })
                         return
                     end
+                end
+
+                local useClassic = addon.GetDB("useClassicClickBehaviour", false)
+                if useClassic then
+                    local questName = (C_QuestLog and C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(self.questID)) or "this quest"
+                    ShowQuestContextMenu(self.questID, questName, self)
+                    return
+                end
+
+                -- Ctrl+Right: share with party (when pushable and in group; classic mode off). If not shareable, no-op + feedback.
+                if IsControlKeyDown() then
+                    local printFn = addon.HSPrint or print
+                    local L = addon.L or {}
+                    if C_QuestLog and C_QuestLog.IsPushableQuest and C_QuestLog.IsPushableQuest(self.questID) then
+                        local inGroup = (GetNumGroupMembers and GetNumGroupMembers() > 1) or (UnitInParty and UnitInParty("player"))
+                        if inGroup and C_QuestLog.SetSelectedQuest and QuestLogPushQuest then
+                            C_QuestLog.SetSelectedQuest(self.questID)
+                            QuestLogPushQuest()
+                        else
+                            printFn("|cffffcc00" .. (L["You must be in a party to share this quest."] or "You must be in a party to share this quest.") .. "|r")
+                        end
+                    else
+                        printFn("|cffffcc00" .. (L["This quest cannot be shared."] or "This quest cannot be shared.") .. "|r")
+                    end
+                    return
                 end
 
                 local requireCtrl = addon.GetDB("requireCtrlForQuestClicks", false)

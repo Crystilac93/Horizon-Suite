@@ -320,7 +320,12 @@ local function FullLayout()
             addon.optionsLabel:SetText(addon.L["Options"])
             addon.optionsBtn:SetWidth(math.max(addon.optionsLabel:GetStringWidth() + 4, 44))
         end
-        addon.divider:SetShown(addon.GetDB("showHeaderDivider", true))
+        local showDiv = addon.GetDB("showHeaderDivider", true)
+        addon.divider:SetShown(showDiv)
+        if showDiv then
+            local dc = addon.GetHeaderDividerColor()
+            addon.divider:SetColorTexture(dc[1], dc[2], dc[3], dc[4])
+        end
         headerBtn:SetHeight(addon.GetScaledPadding() + addon.GetHeaderHeight())
     end
     lastMinimal = minimal
