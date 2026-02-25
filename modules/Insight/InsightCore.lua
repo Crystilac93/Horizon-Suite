@@ -344,10 +344,13 @@ local function ProcessUnitTooltip()
         return
     end
 
-    local className, classFile = UnitClass(unit)
-    local classColor  = classFile and C_ClassColor and C_ClassColor.GetClassColor(classFile)
-    local cached      = guid and inspectCache[guid]
-    local guildName, guildRankName = GetGuildInfo(unit)
+    local className, classFile, classColor, guildName, guildRankName
+    pcall(function()
+        className, classFile = UnitClass(unit)
+        classColor = classFile and C_ClassColor and C_ClassColor.GetClassColor(classFile)
+        guildName, guildRankName = GetGuildInfo(unit)
+    end)
+    local cached = guid and inspectCache[guid]
 
     -- 1. Name line: faction icon + faction colour
     local nameLeft = _G["GameTooltipTextLeft1"]
@@ -425,33 +428,44 @@ local function ProcessUnitTooltip()
     GameTooltip:AddLine(SEPARATOR, SEP_COLOR[1], SEP_COLOR[2], SEP_COLOR[3])
 
     -- 4. PvP title + honor level
+    -- All string comparisons on unit-API results are wrapped in pcall because
+    -- INSPECT_READY taints the "mouseover" token; comparing tainted strings
+    -- causes "attempt to compare a secret string value" errors.
     if ShowPvPTitle() then
-        local pvpFullName = UnitPVPName(unit)
-        local baseName    = UnitName(unit)
-        if pvpFullName and baseName and pvpFullName ~= baseName then
-            GameTooltip:AddLine(pvpFullName, TITLE_COLOR[1], TITLE_COLOR[2], TITLE_COLOR[3])
-        end
+        pcall(function()
+            local pvpFullName = UnitPVPName(unit)
+            local baseName    = UnitName(unit)
+            if pvpFullName and baseName and pvpFullName ~= baseName then
+                GameTooltip:AddLine(pvpFullName, TITLE_COLOR[1], TITLE_COLOR[2], TITLE_COLOR[3])
+            end
+        end)
     end
     if ShowHonorLevel() then
-        local honorLevel = UnitHonorLevel(unit)
-        if honorLevel and honorLevel > 0 then
-            GameTooltip:AddLine("Honor Level " .. honorLevel, 0.85, 0.70, 1.00)
-        end
+        pcall(function()
+            local honorLevel = UnitHonorLevel(unit)
+            if honorLevel and honorLevel > 0 then
+                GameTooltip:AddLine("Honor Level " .. honorLevel, 0.85, 0.70, 1.00)
+            end
+        end)
     end
 
     -- 5. Status badges (combat/AFK/DND + friend/pvp/group/targeting)
     if ShowStatusBadges() then
         local badges = {}
-        if UnitAffectingCombat(unit) then badges[#badges + 1] = "|cffff4444[Combat]|r"      end
-        if UnitIsAFK(unit)           then badges[#badges + 1] = "|cffffff55[AFK]|r"         end
-        if UnitIsDND(unit)           then badges[#badges + 1] = "|cffaaaaaa[DND]|r"         end
-        if UnitIsPVP(unit)           then badges[#badges + 1] = "|cffff8c00[PvP]|r"         end
-        if UnitInRaid(unit)          then badges[#badges + 1] = "|cff88ddff[Raid]|r"
-        elseif UnitInParty(unit)     then badges[#badges + 1] = "|cff88ddff[Party]|r"       end
-        if C_FriendList and C_FriendList.IsFriend and guid and C_FriendList.IsFriend(guid) then
-                                          badges[#badges + 1] = "|cff55ff55[Friend]|r"      end
-        if UnitIsUnit("mouseoverTarget", "player") then
-                                          badges[#badges + 1] = "|cffff4466[Targeting You]|r" end
+        pcall(function()
+            if UnitAffectingCombat(unit) then badges[#badges + 1] = "|cffff4444[Combat]|r"      end
+            if UnitIsAFK(unit)           then badges[#badges + 1] = "|cffffff55[AFK]|r"         end
+            if UnitIsDND(unit)           then badges[#badges + 1] = "|cffaaaaaa[DND]|r"         end
+            if UnitIsPVP(unit)           then badges[#badges + 1] = "|cffff8c00[PvP]|r"         end
+            if UnitInRaid(unit)          then badges[#badges + 1] = "|cff88ddff[Raid]|r"
+            elseif UnitInParty(unit)     then badges[#badges + 1] = "|cff88ddff[Party]|r"       end
+            if C_FriendList and C_FriendList.IsFriend and guid and C_FriendList.IsFriend(guid) then
+                                              badges[#badges + 1] = "|cff55ff55[Friend]|r"      end
+            -- "mouseoverTarget" comparison is the primary taint source — guard it separately
+            local ok, isTargeting = pcall(UnitIsUnit, "mouseoverTarget", "player")
+            if ok and isTargeting then
+                                              badges[#badges + 1] = "|cffff4466[Targeting You]|r" end
+        end)
         if #badges > 0 then
             GameTooltip:AddLine(table.concat(badges, "  "), 1, 1, 1)
         end

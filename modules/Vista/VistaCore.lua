@@ -1829,40 +1829,53 @@ local function ScanMinimapButtons()
     local result = {}
     local seen = {}
 
-    -- Returns true if this button is a minimap map-pin/marker (positional icon placed on the
-    -- map surface) rather than a toolbar button. Map pins are anchored CENTER-to-CENTER on
-    -- Minimap with variable offsets and have no LibDB dataObject.
+
     local function isMapPin(child)
         if child.dataObject then return false end
-        -- LibDBIcon toolbar buttons always have a db.minimapPos
         if child.db and child.db.minimapPos then return false end
-        -- A map-pin has its first anchor as CENTER relative to Minimap CENTER
+        if child:GetName() then return false end
+        -- An unnamed button with CENTER/CENTER anchor and no dataObject = map marker
         local ok, point, relFrame, relPoint = pcall(child.GetPoint, child, 1)
         if not ok then return false end
         if point == "CENTER" and relPoint == "CENTER" and relFrame == Minimap then
             return true
         end
-        -- Unnamed, no dataObject, direct child of Minimap = almost certainly a map marker
-        if not child:GetName() and child:GetParent() == Minimap then
-            return true
+        return false
+    end
+
+    local OPTION_PANEL_PATTERNS = {
+        "option", "config", "setting", "panel", "control", "dialog", "pref",
+    }
+    local function isOptionsPanelChild(child)
+        local parent = child:GetParent()
+        if not parent then return false end
+        local pName = parent:GetName()
+        if not pName then return false end
+        local lp = pName:lower()
+        for _, pat in ipairs(OPTION_PANEL_PATTERNS) do
+            if lp:find(pat, 1, true) then return true end
         end
         return false
     end
 
-    local function tryAdd(child)
+    local function tryAdd(child, requireName)
         if not child or seen[child] then return end
-        if not child:IsObjectType("Button") then return end
+        local ok, isBtn = pcall(function() return child:IsObjectType("Button") end)
+        if not ok or not isBtn then return end
         local cName = child:GetName()
+        if requireName and not cName then return end
         if cName and INTERNAL_BLACKLIST[cName] then return end
         if cName and BLIZZARD_DEFAULT_BUTTONS[cName] then return end
-        -- Skip positional map pins/markers placed on the minimap surface
+        if isOptionsPanelChild(child) then return end
         if isMapPin(child) then return end
-        -- Size check: 10–100px covers most addon buttons
+        -- Size check: 14–100px, and the button must be roughly square (aspect ratio ≤ 2.5:1).
+        -- This filters out scroll arrows, thin sliders, and other non-icon widgets.
         local w, h = child:GetSize()
-        if w >= 10 and w <= 100 and h >= 10 and h <= 100 then
-            seen[child] = true
-            result[#result + 1] = child
-        end
+        if w < 14 or w > 100 or h < 14 or h > 100 then return end
+        local ratio = (w > h) and (w / h) or (h / w)
+        if ratio > 2.5 then return end
+        seen[child] = true
+        result[#result + 1] = child
     end
 
     -- Direct children of Minimap
@@ -1875,8 +1888,26 @@ local function ScanMinimapButtons()
         for _, child in ipairs({ MinimapCluster:GetChildren() }) do
             if child ~= Minimap then
                 tryAdd(child)
-                -- One level deeper: Frame wrappers containing a Button
-                if child:IsObjectType("Frame") and not child:IsObjectType("Button") then
+                local ok, isBtn = pcall(function() return child:IsObjectType("Button") end)
+                if not (ok and isBtn) then
+                    local ok2, isFrame = pcall(function() return child:IsObjectType("Frame") end)
+                    if ok2 and isFrame then
+                        for _, sub in ipairs({ child:GetChildren() }) do
+                            tryAdd(sub)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if MinimapBackdrop then
+        for _, child in ipairs({ MinimapBackdrop:GetChildren() }) do
+            tryAdd(child)
+            local ok, isBtn = pcall(function() return child:IsObjectType("Button") end)
+            if not (ok and isBtn) then
+                local ok2, isFrame = pcall(function() return child:IsObjectType("Frame") end)
+                if ok2 and isFrame then
                     for _, sub in ipairs({ child:GetChildren() }) do
                         tryAdd(sub)
                     end
@@ -1885,24 +1916,15 @@ local function ScanMinimapButtons()
         end
     end
 
-    -- Children of MinimapBackdrop (some LibDBIcon buttons parent here)
-    if MinimapBackdrop then
-        for _, child in ipairs({ MinimapBackdrop:GetChildren() }) do
-            tryAdd(child)
-            if child:IsObjectType("Frame") and not child:IsObjectType("Button") then
-                for _, sub in ipairs({ child:GetChildren() }) do
-                    tryAdd(sub)
-                end
-            end
-        end
-    end
-
-    -- LibDBIcon buttons parented to UIParent or other frames:
-    -- scan _G for known LibDBIcon prefix pattern
     for gName, gObj in pairs(_G) do
-        if type(gName) == "string" and gName:match("^LibDBIcon[%d]*_") then
-            if type(gObj) == "table" and type(gObj.IsObjectType) == "function" then
-                pcall(function() tryAdd(gObj) end)
+        if type(gName) == "string" then
+            local lname = gName:lower()
+            local isLibDBIcon = lname:match("^libdbicon[%d]*_")
+            local hasMinimapInName = lname:find("minimap", 1, true)
+            if isLibDBIcon or hasMinimapInName then
+                if type(gObj) == "table" and type(gObj.IsObjectType) == "function" then
+                    pcall(function() tryAdd(gObj, true) end)
+                end
             end
         end
     end
@@ -1911,12 +1933,15 @@ local function ScanMinimapButtons()
     if _G["AddonCompartmentFrame"] then
         for _, child in ipairs({ _G["AddonCompartmentFrame"]:GetChildren() }) do
             tryAdd(child)
-            if child:IsObjectType("Frame") and not child:IsObjectType("Button") then
-                for _, sub in ipairs({ child:GetChildren() }) do tryAdd(sub) end
+            local ok, isBtn = pcall(function() return child:IsObjectType("Button") end)
+            if not (ok and isBtn) then
+                local ok2, isFrame = pcall(function() return child:IsObjectType("Frame") end)
+                if ok2 and isFrame then
+                    for _, sub in ipairs({ child:GetChildren() }) do tryAdd(sub) end
+                end
             end
         end
     end
-
 
     return result
 end
@@ -2545,6 +2570,20 @@ local allManagedButtons = {}  -- [btn] = true
 Vista._discoveredNames = Vista._discoveredNames or {}
 
 local function CollectMinimapButtons()
+    if not G.ButtonHandleButtons() then
+        HideAllProxyButtons()
+        for btn in pairs(allManagedButtons) do
+            RestoreButton(btn)
+        end
+        wipe(allManagedButtons)
+        wipe(collectedButtons)
+        wipe(drawerPanelButtons)
+        DestroyDrawerButton()
+        if rightClickPanel then rightClickPanel:Hide(); rightClickVisible = false end
+        if collectorBar then collectorBar:SetWidth(1) end
+        return
+    end
+
     -- Hide any proxy buttons from previous layout
     HideAllProxyButtons()
 
@@ -2586,8 +2625,6 @@ local function CollectMinimapButtons()
         local oldCount = Vista._discoveredNames and #Vista._discoveredNames or 0
         Vista._discoveredNames = newNames
 
-        -- Rebuild VistaButtons options tab only on first discovery (0 → N)
-
         if oldCount == 0 and #newNames > 0 and addon.OptionsPanel_RebuildCategory then
             C_Timer.After(0, function()
                 addon.OptionsPanel_RebuildCategory("VistaButtons")
@@ -2598,18 +2635,6 @@ local function CollectMinimapButtons()
     wipe(collectedButtons)
     wipe(drawerPanelButtons)
 
-    if not G.ButtonHandleButtons() then
-        -- Management off — restore only buttons we previously took ownership of
-        HideAllProxyButtons()
-        for btn in pairs(allManagedButtons) do
-            RestoreButton(btn)
-        end
-        wipe(allManagedButtons)
-        DestroyDrawerButton()
-        if rightClickPanel then rightClickPanel:Hide(); rightClickVisible = false end
-        if collectorBar then collectorBar:SetWidth(1) end
-        return
-    end
 
     local mode = GetButtonMode()
 
