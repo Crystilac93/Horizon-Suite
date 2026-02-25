@@ -39,11 +39,38 @@ local FACTION_ICONS = {
     Alliance = "|TInterface\\FriendsFrame\\PlusManz-Alliance:14:14:0:0|t ",
 }
 
-local SPEC_COLOR   = { 0.65, 0.75, 0.85 }
-local MOUNT_COLOR  = { 0.80, 0.65, 1.00 }   -- soft purple for mount name
-local MOUNT_SRC_COLOR = { 0.55, 0.55, 0.55 } -- grey for source text
-local ILVL_COLOR   = { 0.60, 0.85, 1.00 }   -- ice blue for item level
-local TITLE_COLOR  = { 1.00, 0.82, 0.00 }   -- gold for PvP title
+local FACTION_COLORS = {
+    Alliance = { 0.00, 0.44, 0.87 },   -- alliance blue
+    Horde    = { 0.87, 0.17, 0.17 },   -- horde red
+}
+
+local SPEC_COLOR      = { 0.65, 0.75, 0.85 }
+local MOUNT_COLOR     = { 0.80, 0.65, 1.00 }   -- soft purple for mount name
+local MOUNT_SRC_COLOR = { 0.55, 0.55, 0.55 }   -- grey for source text
+local ILVL_COLOR      = { 0.60, 0.85, 1.00 }   -- ice blue for item level
+local TITLE_COLOR     = { 1.00, 0.82, 0.00 }   -- gold for PvP title
+local TRANSMOG_HAVE   = { 0.40, 1.00, 0.55 }   -- green: appearance collected
+local TRANSMOG_MISS   = { 0.65, 0.65, 0.65 }   -- grey: not collected
+
+local ROLE_COLORS = {
+    TANK    = { 0.30, 0.60, 1.00 },   -- blue
+    HEALER  = { 0.30, 1.00, 0.40 },   -- green
+    DAMAGER = { 1.00, 0.55, 0.20 },   -- orange
+}
+
+local MYTHIC_ICON = "|TInterface\\Icons\\achievement_challengemode_gold:14:14:0:0|t "
+local SEPARATOR   = string.rep("-", 22)
+local SEP_COLOR   = { 0.18, 0.18, 0.18 }
+
+-- Returns r, g, b for a Mythic+ score using WoW's tier thresholds.
+local function MythicScoreColor(score)
+    if score >= 3000 then return 1.00, 0.50, 0.00  -- orange: Mythic Hero+
+    elseif score >= 2500 then return 0.85, 0.40, 1.00  -- purple: Mythic
+    elseif score >= 2000 then return 0.20, 0.75, 1.00  -- blue: Heroic
+    elseif score >= 1500 then return 0.40, 1.00, 0.40  -- green: Normal
+    else                       return 0.65, 0.65, 0.65  -- grey: unranked
+    end
+end
 
 local CINEMATIC_BACKDROP = {
     bgFile   = "Interface\\ChatFrame\\ChatFrameBackground",
@@ -67,10 +94,14 @@ local function GetFixedPoint()    return addon.GetDB("insightFixedPoint",   FIXE
 local function GetFixedX()        return tonumber(addon.GetDB("insightFixedX", FIXED_X)) or FIXED_X end
 local function GetFixedY()        return tonumber(addon.GetDB("insightFixedY", FIXED_Y)) or FIXED_Y end
 
-local function ShowMount()        return addon.GetDB("insightShowMount",       true)  end
-local function ShowIlvl()         return addon.GetDB("insightShowIlvl",        true)  end
-local function ShowPvPTitle()     return addon.GetDB("insightShowPvPTitle",    true)  end
-local function ShowStatusBadges() return addon.GetDB("insightShowStatusBadges",true)  end
+local function ShowMount()        return addon.GetDB("insightShowMount",        true)  end
+local function ShowIlvl()         return addon.GetDB("insightShowIlvl",         true)  end
+local function ShowPvPTitle()     return addon.GetDB("insightShowPvPTitle",     true)  end
+local function ShowStatusBadges() return addon.GetDB("insightShowStatusBadges", true)  end
+local function ShowMythicScore()  return addon.GetDB("insightShowMythicScore",  true)  end
+local function ShowTransmog()     return addon.GetDB("insightShowTransmog",     true)  end
+local function ShowGuildRank()    return addon.GetDB("insightShowGuildRank",    true)  end
+local function ShowHonorLevel()   return addon.GetDB("insightShowHonorLevel",   true)  end
 
 -- ============================================================================
 -- BACKBONE TOOLTIP STYLING
@@ -179,11 +210,13 @@ local function HookGameTooltipAnimation()
     GameTooltip:HookScript("OnShow", function(self)
         if not IsEnabled() then return end
         StartFadeIn(self)
+        if Insight.accentBar then Insight.accentBar:Hide() end
     end)
     GameTooltip:HookScript("OnHide", function(self)
         fadeState = "idle"
         animFrame:Hide()
         self:SetAlpha(1)
+        if Insight.accentBar then Insight.accentBar:Hide() end
     end)
 end
 
@@ -295,31 +328,49 @@ local function ProcessUnitTooltip()
     local isPlayer = UnitIsPlayer(unit)
     local guid     = UnitGUID(unit)
 
+    -- Non-player: reaction-coloured name, plain border, no accent bar
     if not isPlayer then
         GameTooltip:SetBackdropBorderColor(PANEL_BORDER[1], PANEL_BORDER[2], PANEL_BORDER[3], PANEL_BORDER[4])
+        if Insight.accentBar then Insight.accentBar:Hide() end
+        local nameLeft = _G["GameTooltipTextLeft1"]
+        if nameLeft then
+            local reaction = UnitReaction(unit, "player")
+            if reaction and FACTION_BAR_COLORS and FACTION_BAR_COLORS[reaction] then
+                local c = FACTION_BAR_COLORS[reaction]
+                nameLeft:SetTextColor(c.r, c.g, c.b)
+            end
+        end
         StyleFonts(GameTooltip)
         return
     end
 
     local className, classFile = UnitClass(unit)
-    local classColor = classFile and C_ClassColor and C_ClassColor.GetClassColor(classFile)
-    local cached     = guid and inspectCache[guid]
+    local classColor  = classFile and C_ClassColor and C_ClassColor.GetClassColor(classFile)
+    local cached      = guid and inspectCache[guid]
+    local guildName, guildRankName = GetGuildInfo(unit)
 
-    -- 1. Name line: faction icon + class colour
+    -- 1. Name line: faction icon + faction colour
     local nameLeft = _G["GameTooltipTextLeft1"]
     if nameLeft then
         local faction = UnitFactionGroup(unit)
         local icon    = FACTION_ICONS[faction] or ""
         local name    = GetUnitName(unit, true) or nameLeft:GetText() or ""
         nameLeft:SetText(icon .. name)
-        if classColor then
+        local fc = FACTION_COLORS[faction]
+        if fc then
+            nameLeft:SetTextColor(fc[1], fc[2], fc[3])
+        elseif classColor then
             nameLeft:SetTextColor(classColor.r, classColor.g, classColor.b)
         end
     end
 
-    -- 2. Border tint
+    -- 2. Border tint + left accent bar
     if classColor then
         GameTooltip:SetBackdropBorderColor(classColor.r, classColor.g, classColor.b, 0.60)
+        if Insight.accentBar then
+            Insight.accentBar:SetColorTexture(classColor.r, classColor.g, classColor.b, 0.85)
+            Insight.accentBar:Show()
+        end
     end
 
     -- 3. Clean up Blizzard lines: strip "(Player)", remove faction text, style class line
@@ -339,19 +390,41 @@ local function ProcessUnitTooltip()
             if text == "Horde" or text == "Alliance" then
                 lineLeft:SetText("")
 
-            -- Style the class line: class colour + spec icon prefix (when cached)
+            -- Guild line: append rank name
+            elseif guildName and text == "<" .. guildName .. ">" then
+                if ShowGuildRank() and guildRankName and guildRankName ~= "" then
+                    lineLeft:SetText(text .. "  |cffaaaaaa" .. guildRankName .. "|r")
+                end
+
+            -- Style the class line: class colour + spec icon + role badge
             elseif className and text ~= "" and text:find(className, 1, true) then
                 if classColor then
                     lineLeft:SetTextColor(classColor.r, classColor.g, classColor.b)
                 end
-                if cached and cached.specIcon then
-                    lineLeft:SetText("|T" .. cached.specIcon .. ":14:14:0:0|t " .. text)
+                local iconPrefix = (cached and cached.specIcon)
+                    and ("|T" .. cached.specIcon .. ":14:14:0:0|t ") or ""
+                local roleSuffix = ""
+                if cached and cached.role then
+                    local rc = ROLE_COLORS[cached.role]
+                    if rc then
+                        local hex = string.format("%02x%02x%02x",
+                            math.floor(rc[1] * 255),
+                            math.floor(rc[2] * 255),
+                            math.floor(rc[3] * 255))
+                        local label = cached.role == "TANK" and "Tank"
+                            or cached.role == "HEALER" and "Healer" or "DPS"
+                        roleSuffix = "  |cff" .. hex .. label .. "|r"
+                    end
                 end
+                lineLeft:SetText(iconPrefix .. text .. roleSuffix)
             end
         end
     end
 
-    -- 4. PvP title
+    -- Separator: identity block → PvP/status block
+    GameTooltip:AddLine(SEPARATOR, SEP_COLOR[1], SEP_COLOR[2], SEP_COLOR[3])
+
+    -- 4. PvP title + honor level
     if ShowPvPTitle() then
         local pvpFullName = UnitPVPName(unit)
         local baseName    = UnitName(unit)
@@ -359,21 +432,55 @@ local function ProcessUnitTooltip()
             GameTooltip:AddLine(pvpFullName, TITLE_COLOR[1], TITLE_COLOR[2], TITLE_COLOR[3])
         end
     end
+    if ShowHonorLevel() then
+        local honorLevel = UnitHonorLevel(unit)
+        if honorLevel and honorLevel > 0 then
+            GameTooltip:AddLine("Honor Level " .. honorLevel, 0.85, 0.70, 1.00)
+        end
+    end
 
-    -- 5. Status badges
+    -- 5. Status badges (combat/AFK/DND + friend/pvp/group/targeting)
     if ShowStatusBadges() then
         local badges = {}
-        if UnitAffectingCombat(unit) then badges[#badges + 1] = "|cffff4444[Combat]|r" end
-        if UnitIsAFK(unit)           then badges[#badges + 1] = "|cffffff55[AFK]|r"    end
-        if UnitIsDND(unit)           then badges[#badges + 1] = "|cffaaaaaa[DND]|r"    end
+        if UnitAffectingCombat(unit) then badges[#badges + 1] = "|cffff4444[Combat]|r"      end
+        if UnitIsAFK(unit)           then badges[#badges + 1] = "|cffffff55[AFK]|r"         end
+        if UnitIsDND(unit)           then badges[#badges + 1] = "|cffaaaaaa[DND]|r"         end
+        if UnitIsPVP(unit)           then badges[#badges + 1] = "|cffff8c00[PvP]|r"         end
+        if UnitInRaid(unit)          then badges[#badges + 1] = "|cff88ddff[Raid]|r"
+        elseif UnitInParty(unit)     then badges[#badges + 1] = "|cff88ddff[Party]|r"       end
+        if C_FriendList and C_FriendList.IsFriend and guid and C_FriendList.IsFriend(guid) then
+                                          badges[#badges + 1] = "|cff55ff55[Friend]|r"      end
+        if UnitIsUnit("mouseoverTarget", "player") then
+                                          badges[#badges + 1] = "|cffff4466[Targeting You]|r" end
         if #badges > 0 then
             GameTooltip:AddLine(table.concat(badges, "  "), 1, 1, 1)
         end
     end
 
-    -- 6. Item level (only once inspect cache is available)
+    -- Stats block (M+ score, item level) — prefixed with a separator if non-empty
+    local hasStats = false
+    local function EnsureStatsSep()
+        if not hasStats then
+            GameTooltip:AddLine(SEPARATOR, SEP_COLOR[1], SEP_COLOR[2], SEP_COLOR[3])
+            hasStats = true
+        end
+    end
+
+    -- 6. Mythic+ score (no inspect needed)
+    if ShowMythicScore() and C_PlayerInfo and C_PlayerInfo.GetPlayerMythicPlusRatingSummary then
+        local summary = C_PlayerInfo.GetPlayerMythicPlusRatingSummary(unit)
+        if summary and summary.currentSeasonScore and summary.currentSeasonScore > 0 then
+            local score = summary.currentSeasonScore
+            local r, g, b = MythicScoreColor(score)
+            EnsureStatsSep()
+            GameTooltip:AddLine(MYTHIC_ICON .. "M+ Score: " .. score, r, g, b)
+        end
+    end
+
+    -- 7. Item level (only once inspect cache is available)
     if cached then
         if ShowIlvl() and cached.ilvl then
+            EnsureStatsSep()
             GameTooltip:AddLine("Item Level: " .. cached.ilvl, ILVL_COLOR[1], ILVL_COLOR[2], ILVL_COLOR[3])
         end
         GameTooltip:Show()
@@ -381,11 +488,12 @@ local function ProcessUnitTooltip()
         RequestInspect(unit)
     end
 
-    -- 7. Mount block
+    -- 8. Mount block
     if ShowMount() then
         local mount = GetPlayerMountInfo(unit)
         if mount and mount.name then
             local iconStr = mount.icon and ("|T" .. mount.icon .. ":14:14:0:0|t ") or ""
+            GameTooltip:AddLine(SEPARATOR, SEP_COLOR[1], SEP_COLOR[2], SEP_COLOR[3])
             GameTooltip:AddLine(iconStr .. mount.name, MOUNT_COLOR[1], MOUNT_COLOR[2], MOUNT_COLOR[3])
             if mount.source and mount.source ~= "" then
                 GameTooltip:AddLine(mount.source, MOUNT_SRC_COLOR[1], MOUNT_SRC_COLOR[2], MOUNT_SRC_COLOR[3])
@@ -400,6 +508,28 @@ local function ProcessUnitTooltip()
     end
 
     StyleFonts(GameTooltip)
+end
+
+-- ============================================================================
+-- ITEM TOOLTIP ENHANCEMENTS
+-- ============================================================================
+
+local function OnItemTooltip(tooltip, data)
+    if not IsEnabled() then return end
+    if not ShowTransmog() then return end
+    if not C_TransmogCollection then return end
+
+    local itemID = data and data.id
+    if not itemID then return end
+
+    local hasTransmog = C_TransmogCollection.PlayerHasTransmogByItemInfo(itemID)
+    if hasTransmog == nil then return end  -- not a transmoggable item
+
+    if hasTransmog then
+        tooltip:AddLine("Appearance: Collected", TRANSMOG_HAVE[1], TRANSMOG_HAVE[2], TRANSMOG_HAVE[3])
+    else
+        tooltip:AddLine("Appearance: Not collected", TRANSMOG_MISS[1], TRANSMOG_MISS[2], TRANSMOG_MISS[3])
+    end
 end
 
 local pendingUnit = false
@@ -526,12 +656,28 @@ function Insight.Init()
         end
     end
 
+    -- Class-coloured left accent bar (created once, reused across tooltips)
+    if not Insight.accentBar then
+        local bar = GameTooltip:CreateTexture(nil, "BORDER")
+        bar:SetWidth(3)
+        bar:SetPoint("TOPLEFT",    GameTooltip, "TOPLEFT",    0, 0)
+        bar:SetPoint("BOTTOMLEFT", GameTooltip, "BOTTOMLEFT", 0, 0)
+        bar:SetColorTexture(0.5, 0.5, 0.5, 0.8)
+        bar:Hide()
+        Insight.accentBar = bar
+    end
+
     HookGameTooltipAnimation()
     HideHealthBar()
     HookPositioning()
 
-    if TooltipDataProcessor and Enum and Enum.TooltipDataType and Enum.TooltipDataType.Unit then
-        TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, OnUnitTooltip)
+    if TooltipDataProcessor and Enum and Enum.TooltipDataType then
+        if Enum.TooltipDataType.Unit then
+            TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, OnUnitTooltip)
+        end
+        if Enum.TooltipDataType.Item then
+            TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, OnItemTooltip)
+        end
     end
 
     if addon.HSPrint then addon.HSPrint("Horizon Insight loaded. Type /insight or /mtt for options.") end
@@ -540,6 +686,7 @@ end
 --- Disable Horizon Insight. Restore default tooltip appearance.
 function Insight.Disable()
     HideAnchorFrame()
+    if Insight.accentBar then Insight.accentBar:Hide() end
     for _, tt in ipairs(tooltipsToStyle) do
         if tt then
             RestoreNineSlice(tt)
@@ -613,28 +760,44 @@ SlashCmdList["HORIZONSUITEINSIGHT"] = function(msg)
     elseif cmd == "test" then
         GameTooltip:SetOwner(UIParent, "ANCHOR_CURSOR")
         GameTooltip:ClearLines()
-        -- Name: faction icon + class colour
+        -- Name: faction icon + class colour (DK = dark red)
         GameTooltip:AddLine((FACTION_ICONS["Alliance"] or "") .. "Testplayer-Stormrage", 0.77, 0.12, 0.23)
-        -- Guild
-        GameTooltip:AddLine("<Ascension>", 0.25, 0.78, 0.92)
-        -- Level + Race (no class — Blizzard combines class on its own line)
+        -- Guild + rank
+        GameTooltip:AddLine("<Ascension>  |cffaaaaaaOfficer|r", 0.25, 0.78, 0.92)
+        -- Level + Race
         GameTooltip:AddLine("Level 80 Human", 1, 0.82, 0)
-        -- Class line with spec icon prepended (class colour)
+        -- Class line: spec icon + role badge (Tank = blue)
         GameTooltip:AddLine(
-            "|TInterface\\Icons\\spell_deathknight_bloodpresence:14:14:0:0|t Blood Death Knight",
+            "|TInterface\\Icons\\spell_deathknight_bloodpresence:14:14:0:0|t Blood Death Knight  |cff4d99ffTank|r",
             0.77, 0.12, 0.23)
+        -- Identity / status separator
+        GameTooltip:AddLine(SEPARATOR, SEP_COLOR[1], SEP_COLOR[2], SEP_COLOR[3])
         -- PvP title
         GameTooltip:AddLine("Duelist Testplayer", TITLE_COLOR[1], TITLE_COLOR[2], TITLE_COLOR[3])
+        -- Honor level
+        GameTooltip:AddLine("Honor Level 247", 0.85, 0.70, 1.00)
         -- Status badges
-        GameTooltip:AddLine("|cffff4444[Combat]|r  |cffffff55[AFK]|r", 1, 1, 1)
+        GameTooltip:AddLine("|cffff4444[Combat]|r  |cffff8c00[PvP]|r  |cff88ddff[Party]|r  |cff55ff55[Friend]|r  |cffff4466[Targeting You]|r", 1, 1, 1)
+        -- Stats separator
+        GameTooltip:AddLine(SEPARATOR, SEP_COLOR[1], SEP_COLOR[2], SEP_COLOR[3])
+        -- M+ score
+        GameTooltip:AddLine(MYTHIC_ICON .. "M+ Score: 2847", MythicScoreColor(2847))
         -- Item level
         GameTooltip:AddLine("Item Level: 639", ILVL_COLOR[1], ILVL_COLOR[2], ILVL_COLOR[3])
+        -- Mount separator
+        GameTooltip:AddLine(SEPARATOR, SEP_COLOR[1], SEP_COLOR[2], SEP_COLOR[3])
         -- Mount
         GameTooltip:AddLine(
             "|TInterface\\Icons\\ability_mount_drake_proto:14:14:0:0|t Reins of the Thundering Cobalt Cloud Serpent",
             MOUNT_COLOR[1], MOUNT_COLOR[2], MOUNT_COLOR[3])
         GameTooltip:AddLine("Drop: Sha of Anger", MOUNT_SRC_COLOR[1], MOUNT_SRC_COLOR[2], MOUNT_SRC_COLOR[3])
         GameTooltip:AddLine("|cffff5555You don't own this mount|r", 1, 1, 1)
+        -- Show accent bar + border in DK colour
+        GameTooltip:SetBackdropBorderColor(0.77, 0.12, 0.23, 0.60)
+        if Insight.accentBar then
+            Insight.accentBar:SetColorTexture(0.77, 0.12, 0.23, 0.85)
+            Insight.accentBar:Show()
+        end
         GameTooltip:Show()
         if addon.HSPrint then addon.HSPrint("Horizon Insight: Test tooltip shown at cursor.") end
 

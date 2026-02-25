@@ -39,7 +39,11 @@ local INSIGHT_KEYS = {
     insightShowMount        = true,
     insightShowIlvl         = true,
     insightShowPvPTitle     = true,
+    insightShowHonorLevel   = true,
     insightShowStatusBadges = true,
+    insightShowMythicScore  = true,
+    insightShowTransmog     = true,
+    insightShowGuildRank    = true,
 }
 
 local PRESENCE_KEYS = {
@@ -1246,10 +1250,15 @@ local OptionCategories = {
                 if addon.Insight and addon.Insight.ApplyInsightOptions then addon.Insight.ApplyInsightOptions() end
             end },
             { type = "section", name = L["Player Tooltip"] or "Player Tooltip" },
-            { type = "toggle", name = L["Show mount info"] or "Show mount info", desc = L["When hovering a mounted player, show their mount name, source, and whether you own it."] or "When hovering a mounted player, show their mount name, source, and whether you own it.", dbKey = "insightShowMount", get = function() return getDB("insightShowMount", true) end, set = function(v) setDB("insightShowMount", v) end },
-            { type = "toggle", name = L["Show item level"] or "Show item level", desc = L["Show the player's equipped item level after inspecting them."] or "Show the player's equipped item level after inspecting them.", dbKey = "insightShowIlvl", get = function() return getDB("insightShowIlvl", true) end, set = function(v) setDB("insightShowIlvl", v) end },
+            { type = "toggle", name = L["Show guild rank"] or "Show guild rank", desc = L["Append the player's guild rank next to their guild name."] or "Append the player's guild rank next to their guild name.", dbKey = "insightShowGuildRank", get = function() return getDB("insightShowGuildRank", true) end, set = function(v) setDB("insightShowGuildRank", v) end },
             { type = "toggle", name = L["Show PvP title"] or "Show PvP title", desc = L["Show the player's PvP title (e.g. Gladiator) in the tooltip."] or "Show the player's PvP title (e.g. Gladiator) in the tooltip.", dbKey = "insightShowPvPTitle", get = function() return getDB("insightShowPvPTitle", true) end, set = function(v) setDB("insightShowPvPTitle", v) end },
-            { type = "toggle", name = L["Show status badges"] or "Show status badges", desc = L["Show combat, AFK, and DND badges in the player tooltip."] or "Show combat, AFK, and DND badges in the player tooltip.", dbKey = "insightShowStatusBadges", get = function() return getDB("insightShowStatusBadges", true) end, set = function(v) setDB("insightShowStatusBadges", v) end },
+            { type = "toggle", name = L["Show honor level"] or "Show honor level", desc = L["Show the player's PvP honor level in the tooltip."] or "Show the player's PvP honor level in the tooltip.", dbKey = "insightShowHonorLevel", get = function() return getDB("insightShowHonorLevel", true) end, set = function(v) setDB("insightShowHonorLevel", v) end },
+            { type = "toggle", name = L["Show status badges"] or "Show status badges", desc = L["Show inline badges for combat, AFK, DND, PvP flag, party/raid membership, friends, and whether the player is targeting you."] or "Show inline badges for combat, AFK, DND, PvP flag, party/raid membership, friends, and whether the player is targeting you.", dbKey = "insightShowStatusBadges", get = function() return getDB("insightShowStatusBadges", true) end, set = function(v) setDB("insightShowStatusBadges", v) end },
+            { type = "toggle", name = L["Show Mythic+ score"] or "Show Mythic+ score", desc = L["Show the player's current season Mythic+ score, colour-coded by tier."] or "Show the player's current season Mythic+ score, colour-coded by tier.", dbKey = "insightShowMythicScore", get = function() return getDB("insightShowMythicScore", true) end, set = function(v) setDB("insightShowMythicScore", v) end },
+            { type = "toggle", name = L["Show item level"] or "Show item level", desc = L["Show the player's equipped item level after inspecting them."] or "Show the player's equipped item level after inspecting them.", dbKey = "insightShowIlvl", get = function() return getDB("insightShowIlvl", true) end, set = function(v) setDB("insightShowIlvl", v) end },
+            { type = "toggle", name = L["Show mount info"] or "Show mount info", desc = L["When hovering a mounted player, show their mount name, source, and whether you own it."] or "When hovering a mounted player, show their mount name, source, and whether you own it.", dbKey = "insightShowMount", get = function() return getDB("insightShowMount", true) end, set = function(v) setDB("insightShowMount", v) end },
+            { type = "section", name = L["Item Tooltip"] or "Item Tooltip" },
+            { type = "toggle", name = L["Show transmog status"] or "Show transmog status", desc = L["Show whether you have collected the appearance of an item you hover over."] or "Show whether you have collected the appearance of an item you hover over.", dbKey = "insightShowTransmog", get = function() return getDB("insightShowTransmog", true) end, set = function(v) setDB("insightShowTransmog", v) end },
         },
     },
     {
