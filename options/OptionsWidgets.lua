@@ -892,7 +892,7 @@ end
 -- Color swatch row: label + clickable swatch (for colorMatrix/colorGroup in options panel).
 -- defaultTbl: {r,g,b} or nil (nil => {0.5,0.5,0.5}). getTbl() returns current color or nil. setKeyVal({r,g,b}), notify() on change.
 -- disabledFn: optional function() return boolean end; when true, greys out and disables the swatch.
-function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultTbl, getTbl, setKeyVal, notify, disabledFn)
+function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultTbl, getTbl, setKeyVal, notify, disabledFn, hasAlpha)
     local row = CreateFrame("Frame", nil, parent)
     row:SetSize(280, 24)
     row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -4)
@@ -913,56 +913,76 @@ function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultT
     swatch.tex = tex
     local def = defaultTbl and #defaultTbl >= 3 and defaultTbl or { 0.5, 0.5, 0.5 }
     function swatch:Refresh()
-        local r, g, b = def[1], def[2], def[3]
+        local r, g, b, a = def[1], def[2], def[3], def[4] or 1
         if getTbl then
             local result = getTbl()
-            -- Handle both table return {r,g,b} and multiple returns (r,g,b)
             if type(result) == "table" and result[1] then
                 r, g, b = result[1], result[2], result[3]
+                if hasAlpha and type(result[4]) == "number" then a = result[4] end
             elseif type(result) == "number" then
-                -- Multiple return values - result is r, need to get g,b
-                local rVal, gVal, bVal = getTbl()
+                local rVal, gVal, bVal, aVal = getTbl()
                 if type(rVal) == "number" and type(gVal) == "number" and type(bVal) == "number" then
                     r, g, b = rVal, gVal, bVal
+                    if hasAlpha and type(aVal) == "number" then a = aVal end
                 end
             end
         end
-        tex:SetColorTexture(r, g, b, 1)
+        if hasAlpha then
+            tex:SetColorTexture(r, g, b, a)
+        else
+            tex:SetColorTexture(r, g, b, 1)
+        end
     end
     swatch:SetScript("OnClick", function()
         if disabledFn and disabledFn() then return end
         if not ColorPickerFrame or not ColorPickerFrame.SetupColorPickerAndShow then return end
-        local r, g, b = def[1], def[2], def[3]
+        local r, g, b, a = def[1], def[2], def[3], def[4] or 1
         if getTbl then
             local result = getTbl()
             if type(result) == "table" and result[1] then
                 r, g, b = result[1], result[2], result[3]
+                if hasAlpha and type(result[4]) == "number" then a = result[4] end
             elseif type(result) == "number" then
-                local rVal, gVal, bVal = getTbl()
+                local rVal, gVal, bVal, aVal = getTbl()
                 if type(rVal) == "number" and type(gVal) == "number" and type(bVal) == "number" then
                     r, g, b = rVal, gVal, bVal
+                    if hasAlpha and type(aVal) == "number" then a = aVal end
                 end
             end
         end
         addon._colorPickerLive = true
         _activeColorPickerCallbacks = { setKeyVal = setKeyVal, notify = notify, tex = tex }
         ColorPickerFrame:SetupColorPickerAndShow({
-            r = r, g = g, b = b, hasOpacity = false,
+            r = r, g = g, b = b,
+            opacity = hasAlpha and (1 - a) or nil,  -- WoW opacity field: 0=opaque, 1=transparent
+            hasOpacity = hasAlpha == true,
             swatchFunc = function()
                 local nr, ng, nb = GetColorPickerEffectiveRGB()
-                setKeyVal({ nr, ng, nb })
-                tex:SetColorTexture(nr, ng, nb, 1)
+                if hasAlpha then
+                    -- GetColorAlpha() returns alpha directly (0=transparent, 1=opaque)
+                    local na = ColorPickerFrame:GetColorAlpha()
+                    setKeyVal({ nr, ng, nb, na })
+                    tex:SetColorTexture(nr, ng, nb, na)
+                else
+                    setKeyVal({ nr, ng, nb })
+                    tex:SetColorTexture(nr, ng, nb, 1)
+                end
             end,
             cancelFunc = function()
                 addon._colorPickerLive = nil
                 _activeColorPickerCallbacks = nil
                 local p = ColorPickerFrame.previousValues
                 if p and type(p.r) == "number" and type(p.g) == "number" and type(p.b) == "number" then
-                    setKeyVal({ p.r, p.g, p.b })
+                    if hasAlpha and type(p.opacity) == "number" then
+                        -- previousValues.opacity uses the inverted scale (0=opaque, 1=transparent)
+                        setKeyVal({ p.r, p.g, p.b, 1 - p.opacity })
+                    else
+                        setKeyVal({ p.r, p.g, p.b })
+                    end
                 elseif getTbl then
                     local res = getTbl()
                     if type(res) == "table" and res[1] then
-                        setKeyVal({ res[1], res[2], res[3] })
+                        setKeyVal(res)
                     end
                 end
                 swatch:Refresh()
@@ -972,8 +992,15 @@ function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultT
                 addon._colorPickerLive = nil
                 _activeColorPickerCallbacks = nil
                 local nr, ng, nb = GetColorPickerEffectiveRGB()
-                setKeyVal({ nr, ng, nb })
-                tex:SetColorTexture(nr, ng, nb, 1)
+                if hasAlpha then
+                    -- GetColorAlpha() returns alpha directly (0=transparent, 1=opaque)
+                    local na = ColorPickerFrame:GetColorAlpha()
+                    setKeyVal({ nr, ng, nb, na })
+                    tex:SetColorTexture(nr, ng, nb, na)
+                else
+                    setKeyVal({ nr, ng, nb })
+                    tex:SetColorTexture(nr, ng, nb, 1)
+                end
                 if notify then notify() end
             end,
         })

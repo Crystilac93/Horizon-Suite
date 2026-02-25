@@ -506,23 +506,36 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
              table.insert(refreshers, w)
         elseif opt.type == "color" and currentCard then
             local def = (opt.default and type(opt.default) == "table" and #opt.default >= 3) and opt.default or addon.HEADER_COLOR
+            local hasAlpha = opt.hasAlpha == true
             local getTbl, setKeyVal
             if opt.get and opt.set then
-                -- Custom get/set (e.g. M+ R/G/B keys)
+                -- Custom get/set (e.g. M+ R/G/B keys, or RGBA keys)
                 getTbl = function()
-                    local r, g, b = opt.get()
-                    return (type(r) == "number" and type(g) == "number" and type(b) == "number") and {r, g, b} or nil
+                    local r, g, b, a = opt.get()
+                    if type(r) == "number" and type(g) == "number" and type(b) == "number" then
+                        if hasAlpha and type(a) == "number" then
+                            return {r, g, b, a}
+                        end
+                        return {r, g, b}
+                    end
+                    return nil
                 end
                 setKeyVal = function(v)
                     local t = type(v) == "table" and v[1] and v[2] and v[3] and v or nil
-                    if t then opt.set(t[1], t[2], t[3]) end
+                    if t then
+                        if hasAlpha then
+                            opt.set(t[1], t[2], t[3], t[4])
+                        else
+                            opt.set(t[1], t[2], t[3])
+                        end
+                    end
                 end
             else
                 getTbl = function() return getDB(opt.dbKey, nil) end
                 setKeyVal = function(v) setDB(opt.dbKey, v) end
             end
             local cardContent = currentCard.contentContainer or currentCard
-            local row = OptionsWidgets_CreateColorSwatchRow(cardContent, currentCard.contentAnchor, opt.name or "Color", def, getTbl, setKeyVal, notifyMainAddon)
+            local row = OptionsWidgets_CreateColorSwatchRow(cardContent, currentCard.contentAnchor, opt.name or "Color", def, getTbl, setKeyVal, notifyMainAddon, nil, hasAlpha)
             currentCard.contentAnchor = row
             currentCard.contentHeight = currentCard.contentHeight + OptionGap + RowHeights.colorRow
             local oid = opt.dbKey or (addon.OptionCategories[tabIndex].key .. "_" .. (opt.name or ""):gsub("%s+", "_"))

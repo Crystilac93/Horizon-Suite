@@ -123,6 +123,8 @@ local COLOR_LIVE_KEYS = {
     vistaDiffColorR = true, vistaDiffColorG = true, vistaDiffColorB = true,
     vistaPanelBgR = true, vistaPanelBgG = true, vistaPanelBgB = true, vistaPanelBgA = true,
     vistaPanelBorderR = true, vistaPanelBorderG = true, vistaPanelBorderB = true, vistaPanelBorderA = true,
+    vistaBarBgR = true, vistaBarBgG = true, vistaBarBgB = true, vistaBarBgA = true,
+    vistaBarBorderR = true, vistaBarBorderG = true, vistaBarBorderB = true, vistaBarBorderA = true,
 }
 
 -- Vista option keys — trigger Vista.ApplyOptions when changed
@@ -166,9 +168,15 @@ local VISTA_KEYS = {
     -- Addon button layout
     vistaBtnLayoutCols = true, vistaBtnLayoutDir = true,
     vistaMouseoverLocked = true, vistaMouseoverBarX = true, vistaMouseoverBarY = true,
+    vistaMouseoverBarVisible = true,
+    vistaMouseoverCloseDelay = true, vistaRightClickCloseDelay = true, vistaDrawerCloseDelay = true,
+    vistaBarBgR = true, vistaBarBgG = true, vistaBarBgB = true, vistaBarBgA = true,
+    vistaBarBorderShow = true,
+    vistaBarBorderR = true, vistaBarBorderG = true, vistaBarBorderB = true, vistaBarBorderA = true,
     vistaRightClickLocked = true, vistaRightClickPanelX = true, vistaRightClickPanelY = true,
     vistaButtonMode = true, vistaHandleAddonButtons = true,
     vistaDrawerButtonLocked = true, vistaButtonWhitelist = true,
+    vistaMailBlink = true,
     -- Button sizes (separate per type)
     vistaTrackingBtnSize = true, vistaCalendarBtnSize = true, vistaQueueBtnSize = true,
     vistaZoomBtnSize = true, vistaMailIconSize = true, vistaAddonBtnSize = true,
@@ -200,6 +208,8 @@ local VISTA_COLOR_LIVE_KEYS = {
     vistaDiffColor_looking_for_raid_R = true, vistaDiffColor_looking_for_raid_G = true, vistaDiffColor_looking_for_raid_B = true,
     vistaPanelBgR = true, vistaPanelBgG = true, vistaPanelBgB = true, vistaPanelBgA = true,
     vistaPanelBorderR = true, vistaPanelBorderG = true, vistaPanelBorderB = true, vistaPanelBorderA = true,
+    vistaBarBgR = true, vistaBarBgG = true, vistaBarBgB = true, vistaBarBgA = true,
+    vistaBarBorderR = true, vistaBarBorderG = true, vistaBarBorderB = true, vistaBarBorderA = true,
 }
 
 -- Scale keys managed by debounced callbacks in the slider set lambdas.
@@ -1721,6 +1731,11 @@ local OptionCategories = {
               dbKey = "vistaMailIconSize", min = 14, max = 40,
               get = function() return math.max(14, math.min(40, tonumber(getDB("vistaMailIconSize", 20)) or 20)) end,
               set = function(v) setDB("vistaMailIconSize", math.max(14, math.min(40, v))) end },
+            { type = "toggle", name = L["Mail icon blink"] or "Mail icon blink",
+              desc = L["When on, the mail icon pulses to draw attention. When off, it stays at full opacity."] or "When on, the mail icon pulses to draw attention. When off, it stays at full opacity.",
+              dbKey = "vistaMailBlink",
+              get = function() return getDB("vistaMailBlink", true) end,
+              set = function(v) setDB("vistaMailBlink", v) end },
             { type = "slider", name = L["Addon button size"] or "Addon button size",
               desc = L["Size of collected addon minimap buttons (pixels)."] or "Size of collected addon minimap buttons (pixels).",
               dbKey = "vistaAddonBtnSize", min = 16, max = 48,
@@ -1793,7 +1808,21 @@ local OptionCategories = {
                   desc = L["Prevent dragging the mouseover button bar."] or "Prevent dragging the mouseover button bar.",
                   dbKey = "vistaMouseoverLocked",
                   get = function() return getDB("vistaMouseoverLocked", true) end,
-                  set = function(v) setDB("vistaMouseoverLocked", v) end,
+                  set = function(v)
+                      setDB("vistaMouseoverLocked", v)
+                      -- When unlocking, flash the bar visible briefly so user can see and reposition it
+                      if not v and addon.Vista and addon.Vista.FlashMouseoverBar then
+                          addon.Vista.FlashMouseoverBar()
+                      end
+                  end,
+                  disabled = function()
+                      return not getDB("vistaHandleAddonButtons", true) or getDB("vistaButtonMode", "mouseover") ~= "mouseover"
+                  end },
+                { type = "toggle", name = L["Always show mouseover bar (for positioning)"] or "Always show mouseover bar (for positioning)",
+                  desc = L["Keep the mouseover bar visible at all times so you can reposition it. Disable when done."] or "Keep the mouseover bar visible at all times so you can reposition it. Disable when done.",
+                  dbKey = "vistaMouseoverBarVisible",
+                  get = function() return getDB("vistaMouseoverBarVisible", false) end,
+                  set = function(v) setDB("vistaMouseoverBarVisible", v) end,
                   disabled = function()
                       return not getDB("vistaHandleAddonButtons", true) or getDB("vistaButtonMode", "mouseover") ~= "mouseover"
                   end },
@@ -1805,6 +1834,29 @@ local OptionCategories = {
                   disabled = function()
                       return not getDB("vistaHandleAddonButtons", true) or getDB("vistaButtonMode", "mouseover") ~= "rightclick"
                   end },
+
+                { type = "section", name = L["Close / Fade Timing"] or "Close / Fade Timing" },
+                { type = "slider", name = L["Mouseover bar — close delay (seconds)"] or "Mouseover bar — close delay (seconds)",
+                  desc = L["How long (in seconds) the bar stays visible after the cursor leaves. 0 = instant fade."] or "How long (in seconds) the bar stays visible after the cursor leaves. 0 = instant fade.",
+                  dbKey = "vistaMouseoverCloseDelay", min = 0, max = 10, step = 0.5,
+                  get = function() return math.max(0, math.min(10, tonumber(getDB("vistaMouseoverCloseDelay", 0)) or 0)) end,
+                  set = function(v) setDB("vistaMouseoverCloseDelay", math.max(0, math.min(10, v))) end,
+                  disabled = function() return not getDB("vistaHandleAddonButtons", true) end,
+                },
+                { type = "slider", name = L["Right-click panel — close delay (seconds)"] or "Right-click panel — close delay (seconds)",
+                  desc = L["How long (in seconds) the panel stays open after the cursor leaves. 0 = never auto-close (close by right-clicking again)."] or "How long (in seconds) the panel stays open after the cursor leaves. 0 = never auto-close (close by right-clicking again).",
+                  dbKey = "vistaRightClickCloseDelay", min = 0, max = 10, step = 0.5,
+                  get = function() return math.max(0, math.min(10, tonumber(getDB("vistaRightClickCloseDelay", 0.3)) or 0.3)) end,
+                  set = function(v) setDB("vistaRightClickCloseDelay", math.max(0, math.min(10, v))) end,
+                  disabled = function() return not getDB("vistaHandleAddonButtons", true) end,
+                },
+                { type = "slider", name = L["Floating drawer — close delay (seconds)"] or "Floating drawer — close delay (seconds)",
+                  desc = L["How long (in seconds) the drawer panel stays open after clicking away. 0 = never auto-close (close only by clicking the drawer button again)."] or "How long (in seconds) the drawer panel stays open after clicking away. 0 = never auto-close (close only by clicking the drawer button again).",
+                  dbKey = "vistaDrawerCloseDelay", min = 0, max = 10, step = 0.5,
+                  get = function() return math.max(0, math.min(10, tonumber(getDB("vistaDrawerCloseDelay", 0)) or 0)) end,
+                  set = function(v) setDB("vistaDrawerCloseDelay", math.max(0, math.min(10, v))) end,
+                  disabled = function() return not getDB("vistaHandleAddonButtons", true) end,
+                },
 
                 { type = "section", name = L["Layout"] or "Layout" },
             }
@@ -1875,6 +1927,50 @@ local OptionCategories = {
                 end,
                 hasAlpha = true,
             }
+
+            opts[#opts + 1] = { type = "section", name = L["Mouseover Bar Appearance"] or "Mouseover Bar Appearance" }
+            opts[#opts + 1] = { type = "header", name = L["Background and border for the mouseover button bar."] or "Background and border for the mouseover button bar." }
+            opts[#opts + 1] = {
+                type = "color", name = L["Bar background color"] or "Bar background color",
+                desc = L["Background color of the mouseover button bar (use alpha to control transparency)."] or "Background color of the mouseover button bar (use alpha to control transparency).",
+                dbKey = "vistaBarBg",
+                get = function()
+                    return getDB("vistaBarBgR", 0.08), getDB("vistaBarBgG", 0.08),
+                           getDB("vistaBarBgB", 0.12), getDB("vistaBarBgA", 0)
+                end,
+                set = function(r, g, b, a)
+                    setDB("vistaBarBgR", r); setDB("vistaBarBgG", g)
+                    setDB("vistaBarBgB", b)
+                    if a then setDB("vistaBarBgA", a) end
+                end,
+                hasAlpha = true,
+                disabled = function() return not getDB("vistaHandleAddonButtons", true) end,
+            }
+            opts[#opts + 1] = {
+                type = "toggle", name = L["Show bar border"] or "Show bar border",
+                desc = L["Show a border around the mouseover button bar."] or "Show a border around the mouseover button bar.",
+                dbKey = "vistaBarBorderShow",
+                get = function() return getDB("vistaBarBorderShow", false) end,
+                set = function(v) setDB("vistaBarBorderShow", v) end,
+                disabled = function() return not getDB("vistaHandleAddonButtons", true) end,
+            }
+            opts[#opts + 1] = {
+                type = "color", name = L["Bar border color"] or "Bar border color",
+                desc = L["Border color of the mouseover button bar."] or "Border color of the mouseover button bar.",
+                dbKey = "vistaBarBorder",
+                get = function()
+                    return getDB("vistaBarBorderR", 0.3), getDB("vistaBarBorderG", 0.4),
+                           getDB("vistaBarBorderB", 0.6), getDB("vistaBarBorderA", 0.7)
+                end,
+                set = function(r, g, b, a)
+                    setDB("vistaBarBorderR", r); setDB("vistaBarBorderG", g)
+                    setDB("vistaBarBorderB", b)
+                    if a then setDB("vistaBarBorderA", a) end
+                end,
+                hasAlpha = true,
+                disabled = function() return not getDB("vistaHandleAddonButtons", true) or not getDB("vistaBarBorderShow", false) end,
+            }
+
             -- Managed buttons: per-button toggle — uncheck to fully ignore a button
             opts[#opts + 1] = {
                 type = "section",

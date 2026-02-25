@@ -175,6 +175,26 @@ do
     G.MouseoverLocked       = function() return DB("vistaMouseoverLocked", true)  end
     G.MouseoverBarX         = function() return tonumber(DB("vistaMouseoverBarX", nil)) end
     G.MouseoverBarY         = function() return tonumber(DB("vistaMouseoverBarY", nil)) end
+    G.MouseoverBarVisible   = function() return DB("vistaMouseoverBarVisible", false) end
+    G.MouseoverCloseDelay   = function() return tonumber(DB("vistaMouseoverCloseDelay", 0)) or 0 end
+    G.RightClickCloseDelay  = function() return tonumber(DB("vistaRightClickCloseDelay", 0.3)) or 0.3 end
+    G.DrawerCloseDelay      = function() return tonumber(DB("vistaDrawerCloseDelay", 0)) or 0 end
+    G.MailBlink             = function() return DB("vistaMailBlink", true) end
+    G.BarBgColor            = function()
+        local BAR_BG_DEFAULT = { 0.08, 0.08, 0.12, 0 }
+        return tonumber(DB("vistaBarBgR", BAR_BG_DEFAULT[1])) or BAR_BG_DEFAULT[1],
+               tonumber(DB("vistaBarBgG", BAR_BG_DEFAULT[2])) or BAR_BG_DEFAULT[2],
+               tonumber(DB("vistaBarBgB", BAR_BG_DEFAULT[3])) or BAR_BG_DEFAULT[3],
+               tonumber(DB("vistaBarBgA", BAR_BG_DEFAULT[4])) or BAR_BG_DEFAULT[4]
+    end
+    G.BarBorderShow         = function() return DB("vistaBarBorderShow", false) end
+    G.BarBorderColor        = function()
+        local BAR_BORDER_DEFAULT = { 0.3, 0.4, 0.6, 0.7 }
+        return tonumber(DB("vistaBarBorderR", BAR_BORDER_DEFAULT[1])) or BAR_BORDER_DEFAULT[1],
+               tonumber(DB("vistaBarBorderG", BAR_BORDER_DEFAULT[2])) or BAR_BORDER_DEFAULT[2],
+               tonumber(DB("vistaBarBorderB", BAR_BORDER_DEFAULT[3])) or BAR_BORDER_DEFAULT[3],
+               tonumber(DB("vistaBarBorderA", BAR_BORDER_DEFAULT[4])) or BAR_BORDER_DEFAULT[4]
+    end
     G.RightClickLocked      = function() return DB("vistaRightClickLocked", true) end
     G.RightClickPanelX      = function() return tonumber(DB("vistaRightClickPanelX", nil)) end
     G.RightClickPanelY      = function() return tonumber(DB("vistaRightClickPanelY", nil)) end
@@ -415,10 +435,13 @@ local borderTextures = {}
 local zoneText, zoneShadow, diffText, diffShadow
 local coordText, coordShadow, timeText, timeShadow
 local mailFrame, mailPulsing
-local collectorBar
+local collectorBar, barAnchor
 local collectedButtons, drawerPanelButtons = {}, {}
 local updateMinimapClickGuard -- set in Vista.Init, called by CollectMinimapButtons
 local barAlpha, hoverTarget, hoverElapsed = 0, 0, 0
+local barCloseDelayElapsed = 0  -- tracks how long we've been "waiting to close"
+local barAnchorDragging = false -- true while the anchor is being dragged
+local barFlashTimer = nil  -- C_Timer handle for the "flash visible for positioning" effect
 local coordElapsed, timeElapsed = 0, 0
 local zoomStarted, zoomCurrent = 0, 0
 local hookedButtons = {}
@@ -1017,7 +1040,7 @@ local function CreateMailIndicator()
 
     local pulseTime = 0
     mailFrame:SetScript("OnUpdate", function(self, elapsed)
-        if not mailPulsing then self.icon:SetAlpha(1); return end
+        if not mailPulsing or not G.MailBlink() then self.icon:SetAlpha(1); return end
         pulseTime = pulseTime + elapsed
         local t = (math.sin(pulseTime * PULSE_SPEED * math.pi * 2) + 1) / 2
         self.icon:SetAlpha(PULSE_MIN + (PULSE_MAX - PULSE_MIN) * t)
@@ -1546,83 +1569,19 @@ local function CreateQueueAnchor()
     end)
     queueAnchor:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
-        -- Defer one frame so WoW has finalised the frame position before we read it
-        C_Timer.After(0, function()
-            if not queueAnchor then return end
-            local mx, my = Minimap:GetCenter()
-            local ax, ay = queueAnchor:GetCenter()
-            if not (mx and my and ax and ay) then return end
-            -- Normalise both centres to UIParent-space to handle Minimap scale
-            local uiScale  = (UIParent and UIParent.GetEffectiveScale and UIParent:GetEffectiveScale()) or 1
-            local mmScale  = (Minimap  and Minimap.GetEffectiveScale  and Minimap:GetEffectiveScale())  or uiScale
-            local ancScale = (queueAnchor.GetEffectiveScale and queueAnchor:GetEffectiveScale()) or uiScale
-            local normMx = (mx * mmScale)  / uiScale
-            local normMy = (my * mmScale)  / uiScale
-            local normAx = (ax * ancScale) / uiScale
-            local normAy = (ay * ancScale) / uiScale
-            local ox, oy = normAx - normMx, normAy - normMy
-            SetDB("vistaEX_proxy_queue", ox)
-            SetDB("vistaEY_proxy_queue", oy)
-            queueAnchor:ClearAllPoints()
-            queueAnchor:SetPoint("CENTER", Minimap, "CENTER", ox, oy)
-        end)
+        local mx, my = Minimap:GetCenter()
+        local bx, by = self:GetCenter()
+        if not (mx and my and bx and by) then return end
+        local uiScale = (UIParent and UIParent:GetEffectiveScale()) or 1
+        local mmScale = (Minimap and Minimap:GetEffectiveScale()) or uiScale
+        local bScale  = (self:GetEffectiveScale()) or uiScale
+        local ox = (bx * bScale - mx * mmScale) / uiScale
+        local oy = (by * bScale - my * mmScale) / uiScale
+        SetDB("vistaEX_proxy_queue", ox)
+        SetDB("vistaEY_proxy_queue", oy)
+        self:ClearAllPoints()
+        self:SetPoint("CENTER", Minimap, "CENTER", ox, oy)
     end)
-
-    queueAnchor:SetScript("OnEnter", function(self)
-        if not DB("vistaLocked_proxy_queue", true) then
-            GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
-            GameTooltip:SetText("Queue Status Button")
-            GameTooltip:AddLine("Drag to reposition", 0.7, 0.7, 0.7)
-            GameTooltip:Show()
-        end
-    end)
-    queueAnchor:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
-    -- Re-parent QueueStatusButton into our anchor once
-    pcall(function()
-        realBtn:SetParent(queueAnchor)
-        realBtn:ClearAllPoints()
-        realBtn:SetPoint("CENTER", queueAnchor, "CENTER", 0, 0)
-        realBtn:SetAlpha(1)
-        realBtn:EnableMouse(true)
-    end)
-
-    -- Re-anchor helper — brings the button back into our frame whenever Blizzard moves it
-    local function ReAnchor()
-        if not queueAnchor then return end
-        realBtn:ClearAllPoints()
-        realBtn:SetPoint("CENTER", queueAnchor, "CENTER", 0, 0)
-    end
-
-    if hooksecurefunc and not realBtn._vistaQueueHooked then
-        realBtn._vistaQueueHooked = true
-        -- Hook UpdatePosition: fires after Blizzard repositions the button
-        pcall(function()
-            hooksecurefunc(realBtn, "UpdatePosition", function(self)
-                ReAnchor()
-            end)
-        end)
-        -- Hook SetParent: catches anything re-parenting the button away from our anchor
-        pcall(function()
-            hooksecurefunc(realBtn, "SetParent", function(self, newParent)
-                if not queueAnchor then return end
-                if newParent == queueAnchor then return end
-                C_Timer.After(0, ReAnchor)
-            end)
-        end)
-    end
-
-    -- Poll to mirror queue visibility state onto anchor
-    queueAnchor:SetScript("OnUpdate", function(self, elapsed)
-        self._pollTimer = (self._pollTimer or 0) + elapsed
-        if self._pollTimer < 0.5 then return end
-        self._pollTimer = 0
-        RefreshQueueAnchor()
-    end)
-
-    queueAnchor:Hide()
-    C_Timer.After(0.5, RefreshQueueAnchor)
-    C_Timer.After(2.0, RefreshQueueAnchor)
 end
 
 local INTERNAL_BLACKLIST, BLIZZARD_DEFAULT_BUTTONS, buttonOriginalState, proxyButtonCache
@@ -1962,6 +1921,10 @@ local function ScanMinimapButtons()
     return result
 end
 
+-- Forward declaration — defined in the HOVER / ON-UPDATE section below.
+-- Needed here because CreateCollectorBar's OnDragStop closure captures it.
+local PositionBarAnchor
+
 local function CreateCollectorBar()
     collectorBar = CreateFrame("Frame", "HorizonSuiteVistaButtonBar", UIParent)
     collectorBar:SetFrameStrata("HIGH")
@@ -1979,6 +1942,53 @@ local function CreateCollectorBar()
     end
     collectorBar:Show()
 
+    -- Backdrop (background + border textures)
+    local barBgFrame = CreateFrame("Frame", nil, collectorBar)
+    barBgFrame:SetAllPoints()
+    barBgFrame:SetFrameLevel(collectorBar:GetFrameLevel())
+    local brR, brG, brB, brA = G.BarBgColor()
+    local bgTex = barBgFrame:CreateTexture(nil, "BACKGROUND", nil, -8)
+    bgTex:SetAllPoints(); bgTex:SetColorTexture(brR, brG, brB, brA)
+    collectorBar._bgTex = bgTex
+    collectorBar._bgFrame = barBgFrame
+
+    local bdrR, bdrG, bdrB, bdrA = G.BarBorderColor()
+    local bbT = barBgFrame:CreateTexture(nil, "BORDER"); bbT:SetColorTexture(bdrR, bdrG, bdrB, bdrA)
+    local bbB = barBgFrame:CreateTexture(nil, "BORDER"); bbB:SetColorTexture(bdrR, bdrG, bdrB, bdrA)
+    local bbL = barBgFrame:CreateTexture(nil, "BORDER"); bbL:SetColorTexture(bdrR, bdrG, bdrB, bdrA)
+    local bbR = barBgFrame:CreateTexture(nil, "BORDER"); bbR:SetColorTexture(bdrR, bdrG, bdrB, bdrA)
+    collectorBar._borderTextures = { bbT, bbB, bbL, bbR }
+    -- border visibility controlled by G.BarBorderShow()
+    local function applyBarBorderVis()
+        local show = G.BarBorderShow()
+        bbT:SetShown(show); bbB:SetShown(show); bbL:SetShown(show); bbR:SetShown(show)
+    end
+    applyBarBorderVis()
+    bbT:SetPoint("TOPLEFT",0,0); bbT:SetPoint("TOPRIGHT",0,0); bbT:SetHeight(1)
+    bbB:SetPoint("BOTTOMLEFT",0,0); bbB:SetPoint("BOTTOMRIGHT",0,0); bbB:SetHeight(1)
+    bbL:SetPoint("TOPLEFT",0,0); bbL:SetPoint("BOTTOMLEFT",0,0); bbL:SetWidth(1)
+    bbR:SetPoint("TOPRIGHT",0,0); bbR:SetPoint("BOTTOMRIGHT",0,0); bbR:SetWidth(1)
+    collectorBar._applyBarBorderVis = applyBarBorderVis
+
+    -- Tooltip when bar is unlocked (to help user understand it is draggable)
+    collectorBar:EnableMouse(true)
+    collectorBar:SetScript("OnEnter", function(self)
+        hoverTarget = 1; hoverElapsed = 0
+        if not G.MouseoverLocked() then
+            GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
+            GameTooltip:SetText("Minimap Buttons")
+            GameTooltip:AddLine("Drag to reposition the bar", 0.7, 0.7, 0.7)
+            GameTooltip:AddLine("Lock position in options to hide this tip", 0.5, 0.5, 0.5)
+            GameTooltip:Show()
+        end
+    end)
+    collectorBar:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+        if Minimap:IsMouseOver() or collectorBar:IsMouseOver() then return end
+        for _, p in pairs(proxyButtonCache) do if p:IsMouseOver() then return end end
+        hoverTarget = 0; hoverElapsed = 0
+    end)
+
     collectorBar:RegisterForDrag("LeftButton")
     collectorBar:SetScript("OnDragStart", function(self)
         if not G.MouseoverLocked() and not InCombatLockdown() then
@@ -1987,21 +1997,149 @@ local function CreateCollectorBar()
     end)
     collectorBar:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
-        C_Timer.After(0, function()
+        local mx, my = Minimap:GetCenter()
+        local bx, by = self:GetCenter()
+        if not (mx and my and bx and by) then return end
+        local uiScale = (UIParent and UIParent:GetEffectiveScale()) or 1
+        local mmScale = (Minimap and Minimap:GetEffectiveScale()) or uiScale
+        local bScale  = (self:GetEffectiveScale()) or uiScale
+        local ox = (bx * bScale - mx * mmScale) / uiScale
+        local oy = (by * bScale - my * mmScale) / uiScale
+        SetDB("vistaMouseoverBarX", ox)
+        SetDB("vistaMouseoverBarY", oy)
+        self:ClearAllPoints()
+        self:SetPoint("CENTER", Minimap, "CENTER", ox, oy)
+        PositionBarAnchor()
+    end)
+
+    -- ── Drag Anchor ─────────────────────────────────────────────────────────
+    -- Icon-sized handle shown only when the bar is unlocked and visible.
+    -- Dragging it repositions collectorBar. Styled like the floating drawer button.
+    local anchorSz = GetAddonBtnSize() + 4
+    barAnchor = CreateFrame("Button", "HorizonSuiteVistaBarAnchor", UIParent)
+    barAnchor:SetSize(anchorSz, anchorSz)
+    barAnchor:SetFrameStrata("HIGH")
+    barAnchor:SetFrameLevel(collectorBar:GetFrameLevel() + 10)
+    barAnchor:SetClampedToScreen(true)
+    barAnchor:SetMovable(true)
+    barAnchor:RegisterForDrag("LeftButton")
+    barAnchor:Hide()
+
+    -- Visuals: same panel colour as the floating drawer
+    local abgR, abgG, abgB, abgA = GetPanelBgColor()
+    local ancBg = barAnchor:CreateTexture(nil, "BACKGROUND")
+    ancBg:SetAllPoints(); ancBg:SetColorTexture(abgR, abgG, abgB, abgA)
+    barAnchor._bg = ancBg
+
+    local abrR, abrG, abrB, abrA = GetPanelBorderColor()
+    local ancBorder = barAnchor:CreateTexture(nil, "OVERLAY")
+    ancBorder:SetPoint("TOPLEFT", -1, 1); ancBorder:SetPoint("BOTTOMRIGHT", 1, -1)
+    ancBorder:SetColorTexture(abrR, abrG, abrB, abrA)
+    barAnchor._border = ancBorder
+
+    -- Move icon
+    local ancIcon = barAnchor:CreateTexture(nil, "ARTWORK")
+    ancIcon:SetPoint("CENTER"); ancIcon:SetSize(14, 14)
+    ancIcon:SetTexture("Interface\\CURSOR\\UI-Cursor-Move")
+    ancIcon:SetTexCoord(0, 1, 0, 1)
+    barAnchor._icon = ancIcon
+
+    -- Tooltip
+    barAnchor:SetScript("OnEnter", function(self)
+        hoverTarget = 1; hoverElapsed = 0; barCloseDelayElapsed = 0
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
+        GameTooltip:SetText("Mouseover Bar Anchor")
+        GameTooltip:AddLine("Drag to reposition the button bar", 0.7, 0.7, 0.7)
+        GameTooltip:Show()
+    end)
+    barAnchor:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    -- Drag: user drags the anchor; on drop, offset collectorBar so its leading
+    -- edge lands where the anchor was, then re-snap anchor to that edge.
+    barAnchor:SetScript("OnDragStart", function(self)
+        if InCombatLockdown() then return end
+        barAnchorDragging = true
+        collectorBar:SetAlpha(1)  -- keep bar visible while dragging
+        self:StartMoving()
+        -- Live-follow: read anchor screen pos every frame, derive bar CENTER, move bar
+        self:SetScript("OnUpdate", function(s)
             if not collectorBar then return end
-            local mx, my = Minimap:GetCenter()
-            local bx, by = self:GetCenter()
-            if not (mx and my and bx and by) then return end
+            local ax, ay = s:GetCenter()
+            if not ax then return end
+            local dir     = G.BtnLayoutDir()
             local uiScale = (UIParent and UIParent:GetEffectiveScale()) or 1
             local mmScale = (Minimap and Minimap:GetEffectiveScale()) or uiScale
-            local bScale  = (self:GetEffectiveScale()) or uiScale
-            local ox = (bx * bScale - mx * mmScale) / uiScale
-            local oy = (by * bScale - my * mmScale) / uiScale
-            SetDB("vistaMouseoverBarX", ox)
-            SetDB("vistaMouseoverBarY", oy)
-            self:ClearAllPoints()
-            self:SetPoint("CENTER", Minimap, "CENTER", ox, oy)
+            local aScale  = (s:GetEffectiveScale()) or uiScale
+            local mx, my  = Minimap:GetCenter()
+            if not mx then return end
+            -- anchor centre in Minimap-relative units
+            local ancOffX = (ax * aScale - mx * mmScale) / uiScale
+            local ancOffY = (ay * aScale - my * mmScale) / uiScale
+            local cbW  = collectorBar:GetWidth()
+            local cbH  = collectorBar:GetHeight()
+            local ancW = s:GetWidth()
+            local ancH = s:GetHeight()
+            local gap  = BTN_GAP
+            local ox, oy
+            if     dir == "right" then ox = ancOffX + ancW/2 + gap + cbW/2; oy = ancOffY
+            elseif dir == "left"  then ox = ancOffX - ancW/2 - gap - cbW/2; oy = ancOffY
+            elseif dir == "down"  then ox = ancOffX; oy = ancOffY - ancH/2 - gap - cbH/2
+            elseif dir == "up"    then ox = ancOffX; oy = ancOffY + ancH/2 + gap + cbH/2
+            else                       ox = ancOffX + ancW/2 + gap + cbW/2; oy = ancOffY end
+            -- Move collectorBar without creating a circular anchor dependency
+            collectorBar:ClearAllPoints()
+            collectorBar:SetPoint("CENTER", Minimap, "CENTER", ox, oy)
         end)
+    end)
+    barAnchor:SetScript("OnDragStop", function(self)
+        self:SetScript("OnUpdate", nil)  -- stop live-follow
+        self:StopMovingOrSizing()
+        barAnchorDragging = false
+        if not collectorBar then return end
+
+        -- Step 1: compute anchor's own offset from Minimap CENTER
+        -- (same formula used by collectorBar's own OnDragStop)
+        local mx, my = Minimap:GetCenter()
+        local ax, ay = self:GetCenter()
+        if not (mx and my and ax and ay) then return end
+        local uiScale = (UIParent and UIParent:GetEffectiveScale()) or 1
+        local mmScale = (Minimap and Minimap:GetEffectiveScale()) or uiScale
+        local aScale  = (self:GetEffectiveScale()) or uiScale
+        -- anchor offset from Minimap CENTER, in Minimap-relative units
+        local ancOffX = (ax * aScale - mx * mmScale) / uiScale
+        local ancOffY = (ay * aScale - my * mmScale) / uiScale
+
+        -- Step 2: shift from anchor position to collectorBar CENTER
+        -- based on expand direction (anchor sits on the leading edge)
+        local dir  = G.BtnLayoutDir()
+        local cbW  = collectorBar:GetWidth()
+        local cbH  = collectorBar:GetHeight()
+        local ancW = self:GetWidth()
+        local ancH = self:GetHeight()
+        local gap  = BTN_GAP
+        local ox, oy
+        if dir == "right" then
+            ox = ancOffX + ancW/2 + gap + cbW/2
+            oy = ancOffY
+        elseif dir == "left" then
+            ox = ancOffX - ancW/2 - gap - cbW/2
+            oy = ancOffY
+        elseif dir == "down" then
+            ox = ancOffX
+            oy = ancOffY - ancH/2 - gap - cbH/2
+        elseif dir == "up" then
+            ox = ancOffX
+            oy = ancOffY + ancH/2 + gap + cbH/2
+        else
+            ox = ancOffX + ancW/2 + gap + cbW/2
+            oy = ancOffY
+        end
+
+        SetDB("vistaMouseoverBarX", ox)
+        SetDB("vistaMouseoverBarY", oy)
+        collectorBar:ClearAllPoints()
+        collectorBar:SetPoint("CENTER", Minimap, "CENTER", ox, oy)
+        PositionBarAnchor()
     end)
 end
 
@@ -2010,7 +2148,8 @@ local function LayoutCollectedButtons()
     if not collectorBar then return end
     local n = #collectedButtons
     local btnSz = GetAddonBtnSize()
-    if n == 0 then collectorBar:SetWidth(1); collectorBar:SetHeight(btnSz); return end
+    local BAR_PAD = 4
+    if n == 0 then collectorBar:SetWidth(1); collectorBar:SetHeight(btnSz + BAR_PAD * 2); return end
 
     local cols   = math.min(n, math.max(1, G.BtnLayoutCols()))
     local dir    = G.BtnLayoutDir()
@@ -2020,8 +2159,8 @@ local function LayoutCollectedButtons()
     local gridCols = vertical and secondaryCount or primaryCount
     local gridRows = vertical and primaryCount    or secondaryCount
 
-    local totalWidth  = gridCols * btnSz + (gridCols - 1) * BTN_GAP
-    local totalHeight = gridRows * btnSz + (gridRows - 1) * BTN_GAP
+    local totalWidth  = gridCols * btnSz + (gridCols - 1) * BTN_GAP + BAR_PAD * 2
+    local totalHeight = gridRows * btnSz + (gridRows - 1) * BTN_GAP + BAR_PAD * 2
     collectorBar:SetSize(totalWidth, totalHeight)
 
     for i, originalBtn in ipairs(collectedButtons) do
@@ -2042,15 +2181,29 @@ local function LayoutCollectedButtons()
         proxy:SetSize(btnSz, btnSz)
         proxy:SetFrameLevel(collectorBar:GetFrameLevel() + 2)
         proxy:SetPoint("TOPLEFT", collectorBar, "TOPLEFT",
-            col * (btnSz + BTN_GAP),
-            -(row * (btnSz + BTN_GAP)))
+            BAR_PAD + col * (btnSz + BTN_GAP),
+            -(BAR_PAD + row * (btnSz + BTN_GAP)))
         proxy._vistaUpdateIcon()
         proxy:Show()
     end
 
+    -- Re-snap anchor to leading edge now that bar dimensions are final
+    if barAnchor then PositionBarAnchor() end
+
     collectorBar:EnableMouse(true)
-    collectorBar:SetScript("OnEnter", function() hoverTarget = 1; hoverElapsed = 0 end)
+    -- Re-apply hover scripts each layout (they may have been cleared)
+    collectorBar:SetScript("OnEnter", function(self)
+        hoverTarget = 1; hoverElapsed = 0
+        if not G.MouseoverLocked() then
+            GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
+            GameTooltip:SetText("Minimap Buttons")
+            GameTooltip:AddLine("Drag to reposition the bar", 0.7, 0.7, 0.7)
+            GameTooltip:AddLine("Lock position in options to hide this tip", 0.5, 0.5, 0.5)
+            GameTooltip:Show()
+        end
+    end)
     collectorBar:SetScript("OnLeave", function()
+        GameTooltip:Hide()
         if Minimap:IsMouseOver() or collectorBar:IsMouseOver() then return end
         for _, p in pairs(proxyButtonCache) do if p:IsMouseOver() then return end end
         hoverTarget = 0; hoverElapsed = 0
@@ -2166,56 +2319,23 @@ local function CreateDrawerButton()
 
     -- Drag via OnDragStart / OnDragStop (clean, no sticky-mouse bug)
     drawerButton:SetScript("OnDragStart", function(self)
-        if not G.ButtonDrawerLocked() and not InCombatLockdown() then
-            drawerDragging = true
-            self:StartMoving()
-        end
+        if InCombatLockdown() then return end
+        self:StartMoving()
     end)
     drawerButton:SetScript("OnDragStop", function(self)
-        drawerDragging = false
         self:StopMovingOrSizing()
-        local function SaveDrawerAnchor()
-            local mx, my = Minimap:GetCenter()
-            local bx, by = self:GetCenter()
-            if not (mx and my and bx and by) then return end
-
-            -- Normalize both centers to UIParent-scale units so Minimap scale
-            -- does not skew the offset when re-anchoring to Minimap.
-            local uiScale = (UIParent and UIParent.GetEffectiveScale and UIParent:GetEffectiveScale()) or 1
-            local mmScale = (Minimap and Minimap.GetEffectiveScale and Minimap:GetEffectiveScale()) or uiScale
-            local btnScale = (self.GetEffectiveScale and self:GetEffectiveScale()) or uiScale
-
-            local normMx = (mx * mmScale) / uiScale
-            local normMy = (my * mmScale) / uiScale
-            local normBx = (bx * btnScale) / uiScale
-            local normBy = (by * btnScale) / uiScale
-
-            local ox, oy = normBx - normMx, normBy - normMy
-            SetDB("vistaDrawerBtnX", ox)
-            SetDB("vistaDrawerBtnY", oy)
-            self:ClearAllPoints()
-            self:SetPoint("CENTER", Minimap, "CENTER", ox, oy)
-        end
-        -- Defer: WoW may update the frame on the next frame; read position then to avoid jump
-        if C_Timer and C_Timer.After then
-            C_Timer.After(0, function()
-                if not addon:IsModuleEnabled("vista") then return end
-                if not drawerButton or not drawerButton:IsShown() then return end
-                SaveDrawerAnchor()
-            end)
-        else
-            -- Fallback if C_Timer unavailable
-            SaveDrawerAnchor()
-        end
-    end)
-
-    -- Click to toggle the drawer (only fires when not dragging)
-    drawerButton:SetScript("OnClick", function(self, button)
-        if button ~= "LeftButton" or drawerDragging then return end
-        drawerOpen = not drawerOpen
-        if drawerPanel then
-            if drawerOpen then drawerPanel:Show() else drawerPanel:Hide() end
-        end
+        local mx, my = Minimap:GetCenter()
+        local bx, by = self:GetCenter()
+        if not (mx and my and bx and by) then return end
+        local uiScale = (UIParent and UIParent:GetEffectiveScale()) or 1
+        local mmScale = (Minimap and Minimap:GetEffectiveScale()) or uiScale
+        local bScale  = (self:GetEffectiveScale()) or uiScale
+        local ox = (bx * bScale - mx * mmScale) / uiScale
+        local oy = (by * bScale - my * mmScale) / uiScale
+        SetDB("vistaDrawerBtnX", ox)
+        SetDB("vistaDrawerBtnY", oy)
+        self:ClearAllPoints()
+        self:SetPoint("CENTER", Minimap, "CENTER", ox, oy)
     end)
 
     -- Drawer panel: separate background child frame to avoid overlapping button icons
@@ -2246,6 +2366,29 @@ local function CreateDrawerButton()
     drawerPanel:SetPoint("BOTTOMLEFT", drawerButton, "TOPLEFT", 0, 4)
     drawerPanel:Hide()
     drawerOpen = false
+
+    -- Auto-close polling when delay > 0
+    local function ScheduleDrawerAutoClose()
+        local delay = G.DrawerCloseDelay()
+        if delay <= 0 then return end  -- 0 = never auto-close
+        local elapsed = 0
+        local function poll(_, dt)
+            elapsed = elapsed + dt
+            if not drawerPanel or not drawerOpen then return end
+            if drawerButton and drawerButton:IsMouseOver() then elapsed = 0; return end
+            if drawerPanel:IsMouseOver() then elapsed = 0; return end
+            for _, p in pairs(proxyButtonCache) do
+                if p:GetParent() == drawerPanel and p:IsMouseOver() then elapsed = 0; return end
+            end
+            if elapsed >= delay then
+                drawerPanel:Hide()
+                drawerOpen = false
+                drawerPanel:SetScript("OnUpdate", nil)
+            end
+        end
+        drawerPanel:SetScript("OnUpdate", poll)
+    end
+    drawerPanel._scheduleAutoClose = ScheduleDrawerAutoClose
 end
 
 local function DestroyDrawerButton()
@@ -2304,31 +2447,43 @@ local function CreateRightClickPanel()
     end)
     rightClickPanel:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
-        C_Timer.After(0, function()
-            if not rightClickPanel then return end
-            local mx, my = Minimap:GetCenter()
-            local bx, by = self:GetCenter()
-            if not (mx and my and bx and by) then return end
-            local uiScale = (UIParent and UIParent:GetEffectiveScale()) or 1
-            local mmScale = (Minimap and Minimap:GetEffectiveScale()) or uiScale
-            local bScale  = (self:GetEffectiveScale()) or uiScale
-            local ox = (bx * bScale - mx * mmScale) / uiScale
-            local oy = (by * bScale - my * mmScale) / uiScale
-            SetDB("vistaRightClickPanelX", ox)
-            SetDB("vistaRightClickPanelY", oy)
-            self:ClearAllPoints()
-            self:SetPoint("CENTER", Minimap, "CENTER", ox, oy)
-        end)
+        local mx, my = Minimap:GetCenter()
+        local bx, by = self:GetCenter()
+        if not (mx and my and bx and by) then return end
+        local uiScale = (UIParent and UIParent:GetEffectiveScale()) or 1
+        local mmScale = (Minimap and Minimap:GetEffectiveScale()) or uiScale
+        local bScale  = (self:GetEffectiveScale()) or uiScale
+        local ox = (bx * bScale - mx * mmScale) / uiScale
+        local oy = (by * bScale - my * mmScale) / uiScale
+        SetDB("vistaRightClickPanelX", ox)
+        SetDB("vistaRightClickPanelY", oy)
+        self:ClearAllPoints()
+        self:SetPoint("CENTER", Minimap, "CENTER", ox, oy)
     end)
 
-    rightClickPanel:SetScript("OnLeave", function()
-        C_Timer.After(0.3, function()
-            if rightClickPanel and not rightClickPanel:IsMouseOver() then
+    -- Auto-close polling: instead of OnLeave (which fires on child entry), poll every 0.1s
+    -- to check if the mouse has left both the panel and all its proxy buttons.
+    local function ScheduleRightClickAutoClose()
+        local delay = G.RightClickCloseDelay()
+        if delay <= 0 then return end  -- 0 = never auto-close
+        local elapsed = 0
+        local function poll(_, dt)
+            elapsed = elapsed + dt
+            if not rightClickPanel or not rightClickVisible then return end
+            -- Check if mouse is over the panel or any child proxy button
+            if rightClickPanel:IsMouseOver() then elapsed = 0; return end
+            for _, p in pairs(proxyButtonCache) do
+                if p:GetParent() == rightClickPanel and p:IsMouseOver() then elapsed = 0; return end
+            end
+            if elapsed >= delay then
                 rightClickPanel:Hide()
                 rightClickVisible = false
             end
-        end)
-    end)
+        end
+        -- Attach poll to the panel's own OnUpdate only while it's visible
+        rightClickPanel:SetScript("OnUpdate", poll)
+    end
+    rightClickPanel._scheduleAutoClose = ScheduleRightClickAutoClose
 end
 
 local function LayoutRightClickPanel(buttons)
@@ -2507,14 +2662,91 @@ end
 -- HOVER / ON-UPDATE
 -- ============================================================================
 
+local barCloseDelayElapsed = 0  -- tracks how long we've been "waiting to close"
+
+-- Show the drag anchor only when: mode=mouseover, unlocked, AND bar is visible (hovered or always-on)
+PositionBarAnchor = function()
+    if not barAnchor or not collectorBar then return end
+    if barAnchorDragging then return end  -- don't fight StartMoving
+    -- Attach anchor to the leading edge of the bar based on expand direction.
+    -- "First" means the side the first button grows away from.
+    local dir   = G.BtnLayoutDir()
+    local ancSz = GetAddonBtnSize() + 4
+    local gap   = BTN_GAP
+    barAnchor:ClearAllPoints()
+    if dir == "right" then
+        -- bar grows right → anchor is to the LEFT of the bar
+        barAnchor:SetPoint("RIGHT", collectorBar, "LEFT", -gap, 0)
+    elseif dir == "left" then
+        -- bar grows left → anchor is to the RIGHT of the bar
+        barAnchor:SetPoint("LEFT", collectorBar, "RIGHT", gap, 0)
+    elseif dir == "down" then
+        -- bar grows down → anchor is ABOVE the bar
+        barAnchor:SetPoint("BOTTOM", collectorBar, "TOP", 0, gap)
+    elseif dir == "up" then
+        -- bar grows up → anchor is BELOW the bar
+        barAnchor:SetPoint("TOP", collectorBar, "BOTTOM", 0, -gap)
+    else
+        barAnchor:SetPoint("RIGHT", collectorBar, "LEFT", -gap, 0)
+    end
+end
+
+local function UpdateBarAnchorVisibility()
+    if not barAnchor then return end
+    local shouldShow = (GetButtonMode() == BTN_MODE_MOUSEOVER)
+                    and not G.MouseoverLocked()
+                    and (G.MouseoverBarVisible() or barAlpha > 0.05)
+    if shouldShow then
+        PositionBarAnchor()
+        barAnchor:Show()
+    else
+        barAnchor:Hide()
+    end
+end
+
 local function OnHoverUpdate(_, elapsed)
     UpdateCoords(nil, elapsed)
     UpdateTimeText(nil, elapsed)
 
     -- Only animate the collector bar in mouseover mode
-    if GetButtonMode() ~= BTN_MODE_MOUSEOVER then return end
-    if not collectorBar or #collectedButtons == 0 then return end
-    if barAlpha == hoverTarget then return end
+    if GetButtonMode() ~= BTN_MODE_MOUSEOVER then
+        if barAnchor then barAnchor:Hide() end
+        return
+    end
+    if not collectorBar or #collectedButtons == 0 then
+        if barAnchor then barAnchor:Hide() end
+        return
+    end
+
+    -- "Always visible" override (for positioning)
+    if G.MouseoverBarVisible() then
+        barAlpha  = 1
+        hoverTarget = 1
+        hoverElapsed = 0
+        barCloseDelayElapsed = 0
+        collectorBar:SetAlpha(1)
+        UpdateBarAnchorVisibility()
+        return
+    end
+
+    -- If hover target just switched to 0 (cursor left), apply close delay
+    if hoverTarget == 0 and barAlpha > 0 then
+        local delay = G.MouseoverCloseDelay()
+        if delay > 0 then
+            barCloseDelayElapsed = barCloseDelayElapsed + elapsed
+            if barCloseDelayElapsed < delay then
+                -- hold at current alpha until delay expires
+                return
+            end
+        end
+    elseif hoverTarget == 1 then
+        barCloseDelayElapsed = 0
+    end
+
+    if barAlpha == hoverTarget then
+        UpdateBarAnchorVisibility()
+        return
+    end
 
     hoverElapsed = hoverElapsed + elapsed
     local t = math.min(hoverElapsed / FADE_DUR, 1)
@@ -2524,8 +2756,9 @@ local function OnHoverUpdate(_, elapsed)
         barAlpha = 1 - easeOut(t)
         if barAlpha < 0 then barAlpha = 0 end
     end
-    if t >= 1 then barAlpha = hoverTarget end
+    if t >= 1 then barAlpha = hoverTarget; barCloseDelayElapsed = 0 end
     collectorBar:SetAlpha(barAlpha)
+    UpdateBarAnchorVisibility()
 end
 
 -- ============================================================================
@@ -2556,6 +2789,20 @@ function Vista.ApplyColors()
     end
     if rightClickPanel and rightClickPanel._borderTextures then
         for _, tex in ipairs(rightClickPanel._borderTextures) do tex:SetColorTexture(brR, brG, brB, brA) end
+    end
+    -- Mouseover bar backdrop
+    if collectorBar then
+        if collectorBar._bgTex then collectorBar._bgTex:SetColorTexture(G.BarBgColor()) end
+        if collectorBar._borderTextures then
+            local bbR, bbG, bbB, bbA = G.BarBorderColor()
+            for _, tex in ipairs(collectorBar._borderTextures) do tex:SetColorTexture(bbR, bbG, bbB, bbA) end
+        end
+        if collectorBar._applyBarBorderVis then collectorBar._applyBarBorderVis() end
+    end
+    -- Anchor (same colours as the drawer/panel)
+    if barAnchor then
+        if barAnchor._bg     then barAnchor._bg:SetColorTexture(GetPanelBgColor())     end
+        if barAnchor._border then barAnchor._border:SetColorTexture(GetPanelBorderColor()) end
     end
 end
 
@@ -2685,6 +2932,23 @@ local function ApplyOptions_Buttons()
     if rightClickPanel and rightClickPanel._borderTextures then
         for _, tex in ipairs(rightClickPanel._borderTextures) do tex:SetColorTexture(brR, brG, brB, brA) end
     end
+    -- Mouseover bar backdrop
+    if collectorBar then
+        if collectorBar._bgTex then collectorBar._bgTex:SetColorTexture(G.BarBgColor()) end
+        if collectorBar._borderTextures then
+            local bbR, bbG, bbB, bbA = G.BarBorderColor()
+            for _, tex in ipairs(collectorBar._borderTextures) do tex:SetColorTexture(bbR, bbG, bbB, bbA) end
+        end
+        if collectorBar._applyBarBorderVis then collectorBar._applyBarBorderVis() end
+    end
+    -- Anchor colours + visibility sync
+    if barAnchor then
+        if barAnchor._bg     then barAnchor._bg:SetColorTexture(GetPanelBgColor())     end
+        if barAnchor._border then barAnchor._border:SetColorTexture(GetPanelBorderColor()) end
+        local ancSz = GetAddonBtnSize() + 4
+        barAnchor:SetSize(ancSz, ancSz)
+        UpdateBarAnchorVisibility()
+    end
     for _, p in ipairs(defaultProxies) do
         if p and p._vistaKey then
             local pSz = GetProxyBtnSizeForKey(p._vistaKey)
@@ -2701,6 +2965,32 @@ function Vista.ApplyOptions()
     ApplyOptions_Minimap()
     ApplyOptions_Texts(GetMapSize())
     ApplyOptions_Buttons()
+end
+
+--- Flash the mouseover bar visible for a few seconds so the user can see where it is
+--- after toggling the position lock off.
+function Vista.FlashMouseoverBar()
+    if not collectorBar then return end
+    if GetButtonMode() ~= BTN_MODE_MOUSEOVER then return end
+    -- Cancel any in-flight flash timer
+    if barFlashTimer then barFlashTimer:Cancel(); barFlashTimer = nil end
+    -- Show immediately
+    barAlpha   = 1
+    hoverTarget = 1
+    hoverElapsed = 0
+    collectorBar:SetAlpha(1)
+    UpdateBarAnchorVisibility()
+    -- After 3 seconds, fade back out (unless user is hovering or always-visible is on)
+    barFlashTimer = C_Timer.NewTimer(3, function()
+        barFlashTimer = nil
+        if G.MouseoverBarVisible() then return end
+        if collectorBar and collectorBar:IsMouseOver() then return end
+        if barAnchor and barAnchor:IsMouseOver() then return end
+        if Minimap and Minimap:IsMouseOver() then return end
+        hoverTarget  = 0
+        hoverElapsed = 0
+        UpdateBarAnchorVisibility()
+    end)
 end
 
 -- ============================================================================
@@ -2769,7 +3059,7 @@ function Vista.Init()
 
     Minimap:HookScript("OnEnter", function()
         if GetButtonMode() == BTN_MODE_MOUSEOVER then
-            hoverTarget = 1; hoverElapsed = 0
+            hoverTarget = 1; hoverElapsed = 0; barCloseDelayElapsed = 0
         end
     end)
     Minimap:HookScript("OnLeave", function()
@@ -2777,7 +3067,7 @@ function Vista.Init()
         for _, btn in ipairs(collectedButtons) do
             if btn:IsMouseOver() then return end
         end
-        hoverTarget = 0; hoverElapsed = 0
+        hoverTarget = 0; hoverElapsed = 0; barCloseDelayElapsed = 0
     end)
 
     -- Transparent overlay to intercept right-clicks and suppress minimap pinging in right-click panel mode.
@@ -2814,8 +3104,11 @@ function Vista.Init()
             if rightClickVisible then
                 LayoutRightClickPanel(collectedButtons)
                 rightClickPanel:Show()
+                -- Start auto-close polling if a delay is configured
+                if rightClickPanel._scheduleAutoClose then rightClickPanel._scheduleAutoClose() end
             else
                 rightClickPanel:Hide()
+                if rightClickPanel then rightClickPanel:SetScript("OnUpdate", nil) end
             end
         end
     end)
