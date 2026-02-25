@@ -25,14 +25,11 @@ local COORD_COLOR_DEFAULT   = { 0.55, 0.65, 0.75 }
 local DIFF_COLOR            = { 0.55, 0.65, 0.75 }
 local DIFF_SIZE             = 10
 
-local SHADOW_OX = 2
-local SHADOW_OY = -2
 local SHADOW_A  = 0.8
 
 local MAP_SIZE_DEFAULT = 200
 local MINIMAP_BASE_SIZE = 256  -- Blizzard's minimap texture size; we scale this to vistaMapSize
 
-local BTN_SIZE = 26
 local BTN_GAP  = 4
 
 local FADE_DUR       = 0.20
@@ -442,16 +439,15 @@ local barCloseDelayElapsed = 0  -- tracks how long we've been "waiting to close"
 local barAnchorDragging = false -- true while the anchor is being dragged
 local barFlashTimer = nil  -- C_Timer handle for the "flash visible for positioning" effect
 local coordElapsed, timeElapsed = 0, 0
-local zoomStarted, zoomCurrent = 0, 0
 local hookedButtons = {}
 local setParentHook, eventFrame
 local drawerButton, drawerPanel
-local drawerOpen, drawerDragging = false, false
+local drawerOpen = false
 local rightClickPanel, rightClickVisible = nil, false
 local zoomInBtn, zoomOutBtn
 local defaultProxies = {}
 local queueAnchor  -- dedicated draggable anchor for QueueStatusButton
-local vistaLastKnownZone, chromeSuppressHooked, autoZoomTimer
+local vistaLastKnownZone, autoZoomTimer
 
 -- ============================================================================
 -- DRAGGABLE ELEMENT HELPER
@@ -1638,12 +1634,13 @@ do
     }
 
     ClusterAndOtherAddonNamePatterns = {
-        "^Emoticon",
-        "^GatherMatePin%d+$",
-        "^Minimap%a*Pin%d*$",
         "^MinimapCluster%.",
-        "^TTMinimapButton%d+$",
-        "^Plumber"
+        "^Minimap%a*Pin%d*$",
+        "^Plumber",
+        "^Emoticon",
+        "^GatherMate%a*%d+$",
+        "^TomTom",
+        "^TTMinimap%a*%d+$",
     }
     buttonOriginalState = {}
     proxyButtonCache    = {}
