@@ -251,12 +251,14 @@ end
 
 function addon.SetUseGlobalProfile(v)
     addon.EnsureDB()
+    if HorizonDB then HorizonDB._profilesValidated = nil end
     EnsureProfilesAndMigrateLegacy()
     HorizonDB.useGlobalProfile = v and true or false
 end
 
 function addon.SetUsePerSpecProfiles(v)
     addon.EnsureDB()
+    if HorizonDB then HorizonDB._profilesValidated = nil end
     EnsureProfilesAndMigrateLegacy()
     HorizonDB.usePerSpecProfiles = v and true or false
 end
@@ -264,6 +266,7 @@ end
 function addon.SetGlobalProfileKey(key)
     if type(key) ~= "string" or key == "" then return end
     addon.EnsureDB()
+    if HorizonDB then HorizonDB._profilesValidated = nil end
     EnsureProfilesAndMigrateLegacy()
     HorizonDB.globalProfileKey = key
 end
@@ -272,6 +275,7 @@ function addon.SetPerSpecProfileKey(specIndex, key)
     if type(specIndex) ~= "number" then return end
     if type(key) ~= "string" or key == "" then return end
     addon.EnsureDB()
+    if HorizonDB then HorizonDB._profilesValidated = nil end
     EnsureProfilesAndMigrateLegacy()
     local perSpec = GetCharPerSpecKeys()
     if perSpec then
@@ -329,6 +333,7 @@ end
 function addon.SetActiveProfileKey(key)
     if type(key) ~= "string" or key == "" or key == "Default" then return end
     addon.EnsureDB()
+    if HorizonDB then HorizonDB._profilesValidated = nil end
     EnsureProfilesAndMigrateLegacy()
     HorizonDB.profiles = HorizonDB.profiles or {}
     HorizonDB.profiles[key] = HorizonDB.profiles[key] or {}
@@ -344,6 +349,8 @@ function addon.SetActiveProfileKey(key)
 end
 
 EnsureProfilesAndMigrateLegacy = function()
+    if HorizonDB and HorizonDB._profilesValidated then return end
+
     if not HorizonDB then HorizonDB = {} end
 
     HorizonDB.profiles = HorizonDB.profiles or {}
@@ -396,6 +403,7 @@ EnsureProfilesAndMigrateLegacy = function()
                 end
             end
         end
+        HorizonDB._profilesValidated = true
         return
     end
 
@@ -495,6 +503,7 @@ function addon.DeleteProfile(key)
     if type(key) ~= "string" or key == "" then return false end
     if key == "Default" then return false end
     addon.EnsureDB()
+    if HorizonDB then HorizonDB._profilesValidated = nil end
     EnsureProfilesAndMigrateLegacy()
     HorizonDB.profiles = HorizonDB.profiles or {}
     if not HorizonDB.profiles[key] then return false end
@@ -831,6 +840,27 @@ local function DeserializeValue(str, pos)
     return nil, pos + 1
 end
 
+local EXPORT_STRIP_PREFIXES = { "vistaButtonManaged_" }
+local EXPORT_STRIP_KEYS     = { vistaButtonWhitelist = true }
+
+local function StripMachineSpecificKeys(src)
+    local copy = {}
+    for k, v in pairs(src) do
+        local dominated = EXPORT_STRIP_KEYS[k]
+        if not dominated then
+            for _, prefix in ipairs(EXPORT_STRIP_PREFIXES) do
+                if type(k) == "string" and k:sub(1, #prefix) == prefix then
+                    dominated = true
+                    break
+                end
+            end
+        end
+        if not dominated then
+            copy[k] = v
+        end
+    end
+    return copy
+end
 
 function addon.ExportProfile(key)
     if type(key) ~= "string" or key == "" then return nil end
@@ -845,7 +875,10 @@ function addon.ExportProfile(key)
         profile = HorizonDB.profiles[key]
     end
     if not profile or type(profile) ~= "table" or next(profile) == nil then return nil end
-    local serialized = SerializeValue(profile)
+    -- Strip machine-specific addon button selections before serialization.
+    local cleaned = StripMachineSpecificKeys(profile)
+    if not next(cleaned) then return nil end
+    local serialized = SerializeValue(cleaned)
     if not serialized then return nil end
     return EXPORT_HEADER .. b64encode(serialized)
 end
@@ -873,7 +906,11 @@ function addon.ImportProfile(name, dataString)
     local tbl = DeserializeValue(decoded, 1)
     if type(tbl) ~= "table" or next(tbl) == nil then return false, "corrupt" end
 
+    tbl = StripMachineSpecificKeys(tbl)
+    if not next(tbl) then return false, "corrupt" end
+
     addon.EnsureDB()
+    if HorizonDB then HorizonDB._profilesValidated = nil end
     EnsureProfilesAndMigrateLegacy()
     HorizonDB.profiles = HorizonDB.profiles or {}
 
@@ -907,6 +944,8 @@ specChangeFrame:SetScript("OnEvent", function(_, event, unit)
     if not HorizonDB then return end
     if HorizonDB.useGlobalProfile == true then return end
     if HorizonDB.usePerSpecProfiles ~= true then return end
+
+    HorizonDB._profilesValidated = nil
 
     local newKey = addon.GetEffectiveProfileKey and addon.GetEffectiveProfileKey()
     if addon.HSPrint then

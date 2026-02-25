@@ -266,12 +266,16 @@ local function UpdateEntry(entry, dt)
 end
 
 Frame:SetScript("OnUpdate", function(self, dt)
-    if y.activeCount == 0 then return end
+    if y.activeCount == 0 then
+        if not y.editMode then self:Hide() end
+        return
+    end
     for i = 1, Y.POOL_SIZE do
         if y.pool[i].active then
             UpdateEntry(y.pool[i], dt)
         end
     end
+    if y.activeCount == 0 and not y.editMode then self:Hide() end
 end)
 
 -- ============================================================================
@@ -312,6 +316,7 @@ function Y.ShowToast(data)
     entry.frame:ClearAllPoints()
     entry.frame:SetPoint("BOTTOMRIGHT", Frame, "BOTTOMRIGHT", Y.SLIDE_DIST, 0)
     entry.frame:Show()
+    Frame:Show()
 
     if data.quality == 5 and Y.SOUND_LEGENDARY and PlaySound then
         pcall(PlaySound, Y.SOUND_LEGENDARY)

@@ -33,7 +33,7 @@ local MINIMAP_BASE_SIZE = 256  -- Blizzard's minimap texture size; we scale this
 local BTN_GAP  = 4
 
 local FADE_DUR       = 0.20
-local COORD_THROTTLE = 0.1
+local COORD_THROTTLE = 0.25
 local TIME_THROTTLE  = 1.0
 
 local PULSE_MIN   = 0.40

@@ -6,7 +6,7 @@
 
 local addon = _G.HorizonSuite
 
-local WQT_SUPPRESSION_TICK_INTERVAL = 0.1
+local WQT_SUPPRESSION_TICK_INTERVAL = 1.0
 local WQT_ADDON_LOAD_DELAY = 0.5
 local WQT_ADDON_ALREADY_LOADED_DELAY = 1
 
@@ -54,19 +54,23 @@ local function TrySuppressTracker()
         end
     end
     if not wqtSuppressionTicker and addon.focus.enabled then
-        wqtSuppressionTicker = C_Timer.NewTicker(WQT_SUPPRESSION_TICK_INTERVAL, function()
-            if not addon.focus.enabled then
-                if wqtSuppressionTicker then
-                    wqtSuppressionTicker:Cancel()
-                    wqtSuppressionTicker = nil
+        local wqtLoaded = (C_AddOns and C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded("WorldQuestTracker"))
+            or _G.WorldQuestTrackerAddon or _G.WorldQuestTrackerScreenPanel
+        if wqtLoaded then
+            wqtSuppressionTicker = C_Timer.NewTicker(WQT_SUPPRESSION_TICK_INTERVAL, function()
+                if not addon.focus.enabled then
+                    if wqtSuppressionTicker then
+                        wqtSuppressionTicker:Cancel()
+                        wqtSuppressionTicker = nil
+                    end
+                    return
                 end
-                return
-            end
-            local wqtFrame = _G.WorldQuestTrackerScreenPanel
-            if wqtFrame and wqtFrame:IsShown() and not InCombatLockdown() then
-                wqtFrame:Hide()
-            end
-        end)
+                local wqtFrame = _G.WorldQuestTrackerScreenPanel
+                if wqtFrame and wqtFrame:IsShown() and not InCombatLockdown() then
+                    wqtFrame:Hide()
+                end
+            end)
+        end
     end
 end
 

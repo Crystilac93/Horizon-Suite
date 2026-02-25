@@ -180,29 +180,15 @@ local function IsMouseOverFrameOrDescendants(frame)
             f = f.GetParent and f:GetParent()
         end
     end
-    if frame.IsMouseOver and frame:IsMouseOver() then return true end
-    if not frame.GetChildren then return false end
-    local children = { frame:GetChildren() }
-    for i = 1, #children do
-        if children[i] and IsMouseOverFrameOrDescendants(children[i]) then return true end
-    end
-    return false
+    return frame.IsMouseOver and frame:IsMouseOver()
 end
 
---- Returns true if the mouse is over the main tracker, M+ block, or floating quest item.
---- Unified hover boundary so fade-out does not trigger when moving between related UI.
 function addon.IsFocusHoverActive()
     if IsMouseOverFrameOrDescendants(HS) then return true end
     local mplus = addon.mplusBlock
-    if mplus and mplus:IsShown() then
-        local over = mplus:IsMouseOver()
-        if over then return true end
-    end
+    if mplus and mplus:IsShown() and mplus:IsMouseOver() then return true end
     local floatingBtn = _G.HSFloatingQuestItem
-    if floatingBtn and floatingBtn:IsShown() then
-        local over = floatingBtn:IsMouseOver()
-        if over then return true end
-    end
+    if floatingBtn and floatingBtn:IsShown() and floatingBtn:IsMouseOver() then return true end
     return false
 end
 
@@ -216,15 +202,15 @@ local function UpdateHoverFade(dt, useAnim)
         or (addon.ShouldFadeInCombat and addon.ShouldFadeInCombat()) then
         return
     end
+    local floatingBtn = _G.HSFloatingQuestItem
     if not addon.GetDB("showOnMouseoverOnly", false) then
         if addon.focus.hoverFade.fadeState then
             addon.focus.hoverFade.fadeState = nil
             addon.focus.hoverFade.fadeTime = 0
-        end
-        if HS:IsShown() then
-            HS:SetAlpha(1)
-            local floatingBtn = _G.HSFloatingQuestItem
-            if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(1) end
+            if HS:IsShown() then
+                HS:SetAlpha(1)
+                if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(1) end
+            end
         end
         return
     end
@@ -247,7 +233,6 @@ local function UpdateHoverFade(dt, useAnim)
     if hf.fadeState == nil then
         if math.abs(currentAlpha - targetAlpha) < 0.01 then
             HS:SetAlpha(targetAlpha)
-            local floatingBtn = _G.HSFloatingQuestItem
             if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(targetAlpha) end
             return
         end
@@ -272,7 +257,6 @@ local function UpdateHoverFade(dt, useAnim)
 
     if not useAnim then
         HS:SetAlpha(targetAlpha)
-        local floatingBtn = _G.HSFloatingQuestItem
         if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(targetAlpha) end
         hf.fadeState = nil
         hf.fadeTime = 0
@@ -281,7 +265,6 @@ local function UpdateHoverFade(dt, useAnim)
     end
 
     HS:SetAlpha(newAlpha)
-    local floatingBtn = _G.HSFloatingQuestItem
     if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(newAlpha) end
 
     if p >= 1 then
@@ -401,10 +384,18 @@ end
 
 local function UpdateEntryAnimations(dt, useAnim)
     local anyAnimating = false
+    local slideOutCount = 0
+    local flashIntensity = addon.GetDB("objectiveProgressFlashIntensity", "subtle")
+    local flashAlphaMax = FLASH_ALPHA_BY_INTENSITY[flashIntensity] or FLASH_ALPHA_BY_INTENSITY.subtle
+    local flashColor = addon.GetDB("objectiveProgressFlashColor", nil)
+    if not flashColor or #flashColor < 3 then flashColor = { 1, 1, 1 } end
     for i = 1, addon.POOL_SIZE do
         local e = pool[i]
+        local state = e.animState
 
-        if e.animState == "fadein" then
+        if (state == "idle" or state == "active") and e.flashTime <= 0 then
+            -- nothing to do
+        elseif state == "fadein" then
             e.animTime = e.animTime + dt
             if not useAnim then
                 e:SetAlpha(1)
@@ -435,7 +426,7 @@ local function UpdateEntryAnimations(dt, useAnim)
             end
             anyAnimating = true
 
-        elseif e.animState == "completing" then
+        elseif state == "completing" then
             e.animTime = e.animTime + dt
             if e.animTime >= addon.COMPLETE_HOLD then
                 e.animState = "fadeout"
@@ -443,7 +434,7 @@ local function UpdateEntryAnimations(dt, useAnim)
             end
             anyAnimating = true
 
-        elseif e.animState == "fadeout" then
+        elseif state == "fadeout" then
             e.animTime = e.animTime + dt
             if not useAnim then
                 local wasPromotion = e.promotionFadeOut
@@ -478,8 +469,7 @@ local function UpdateEntryAnimations(dt, useAnim)
             end
             anyAnimating = true
 
-        elseif e.animState == "slideout" then
-            -- Horizontal slide out (same as collapse, no delay). Used for e.g. nearby turn-on transition.
+        elseif state == "slideout" then
             e.animTime = e.animTime + dt
             if not useAnim then
                 addon.ClearEntry(e)
@@ -494,11 +484,13 @@ local function UpdateEntryAnimations(dt, useAnim)
                 end
                 if p >= 1 then
                     addon.ClearEntry(e)
+                else
+                    slideOutCount = slideOutCount + 1
                 end
             end
             anyAnimating = true
 
-        elseif e.animState == "collapsing" then
+        elseif state == "collapsing" then
             e.animTime = e.animTime + dt
             local delay = e.collapseDelay or 0
             if not useAnim and e.animTime >= delay then
@@ -518,7 +510,7 @@ local function UpdateEntryAnimations(dt, useAnim)
             end
             anyAnimating = true
 
-        elseif e.animState == "slideup" then
+        elseif state == "slideup" then
             e.animTime = e.animTime + dt
             if not useAnim then
                 if not InCombatLockdown() and e.finalX and e.finalY then
@@ -556,29 +548,19 @@ local function UpdateEntryAnimations(dt, useAnim)
         if e.flashTime > 0 then
             e.flashTime = e.flashTime - dt
             local fp = math.max(e.flashTime / addon.FLASH_DUR, 0)
-            local intensity = addon.GetDB("objectiveProgressFlashIntensity", "subtle")
-            local alphaMax = FLASH_ALPHA_BY_INTENSITY[intensity] or FLASH_ALPHA_BY_INTENSITY.subtle
-            -- Punch-then-settle: phase 1 (0-15%) rapid ease-in to full, phase 2 (15-100%) smooth ease-out to 0
             local alpha
             if fp > 0.85 then
                 local phase1Progress = (1 - fp) / 0.15
-                alpha = addon.easeIn(phase1Progress) * alphaMax
+                alpha = addon.easeIn(phase1Progress) * flashAlphaMax
             else
                 local phase2Progress = (0.85 - fp) / 0.85
-                alpha = (1 - addon.easeOut(phase2Progress)) * alphaMax
+                alpha = (1 - addon.easeOut(phase2Progress)) * flashAlphaMax
             end
-            local fc = addon.GetDB("objectiveProgressFlashColor", nil)
-            if not fc or #fc < 3 then fc = { 1, 1, 1 } end
-            e.flash:SetColorTexture(fc[1], fc[2], fc[3], alpha)
+            e.flash:SetColorTexture(flashColor[1], flashColor[2], flashColor[3], alpha)
             anyAnimating = true
         end
     end
-    -- When all "slideout" entries have finished, run the completion callback (e.g. nearby turn-on phase 2).
-    local stillSlideOut = 0
-    for i = 1, addon.POOL_SIZE do
-        if pool[i].animState == "slideout" then stillSlideOut = stillSlideOut + 1 end
-    end
-    if stillSlideOut == 0 and addon.focus.callbacks.onSlideOutComplete then
+    if slideOutCount == 0 and addon.focus.callbacks.onSlideOutComplete then
         local fn = addon.focus.callbacks.onSlideOutComplete
         addon.focus.callbacks.onSlideOutComplete = nil
         fn()
@@ -730,10 +712,8 @@ local function UpdateSectionHeaderFadeIn(dt, useAnim)
     end
 end
 
-local function UpdateCollapseAnimations(dt)
-    -- Section header fade-out runs independently (for WQ toggle, etc.) via main loop.
+local function UpdateCollapseAnimations(dt, useAnim)
     if not addon.focus.collapse.animating then return end
-    local useAnim = addon.GetDB("animations", true)
     local stillCollapsing = false
     for i = 1, addon.POOL_SIZE do
         if pool[i].animState == "collapsing" then
@@ -750,7 +730,7 @@ local function UpdateCollapseAnimations(dt)
             end
         end
         wipe(addon.activeMap)
-        if addon.GetDB("animations", true) then
+        if useAnim then
             addon.focus.collapse.sectionHeadersFadingIn  = true
             addon.focus.collapse.sectionHeaderFadeTime    = 0
         end
@@ -938,12 +918,13 @@ function addon.EnsureFocusUpdateRunning()
         end
         dt = dt or 0
         local useAnim = addon.GetDB("animations", true)
+        local mouseoverOnly = addon.GetDB("showOnMouseoverOnly", false)
         UpdatePanelHeight(dt)
         UpdateCombatFade(dt, useAnim)
         UpdateHoverFade(dt, useAnim)
         local anyEntryAnimating = UpdateEntryAnimations(dt, useAnim)
         UpdateSectionHeaderFadeOut(dt, useAnim)
-        UpdateCollapseAnimations(dt)
+        UpdateCollapseAnimations(dt, useAnim)
         UpdateGroupCollapseCompletion()
         UpdateOptionCollapseCompletion()
         UpdateSectionHeaderSlideUp(dt, useAnim)
@@ -951,13 +932,14 @@ function addon.EnsureFocusUpdateRunning()
 
         local anySectionSliding = false
         for i = 1, addon.SECTION_POOL_SIZE do
-            if sectionPool[i] and sectionPool[i].active and sectionPool[i].slideUpStartY ~= nil then
+            local s = sectionPool[i]
+            if s and s.active and s.slideUpStartY ~= nil then
                 anySectionSliding = true
                 break
             end
         end
         local hoverFadeNeedsUpdate = false
-        if addon.focus.hoverFade and addon.GetDB("showOnMouseoverOnly", false) and HS:IsShown() and not addon.focus.combat.fadeState then
+        if addon.focus.hoverFade and mouseoverOnly and HS:IsShown() and not addon.focus.combat.fadeState then
             local mouseOver = addon.IsFocusHoverActive()
             local fadeAlpha = GetFadeOnMouseoverAlpha()
             local targetAlpha = mouseOver and 1 or fadeAlpha
@@ -970,7 +952,7 @@ function addon.EnsureFocusUpdateRunning()
             or addon.focus.collapse.animating
             or (addon.focus.combat and addon.focus.combat.fadeState ~= nil)
             or hoverFadeNeedsUpdate
-            or (addon.GetDB("showOnMouseoverOnly", false) and HS:IsShown() and not addon.focus.combat.fadeState)  -- Keep polling for hover when show-on-mouseover is on
+            or (mouseoverOnly and HS:IsShown() and not addon.focus.combat.fadeState)  -- Keep polling for hover when show-on-mouseover is on
             or (addon.focus.collapse.groups and next(addon.focus.collapse.groups) ~= nil)
             or (addon.focus.collapse.optionCollapseKeys and next(addon.focus.collapse.optionCollapseKeys) ~= nil)
             or addon.focus.collapse.sectionHeadersFadingOut
