@@ -437,7 +437,6 @@ local coordText, coordShadow, timeText, timeShadow
 local mailFrame, mailPulsing
 local collectorBar, barAnchor
 local collectedButtons, drawerPanelButtons = {}, {}
-local updateMinimapClickGuard -- set in Vista.Init, called by CollectMinimapButtons
 local barAlpha, hoverTarget, hoverElapsed = 0, 0, 0
 local barCloseDelayElapsed = 0  -- tracks how long we've been "waiting to close"
 local barAnchorDragging = false -- true while the anchor is being dragged
@@ -1584,7 +1583,7 @@ local function CreateQueueAnchor()
     end)
 end
 
-local INTERNAL_BLACKLIST, BLIZZARD_DEFAULT_BUTTONS, buttonOriginalState, proxyButtonCache
+local INTERNAL_BLACKLIST, BLIZZARD_DEFAULT_BUTTONS, ClusterAndOtherAddonNamePatterns, buttonOriginalState, proxyButtonCache
 do
     INTERNAL_BLACKLIST = {
         ["HorizonSuiteVistaDecor"]       = true,
@@ -1600,6 +1599,8 @@ do
         ["MiniMapWorldMapButton"]        = true,
         ["MinimapZoomIn"]                = true,
         ["MinimapZoomOut"]               = true,
+        ["MinimapCluster"]               = true,
+        ["MinimapToggleButton"]          = true,
         ["AddonCompartmentFrame"]        = true,
         ["AddonCompartmentFrameButton"]  = true,
     }
@@ -1610,12 +1611,39 @@ do
         ["MinimapTrackingFrame"]              = true,
         ["MiniMapTrackingButton"]             = true,
         ["MiniMapTrackingIcon"]               = true,
+        ["MiniMapTrackingIconOverlay"]        = true,
         ["GarrisonLandingPageMinimapButton"]  = true,
         ["ExpansionLandingPageMinimapButton"] = true,
         ["MiniMapInstanceDifficulty"]         = true,
         ["QueueStatusMinimapButton"]          = true,
         ["QueueStatusButton"]                 = true,
+        ["QueueStatusFrame"]                  = true,
         ["MiniMapBattlefieldFrame"]           = true,
+        ["MiniMapMailFrame"]                  = true,
+        ["MiniMapMailIcon"]                   = true,
+        ["MiniMapMailBorder"]                 = true,
+        ["MinimapMailFrameNormal"]            = true,
+        ["MiniMapStableFrame"]               = true,
+        ["MiniMapCraftingOrderIcon"]          = true,
+        ["MiniMapVoiceChatFrame"]             = true,
+        ["MinimapPlayerArrow"]               = true,
+        ["MinimapArrow"]                     = true,
+        ["HelpOpenWebTicketButton"]          = true,
+        ["HelpOpenTicketButton"]             = true,
+        ["MinimapHelpButton"]                = true,
+        ["MiniMapLFGFrame"]                  = true,
+        ["MiniMapRecordingButton"]           = true,
+        ["EmoticonMiniMapDropDown"]           = true,
+        ["EmoticonMiniMapButton"]            = true,
+    }
+
+    ClusterAndOtherAddonNamePatterns = {
+        "^Emoticon",
+        "^GatherMatePin%d+$",
+        "^Minimap%a*Pin%d*$",
+        "^MinimapCluster%.",
+        "^TTMinimapButton%d+$",
+        "^Plumber"
     }
     buttonOriginalState = {}
     proxyButtonCache    = {}
@@ -1806,6 +1834,14 @@ local function IsButtonManagedByVista(btn)
     local cName = btn:GetName()
     if cName and INTERNAL_BLACKLIST[cName] then return false end
     if cName and BLIZZARD_DEFAULT_BUTTONS[cName] then return false end
+    if cName then
+        for _, pat in ipairs(ClusterAndOtherAddonNamePatterns) do
+            if cName:match(pat) then return false end
+        end
+    end
+    local isProtected = false
+    pcall(function() isProtected = btn:IsProtected() end)
+    if isProtected then return false end
     if cName and not DB("vistaButtonManaged_" .. cName, true) then return false end
     return true
 end
@@ -1833,12 +1869,27 @@ local function ScanMinimapButtons()
     local function isMapPin(child)
         if child.dataObject then return false end
         if child.db and child.db.minimapPos then return false end
-        if child:GetName() then return false end
-        -- An unnamed button with CENTER/CENTER anchor and no dataObject = map marker
-        local ok, point, relFrame, relPoint = pcall(child.GetPoint, child, 1)
-        if not ok then return false end
-        if point == "CENTER" and relPoint == "CENTER" and relFrame == Minimap then
-            return true
+        if not child:GetName() then
+            local ok, point, relFrame, relPoint = pcall(child.GetPoint, child, 1)
+            if ok and point == "CENTER" and relPoint == "CENTER" and relFrame == Minimap then
+                return true
+            end
+            local hasClick = false
+            pcall(function()
+                if child:HasScript("OnClick") and child:GetScript("OnClick") then hasClick = true end
+            end)
+            pcall(function()
+                if child:HasScript("OnMouseUp") and child:GetScript("OnMouseUp") then hasClick = true end
+            end)
+            if not hasClick then return true end
+        end
+        return false
+    end
+
+    local function matchesBlizzardPattern(cName)
+        if not cName then return false end
+        for _, pat in ipairs(ClusterAndOtherAddonNamePatterns) do
+            if cName:match(pat) then return true end
         end
         return false
     end
@@ -1858,6 +1909,34 @@ local function ScanMinimapButtons()
         return false
     end
 
+    local function hasClickHandler(child)
+        local found = false
+        pcall(function()
+            if child:HasScript("OnClick") and child:GetScript("OnClick") then found = true end
+        end)
+        if found then return true end
+        pcall(function()
+            if child:HasScript("OnMouseUp") and child:GetScript("OnMouseUp") then found = true end
+        end)
+        if found then return true end
+        pcall(function()
+            if child:HasScript("OnMouseDown") and child:GetScript("OnMouseDown") then found = true end
+        end)
+        if found then return true end
+        pcall(function()
+            for _, sub in ipairs({ child:GetChildren() }) do
+                pcall(function()
+                    if sub:HasScript("OnClick") and sub:GetScript("OnClick") then found = true end
+                end)
+                if not found then pcall(function()
+                    if sub:HasScript("OnMouseUp") and sub:GetScript("OnMouseUp") then found = true end
+                end) end
+                if found then return end
+            end
+        end)
+        return found
+    end
+
     local function tryAdd(child, requireName)
         if not child or seen[child] then return end
         local ok, isBtn = pcall(function() return child:IsObjectType("Button") end)
@@ -1866,14 +1945,19 @@ local function ScanMinimapButtons()
         if requireName and not cName then return end
         if cName and INTERNAL_BLACKLIST[cName] then return end
         if cName and BLIZZARD_DEFAULT_BUTTONS[cName] then return end
+        if cName and matchesBlizzardPattern(cName) then return end
+        local isProtected = false
+        pcall(function() isProtected = child:IsProtected() end)
+        if isProtected then return end
         if isOptionsPanelChild(child) then return end
         if isMapPin(child) then return end
-        -- Size check: 14–100px, and the button must be roughly square (aspect ratio ≤ 2.5:1).
-        -- This filters out scroll arrows, thin sliders, and other non-icon widgets.
         local w, h = child:GetSize()
         if w < 14 or w > 100 or h < 14 or h > 100 then return end
         local ratio = (w > h) and (w / h) or (h / w)
-        if ratio > 2.5 then return end
+        if ratio > 1.5 then return end
+        if not child.dataObject and not (child.db and child.db.minimapPos) then
+            if not hasClickHandler(child) then return end
+        end
         seen[child] = true
         result[#result + 1] = child
     end
@@ -1920,8 +2004,7 @@ local function ScanMinimapButtons()
         if type(gName) == "string" then
             local lname = gName:lower()
             local isLibDBIcon = lname:match("^libdbicon[%d]*_")
-            local hasMinimapInName = lname:find("minimap", 1, true)
-            if isLibDBIcon or hasMinimapInName then
+            if isLibDBIcon then
                 if type(gObj) == "table" and type(gObj.IsObjectType) == "function" then
                     pcall(function() tryAdd(gObj, true) end)
                 end
@@ -2604,7 +2687,7 @@ local function CollectMinimapButtons()
     -- Scan for addon buttons
     local allCandidates = ScanMinimapButtons()
 
-    -- Save original state for newly-discovered buttons
+    wipe(allManagedButtons)
     for _, btn in ipairs(allCandidates) do
         SaveButtonState(btn)
         allManagedButtons[btn] = true
@@ -2680,7 +2763,6 @@ local function CollectMinimapButtons()
         UpdateDrawerPanelLayout()
         if collectorBar then collectorBar:SetWidth(1) end
     end
-    if updateMinimapClickGuard then updateMinimapClickGuard() end
 end
 
 -- ============================================================================
@@ -3095,41 +3177,13 @@ function Vista.Init()
         hoverTarget = 0; hoverElapsed = 0; barCloseDelayElapsed = 0
     end)
 
-    -- Transparent overlay to intercept right-clicks and suppress minimap pinging in right-click panel mode.
-    -- When enabled, it blocks left-drag from reaching Minimap; forward left-drag so minimap can move when unlocked.
-    local minimapClickGuard = CreateFrame("Button", nil, Minimap)
-    minimapClickGuard:SetAllPoints(Minimap)
-    minimapClickGuard:SetFrameLevel(Minimap:GetFrameLevel() + 5)
-    minimapClickGuard:EnableMouse(false)
-    minimapClickGuard:SetMouseMotionEnabled(false)  -- never capture hover so minimap pin tooltips pass through
-    minimapClickGuard:RegisterForClicks("RightButtonDown", "RightButtonUp")
-    minimapClickGuard:RegisterForDrag("LeftButton")
-    minimapClickGuard:SetScript("OnDragStart", function()
-        local lock = DB("vistaLock", true)
-        if lock then return end
-        if InCombatLockdown() then return end
-        if Minimap and Minimap:IsMovable() then Minimap:StartMoving() end
-    end)
-    minimapClickGuard:SetScript("OnDragStop", function()
-        if InCombatLockdown() then return end
-        if Minimap then
-            Minimap:StopMovingOrSizing()
-            if addon.SetDB then
-                local p, _, rp, x, y = Minimap:GetPoint()
-                SetDB("vistaPoint", p); SetDB("vistaRelPoint", rp)
-                SetDB("vistaX", x);     SetDB("vistaY", y)
-            end
-        end
-    end)
-    minimapClickGuard:SetScript("OnClick", function(_, button, down)
-        -- Only act on release; the down event is consumed purely to suppress the minimap ping
-        if button == "RightButton" and not down and GetButtonMode() == BTN_MODE_RIGHTCLICK then
+    Minimap:HookScript("OnMouseUp", function(_, button)
+        if button == "RightButton" and GetButtonMode() == BTN_MODE_RIGHTCLICK then
             if not rightClickPanel then CreateRightClickPanel() end
             rightClickVisible = not rightClickVisible
             if rightClickVisible then
                 LayoutRightClickPanel(collectedButtons)
                 rightClickPanel:Show()
-                -- Start auto-close polling if a delay is configured
                 if rightClickPanel._scheduleAutoClose then rightClickPanel._scheduleAutoClose() end
             else
                 rightClickPanel:Hide()
@@ -3137,10 +3191,6 @@ function Vista.Init()
             end
         end
     end)
-    local function UpdateMinimapClickGuard()
-        minimapClickGuard:SetMouseClickEnabled(GetButtonMode() == BTN_MODE_RIGHTCLICK)
-    end
-    updateMinimapClickGuard = UpdateMinimapClickGuard
 
     eventFrame = CreateFrame("Frame")
     eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
