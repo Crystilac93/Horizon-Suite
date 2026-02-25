@@ -10,6 +10,16 @@ All notable changes to Horizon Suite are documented here.
 
 ---
 
+## [3.1.3] – 2026-02-25
+
+### 🔧 Improvements
+
+- **(Vista) Configurable close delays** — Set how long the mouseover bar, right-click panel, and floating drawer stay open after the cursor leaves (0 = instant or never auto-close).
+- **(Vista) Configurable background and border for mouseover button bar** — Customize color and optional border for the addon button bar.
+- **(Vista) Reposition addon button bar discoverability** — Tooltip and option description explain how to drag the bar to reposition when unlocked.
+
+---
+
 ## [3.1.2] – 2026-02-24
 
 ### 🔧 Improvements
