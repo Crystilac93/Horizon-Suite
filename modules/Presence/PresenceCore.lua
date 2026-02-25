@@ -52,7 +52,7 @@ local TYPES = {
     WORLD_QUEST    = { pri = 2, category = "WORLD",     subCategory = "DEFAULT", sz = 48, dur = 4.0 },
     ZONE_CHANGE    = { pri = 2, category = "DEFAULT",   subCategory = "CAMPAIGN", sz = 48, dur = 4.0 },
     QUEST_ACCEPT       = { pri = 1, category = "DEFAULT",   subCategory = "DEFAULT", sz = 36, dur = 3.0 },
-    WORLD_QUEST_ACCEPT = { pri = 1, category = "WORLD",     subCategory = "DEFAULT", sz = 36, dur = 3.0 },
+    WORLD_QUEST_ACCEPT = { pri = 2, category = "WORLD",     subCategory = "DEFAULT", sz = 36, dur = 3.0 },
     QUEST_UPDATE       = { pri = 1, category = "DEFAULT",   subCategory = "DEFAULT", sz = 20, dur = 2.5, liveUpdate = true, replaceInQueue = true },
     SUBZONE_CHANGE     = { pri = 1, category = "DEFAULT",   subCategory = "CAMPAIGN", sz = 36, dur = 3.0 },
     SCENARIO_START     = { pri = 2, category = "SCENARIO", subCategory = "DEFAULT", sz = 36, dur = 3.5 },
