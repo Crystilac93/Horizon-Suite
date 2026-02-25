@@ -132,45 +132,53 @@ end
 -- @param default string optional default when key is not set (e.g. "upper" for header, "proper" for title)
 -- @return string
 function addon.ApplyTextCase(text, dbKey, default)
-    if text == nil or type(text) ~= "string" then return text end
+    if not text or type(text) ~= "string" or text == "" then return text end
+    
     local v = addon.GetDB(dbKey, default or "proper")
-    if v ~= "upper" and v ~= "lower" and v ~= "proper" and v ~= "default" then return text end
-
-    -- Extract WoW escape sequences (|T...|t, |A...|a, |c........text|r) so case
-    -- transforms don't corrupt them. Replace each with a placeholder, apply the
-    -- case change on the clean string, then re-insert the escapes.
+    if v == "default" then return text end
+    local hasEscapes = text:find("|c") or text:find("|[TtAa]")
+    local hasExtendedCap = text:find("[%z\128-\255]") and text == strupper(text)
+    local _, spaceCount = text:gsub("%s", "")
+    local isSystemText = spaceCount > 3 or text:find("%.%s*$") or #text > 35
+    local isInternal = hasEscapes or hasExtendedCap or isSystemText
     local escapes = {}
-    local placeholder = "\001"
-    local clean = text:gsub("|[TtAa][^|]*|[TtAa]", function(m)
-        escapes[#escapes + 1] = m
-        return placeholder
-    end)
-    clean = clean:gsub("|c%x%x%x%x%x%x%x%x(.-)|r", function(inner)
-        -- Preserve the full color escape; we'll transform the inner text separately.
-        escapes[#escapes + 1] = { inner = inner, isColor = true }
-        return placeholder
-    end)
+    
+    local function transform(s)
+        if v == "upper" then return strupper(s) end
+        if v == "lower" then return strlower(s) end
+        
+        if v == "proper" then
+            -- Skip proper case for internal/localized strings to prevent Umlaut corruption
+            if isInternal then return s end
 
-    local function applyCase(s)
-        if v == "upper" then return s:upper() end
-        if v == "lower" then return s:lower() end
-        return s:gsub("(%a)([%a']*)", function(a, rest) return a:upper() .. rest:lower() end)
+            -- Format short addon labels
+            local lower = strlower(s)
+            return (lower:gsub("(%S)(%S*)", function(first, rest)
+                return strupper(first) .. rest
+            end))
+        end
+        return s
     end
 
-    clean = applyCase(clean)
-
-    -- Re-insert escapes in order.
-    local idx = 0
-    clean = clean:gsub(placeholder, function()
-        idx = idx + 1
-        local esc = escapes[idx]
-        if type(esc) == "table" and esc.isColor then
-            return esc.inner
-        end
-        return esc
+    local clean = text:gsub("(|[TtAa][^|]*|[TtAa])", function(m)
+        table.insert(escapes, m)
+        return "\001"
+    end):gsub("(|c%x%x%x%x%x%x%x%x)(.-)(|r)", function(p, i, s)
+        table.insert(escapes, {p = p, i = i, s = s})
+        return "\001"
     end)
 
-    return clean
+    clean = transform(clean)
+
+    local idx = 0
+    return (clean:gsub("\001", function()
+        idx = idx + 1
+        local e = escapes[idx]
+        if type(e) == "table" then
+            return e.p .. (isInternal and e.i or transform(e.i)) .. e.s
+        end
+        return e
+    end))
 end
 
 --- Create a text + shadow pair using the addon font objects and shadow offsets.

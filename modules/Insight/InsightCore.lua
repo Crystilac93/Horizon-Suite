@@ -717,6 +717,7 @@ local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("INSPECT_READY")
 eventFrame:SetScript("OnEvent", function(self, event, guid)
     if event == "INSPECT_READY" then
+        if not IsEnabled() then return end
         if not guid then return end
         if UnitExists("mouseover") and UnitGUID("mouseover") == guid then
             CacheInspect(guid, "mouseover")

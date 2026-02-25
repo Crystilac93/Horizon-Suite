@@ -29,7 +29,7 @@ local FRAME_HEIGHT = 250
 local FRAME_Y_DEF  = -180
 local DIVIDER_W    = 400
 local DIVIDER_H    = 2
-local MAX_QUEUE    = 5
+local MAX_QUEUE    = 8
 
 local ENTRANCE_DUR_DEF  = 0.7
 local EXIT_DUR_DEF      = 0.8
@@ -44,21 +44,19 @@ local DELAY_DIVIDER   = 0.15
 local DELAY_SUBTITLE  = 0.30
 local DELAY_DISCOVERY = 0.45
 
--- Category/subCategory align with Focus; colours resolved at play via addon.GetQuestColor (respects options).
--- BOSS_EMOTE uses addon.PRESENCE_BOSS_EMOTE_COLOR. QUEST_COMPLETE/QUEST_ACCEPT use opts.questID → base/category when present.
 local TYPES = {
     LEVEL_UP       = { pri = 4, category = "COMPLETE",   subCategory = "DEFAULT", sz = 48, dur = 5.0 },
     BOSS_EMOTE     = { pri = 4, specialColor = true,     subCategory = "DEFAULT", sz = 48, dur = 5.0 },
     ACHIEVEMENT    = { pri = 3, category = "ACHIEVEMENT", subCategory = "DEFAULT", sz = 48, dur = 4.5 },
-    QUEST_COMPLETE = { pri = 2, category = "DEFAULT",   subCategory = "DEFAULT", sz = 48, dur = 4.0 },  -- overridden by opts.questID → base
+    QUEST_COMPLETE = { pri = 2, category = "DEFAULT",   subCategory = "DEFAULT", sz = 48, dur = 4.0 },
     WORLD_QUEST    = { pri = 2, category = "WORLD",     subCategory = "DEFAULT", sz = 48, dur = 4.0 },
     ZONE_CHANGE    = { pri = 2, category = "DEFAULT",   subCategory = "CAMPAIGN", sz = 48, dur = 4.0 },
-    QUEST_ACCEPT       = { pri = 1, category = "DEFAULT",   subCategory = "DEFAULT", sz = 36, dur = 3.0 },  -- overridden by opts.questID
+    QUEST_ACCEPT       = { pri = 1, category = "DEFAULT",   subCategory = "DEFAULT", sz = 36, dur = 3.0 },
     WORLD_QUEST_ACCEPT = { pri = 1, category = "WORLD",     subCategory = "DEFAULT", sz = 36, dur = 3.0 },
-    QUEST_UPDATE       = { pri = 1, category = "DEFAULT",   subCategory = "DEFAULT", sz = 20, dur = 2.5 },
+    QUEST_UPDATE       = { pri = 1, category = "DEFAULT",   subCategory = "DEFAULT", sz = 20, dur = 2.5, liveUpdate = true, replaceInQueue = true },
     SUBZONE_CHANGE     = { pri = 1, category = "DEFAULT",   subCategory = "CAMPAIGN", sz = 36, dur = 3.0 },
-    SCENARIO_START     = { pri = 2, category = "SCENARIO", subCategory = "DEFAULT", sz = 36, dur = 3.5 },  -- category overridden by opts.category (DELVES|DUNGEON|SCENARIO)
-    SCENARIO_UPDATE     = { pri = 1, category = "SCENARIO", subCategory = "DEFAULT", sz = 36, dur = 2.5 },  -- category overridden by opts.category (DELVES|DUNGEON|SCENARIO); sz=36 matches SCENARIO_START
+    SCENARIO_START     = { pri = 2, category = "SCENARIO", subCategory = "DEFAULT", sz = 36, dur = 3.5 },
+    SCENARIO_UPDATE     = { pri = 1, category = "SCENARIO", subCategory = "DEFAULT", sz = 36, dur = 2.5, liveUpdate = true, replaceInQueue = true },
 }
 
 local function getFrameY()
@@ -239,11 +237,13 @@ local QUEST_UPDATE_DEDUPE_TIME = 1.5
 local lastQuestUpdateNorm, lastQuestUpdateTime
 
 -- ============================================================================
--- LIVE DEBUG LOG
+-- LIVE DEBUG LOG  (ring-buffer – avoids O(n) table.remove(1))
 -- ============================================================================
 
 local DEBUG_LOG_MAX = 500
 local debugLogBuffer = {}
+local debugLogHead   = 1
+local debugLogCount  = 0
 local debugLogFrame
 
 local function IsDebugLive()
@@ -254,10 +254,10 @@ local function PresenceDebugLog(msg)
     if not IsDebugLive() then return end
     local ts = ("%.1f"):format(GetTime() or 0)
     local line = "[" .. ts .. "] " .. tostring(msg or "")
-    debugLogBuffer[#debugLogBuffer + 1] = line
-    while #debugLogBuffer > DEBUG_LOG_MAX do
-        table.remove(debugLogBuffer, 1)
-    end
+
+    debugLogBuffer[debugLogHead] = line
+    debugLogHead  = (debugLogHead % DEBUG_LOG_MAX) + 1
+    if debugLogCount < DEBUG_LOG_MAX then debugLogCount = debugLogCount + 1 end
 
     if debugLogFrame and debugLogFrame.msg then
         debugLogFrame.msg:AddMessage(line, 0.7, 0.9, 1, 1)
@@ -307,6 +307,8 @@ local function CreateDebugPanel()
     clearBtn:SetPoint("TOPRIGHT", -40, -10)
     clearBtn:SetScript("OnClick", function()
         debugLogBuffer = {}
+        debugLogHead   = 1
+        debugLogCount  = 0
         if debugLogFrame and debugLogFrame.msg then
             debugLogFrame.msg:SetMaxLines(DEBUG_LOG_MAX)
         end
@@ -347,8 +349,11 @@ local function ShowDebugPanel()
     CreateDebugPanel()
     if debugLogFrame then
         debugLogFrame.msg:SetMaxLines(DEBUG_LOG_MAX)
-        for _, line in ipairs(debugLogBuffer) do
-            debugLogFrame.msg:AddMessage(line, 0.7, 0.9, 1, 1)
+        local start = (debugLogCount < DEBUG_LOG_MAX) and 1 or debugLogHead
+        for i = 0, debugLogCount - 1 do
+            local idx = ((start - 1 + i) % DEBUG_LOG_MAX) + 1
+            local line = debugLogBuffer[idx]
+            if line then debugLogFrame.msg:AddMessage(line, 0.7, 0.9, 1, 1) end
         end
         debugLogFrame:Show()
     end
@@ -453,15 +458,16 @@ end
 local function updateCrossfade()
     local fadeT = math.min(anim.elapsed / CROSSFADE_DUR, 1)
     local fade  = crossfadeStartAlpha * (1 - easeIn(fadeT))
+    local fade8 = fade * 0.8
     oldLayer.titleText:SetAlpha(fade)
-    oldLayer.titleShadow:SetAlpha(fade * 0.8)
+    oldLayer.titleShadow:SetAlpha(fade8)
     if oldLayer.questTypeIcon and oldLayer.questTypeIcon:IsShown() then oldLayer.questTypeIcon:SetAlpha(fade) end
     oldLayer.divider:SetAlpha(fade * 0.5)
     oldLayer.subText:SetAlpha(fade)
-    oldLayer.subShadow:SetAlpha(fade * 0.8)
+    oldLayer.subShadow:SetAlpha(fade8)
     if (oldLayer.discoveryText:GetText() or "") ~= "" then
         oldLayer.discoveryText:SetAlpha(fade)
-        oldLayer.discoveryShadow:SetAlpha(fade * 0.8)
+        oldLayer.discoveryShadow:SetAlpha(fade8)
     end
     updateEntrance()
 end
@@ -470,9 +476,10 @@ local function updateExit()
     local L   = curLayer
     local e   = (cachedExitDur > 0) and math.min(anim.elapsed / cachedExitDur, 1) or 1
     local inv = 1 - e
+    local inv8 = inv * 0.8
 
     L.titleText:SetAlpha(inv)
-    L.titleShadow:SetAlpha(inv * 0.8)
+    L.titleShadow:SetAlpha(inv8)
     if L.questTypeIcon and L.questTypeIcon:IsShown() then L.questTypeIcon:SetAlpha(inv) end
     setTitleOffset(L, e * 15)
 
@@ -480,12 +487,12 @@ local function updateExit()
     setDividerWidth(L, DIVIDER_W * inv)
 
     L.subText:SetAlpha(inv)
-    L.subShadow:SetAlpha(inv * 0.8)
+    L.subShadow:SetAlpha(inv8)
     setSubOffset(L, e * (-10))
 
     if cachedHasDiscovery then
         L.discoveryText:SetAlpha(inv)
-        L.discoveryShadow:SetAlpha(inv * 0.8)
+        L.discoveryShadow:SetAlpha(inv8)
     end
 end
 
@@ -578,9 +585,12 @@ local function PresenceOnUpdate(_, dt)
 end
 
 onComplete = function()
-    local doneTitle = activeTitle
-    local doneType = activeTypeName
-    local doneSub = (curLayer and curLayer.subText and curLayer.subText:GetText()) or ""
+    local doneTitle, doneType, doneSub
+    if IsDebugLive() then
+        doneTitle = activeTitle
+        doneType  = activeTypeName
+        doneSub   = (curLayer and curLayer.subText and curLayer.subText:GetText()) or ""
+    end
 
     subtitleTransition = nil
     F:SetScript("OnUpdate", nil)
@@ -592,7 +602,9 @@ onComplete = function()
     resetLayer(oldLayer)
     F:Hide()
 
-    PresenceDebugLog(("Complete %s \"%s\" | \"%s\"; queue=%d"):format(tostring(doneType or "?"), tostring(doneTitle or ""):gsub('"', "'"), tostring(doneSub):gsub('"', "'"), #queue))
+    if doneTitle then
+        PresenceDebugLog(("Complete %s \"%s\" | \"%s\"; queue=%d"):format(tostring(doneType or "?"), tostring(doneTitle or ""):gsub('"', "'"), tostring(doneSub):gsub('"', "'"), #queue))
+    end
 
     if #queue > 0 then
         local best = 1
@@ -742,8 +754,10 @@ PlayCinematic = function(typeName, title, subtitle, opts)
         anim.phase = "entrance"
     end
 
-    local src = (opts.source and (" via %s"):format(opts.source)) or ""
-    PresenceDebugLog(("Play %s \"%s\" | \"%s\" phase=%s%s"):format(typeName, tostring(title or ""):gsub('"', "'"), tostring(subtitle or ""):gsub('"', "'"), anim.phase, src))
+    if IsDebugLive() then
+        local src = (opts.source and (" via %s"):format(opts.source)) or ""
+        PresenceDebugLog(("Play %s \"%s\" | \"%s\" phase=%s%s"):format(typeName, tostring(title or ""):gsub('"', "'"), tostring(subtitle or ""):gsub('"', "'"), anim.phase, src))
+    end
 
     F:SetScript("OnUpdate", PresenceOnUpdate)
     F:SetAlpha(1)
@@ -847,19 +861,79 @@ local function QueueOrPlay(typeName, title, subtitle, opts)
     end
 
     if active then
-        -- Always queue when something is showing; no interrupting. Subzone-only changes
-        -- bypass QueueOrPlay and use SoftUpdateSubtitle (PresenceEvents).
+        if cfg.liveUpdate and activeTypeName == typeName
+            and (anim.phase == "entrance" or anim.phase == "hold") then
+            local newSub = subtitle or ""
+            local curSub = (curLayer and curLayer.subText and curLayer.subText:GetText()) or ""
+            if newSub ~= curSub then
+                if subtitleTransition then
+                    subtitleTransition.newText = newSub
+                else
+                    subtitleTransition = { phase = "fadeOut", elapsed = 0, newText = newSub }
+                end
+                if anim.phase == "hold" then anim.elapsed = 0 end
+                if typeName == "QUEST_UPDATE" and addon.Presence.NormalizeQuestUpdateText then
+                    lastQuestUpdateNorm = addon.Presence.NormalizeQuestUpdateText(newSub)
+                    lastQuestUpdateTime = GetTime()
+                end
+                if IsDebugLive() then
+                    local src = (opts.source and (" via %s"):format(opts.source)) or ""
+                    PresenceDebugLog(("LiveUpdate %s \"%s\"%s"):format(typeName, tostring(newSub):gsub('"', "'"), src))
+                end
+            end
+            return
+        end
+
+        -- ----------------------------------------------------------------
+        -- 2. PRIORITY PREEMPT: incoming event has strictly higher priority
+        --    than what is playing.  Interrupt with a crossfade so the more
+        --    important notification is never delayed by a queue drain.
+        -- ----------------------------------------------------------------
+        if cfg.pri > active.pri then
+            if IsDebugLive() then
+                local src = (opts.source and (" via %s"):format(opts.source)) or ""
+                PresenceDebugLog(("Preempt %s (pri=%d) over %s (pri=%d)%s"):format(typeName, cfg.pri, activeTypeName or "?", active.pri, src))
+            end
+            interruptCurrent()
+            PlayCinematic(typeName, title, subtitle, opts)
+            return
+        end
+
         if #queue < MAX_QUEUE then
-            -- Dedup: skip if same type and title already showing (e.g. duplicate zone change)
-            if not (activeTitle == title and activeTypeName == typeName) then
-                queue[#queue + 1] = { typeName, title, subtitle, opts }
+            -- Exact-duplicate guard: skip if same type+title is already active
+            if activeTitle == title and activeTypeName == typeName then return end
+
+            if cfg.replaceInQueue then
+                -- Replace the last same-type entry in the queue instead of appending.
+                -- This keeps the queue small during rapid same-type bursts (e.g. mob kills).
+                for i = #queue, 1, -1 do
+                    if queue[i][1] == typeName then
+                        queue[i] = { typeName, title, subtitle, opts }
+                        if IsDebugLive() then
+                            local src = (opts.source and (" via %s"):format(opts.source)) or ""
+                            PresenceDebugLog(("QueueReplace[%d] %s | \"%s\"%s"):format(i, typeName, tostring(subtitle or ""):gsub('"', "'"), src))
+                        end
+                        return
+                    end
+                end
+            end
+
+            queue[#queue + 1] = { typeName, title, subtitle, opts }
+            if IsDebugLive() then
                 local src = (opts.source and (" via %s"):format(opts.source)) or ""
                 PresenceDebugLog(("Queued %s | \"%s\" | \"%s\" (q=%d)%s"):format(typeName, tostring(title):gsub('"', "'"), tostring(subtitle or ""):gsub('"', "'"), #queue, src))
             end
+        else
+            if IsDebugLive() then
+                local src = (opts.source and (" via %s"):format(opts.source)) or ""
+                PresenceDebugLog(("QueueFull – dropped %s%s"):format(typeName, src))
+            end
         end
     else
-        local src = (opts.source and (" via %s"):format(opts.source)) or ""
-        PresenceDebugLog(("QueueOrPlay: play %s | \"%s\" | \"%s\"%s"):format(typeName, tostring(title or ""):gsub('"', "'"), tostring(subtitle or ""):gsub('"', "'"), src))
+        if IsDebugLive() then
+            local src = (opts.source and (" via %s"):format(opts.source)) or ""
+            PresenceDebugLog(("QueueOrPlay: play %s | \"%s\" | \"%s\"%s"):format(typeName, tostring(title or ""):gsub('"', "'"), tostring(subtitle or ""):gsub('"', "'"), src))
+        end
         PlayCinematic(typeName, title, subtitle, opts)
     end
 end
