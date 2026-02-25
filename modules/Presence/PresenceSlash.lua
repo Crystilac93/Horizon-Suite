@@ -66,6 +66,11 @@ local function HandlePresenceSlash(msg)
         else
             addon.Presence.QueueOrPlay("SCENARIO_START", "Cinderbrew Meadery", "Defend the tavern from attackers", { category = "SCENARIO" })
         end
+    elseif cmd == "scenariocomplete" then
+        addon.Presence.QueueOrPlay("SCENARIO_COMPLETE", "Cinderbrew Meadery", "Scenario Complete", { category = "SCENARIO" })
+    elseif cmd == "rare" then
+        local L = addon.L or {}
+        addon.Presence.QueueOrPlay("RARE_DEFEATED", L["RARE DEFEATED"] or "RARE DEFEATED", "Sparkspitter Vrak")
     elseif cmd == "zone" then
         addon.Presence.QueueOrPlay("ZONE_CHANGE", GetZoneText() or "Unknown Zone", GetSubZoneText() or "")
     elseif cmd == "subzone" then
@@ -86,9 +91,11 @@ local function HandlePresenceSlash(msg)
             { "QUEST_COMPLETE",      L["QUEST COMPLETE"],               L["Aiding the Accord"] },
             { "WORLD_QUEST",         L["WORLD QUEST"],                  L["Azerite Mining"] },
             { "SCENARIO_START",      "Cinderbrew Meadery",              "Defend the tavern", { category = "SCENARIO" } },
+            { "SCENARIO_COMPLETE",   "Cinderbrew Meadery",              "Scenario Complete",  { category = "SCENARIO" } },
             { "ACHIEVEMENT",         L["ACHIEVEMENT EARNED"],           L["Exploring Khaz Algar"] },
             { "BOSS_EMOTE",          "Ragnaros",                        "BY FIRE BE PURGED!" },
             { "LEVEL_UP",            L["LEVEL UP"],                     L["You have reached level 80"] },
+            { "RARE_DEFEATED",       L["RARE DEFEATED"] or "RARE DEFEATED", "Sparkspitter Vrak" },
         }
         for i, d in ipairs(demos) do
             C_Timer.After((i - 1) * 3, function()
@@ -108,7 +115,9 @@ local function HandlePresenceSlash(msg)
         HSPrint(L["  /horizon presence ach      - Test Achievement"])
         HSPrint(L["  /horizon presence accept   - Test Quest Accepted"])
         HSPrint(L["  /horizon presence wqaccept - Test World Quest Accepted"])
-        HSPrint(L["  /horizon presence scenario - Test Scenario Start"])
+        HSPrint(L["  /horizon presence scenario         - Test Scenario Start"])
+        HSPrint(L["  /horizon presence scenariocomplete - Test Scenario Complete"])
+        HSPrint(L["  /horizon presence rare    - Test Rare Defeated"])
         HSPrint(L["  /horizon presence quest    - Test Quest Complete"])
         HSPrint(L["  /horizon presence wq       - Test World Quest"])
         HSPrint(L["  /horizon presence update   - Test Quest Update"])

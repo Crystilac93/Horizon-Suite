@@ -66,6 +66,8 @@ local PRESENCE_KEYS = {
     presenceQuestUpdate = true,
     presenceScenarioStart = true,
     presenceScenarioUpdate = true,
+    presenceScenarioComplete = true,
+    presenceRareDefeated = true,
     presenceAnimations = true,
     presenceEntranceDur = true,
     presenceExitDur = true,
@@ -1220,6 +1222,8 @@ local OptionCategories = {
             { type = "toggle", name = L["Show quest progress"], desc = L["Show notification when quest objectives update."], dbKey = "presenceQuestUpdate", get = function() local v = getDB("presenceQuestUpdate", nil); if v ~= nil then return v end; return getDB("presenceQuestEvents", true) end, set = function(v) setDB("presenceQuestUpdate", v) end },
             { type = "toggle", name = L["Show scenario start"], desc = L["Show notification when entering a scenario or Delve."], dbKey = "presenceScenarioStart", get = function() local v = getDB("presenceScenarioStart", nil); if v ~= nil then return v end; return getDB("showScenarioEvents", true) end, set = function(v) setDB("presenceScenarioStart", v) end },
             { type = "toggle", name = L["Show scenario progress"], desc = L["Show notification when scenario or Delve objectives update."], dbKey = "presenceScenarioUpdate", get = function() local v = getDB("presenceScenarioUpdate", nil); if v ~= nil then return v end; return getDB("showScenarioEvents", true) end, set = function(v) setDB("presenceScenarioUpdate", v) end },
+            { type = "toggle", name = L["Show scenario complete"], desc = L["Show notification when a scenario or Delve is fully completed."], dbKey = "presenceScenarioComplete", get = function() local v = getDB("presenceScenarioComplete", nil); if v ~= nil then return v end; return getDB("showScenarioEvents", true) end, set = function(v) setDB("presenceScenarioComplete", v) end },
+            { type = "toggle", name = L["Show rare defeated"], desc = L["Show notification when a rare mob is defeated nearby."], dbKey = "presenceRareDefeated", get = function() return getDB("presenceRareDefeated", true) end, set = function(v) setDB("presenceRareDefeated", v) end },
         },
     },
     {

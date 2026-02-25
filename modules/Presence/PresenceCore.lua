@@ -57,6 +57,8 @@ local TYPES = {
     SUBZONE_CHANGE     = { pri = 1, category = "DEFAULT",   subCategory = "CAMPAIGN", sz = 36, dur = 3.0 },
     SCENARIO_START     = { pri = 2, category = "SCENARIO", subCategory = "DEFAULT", sz = 36, dur = 3.5 },
     SCENARIO_UPDATE     = { pri = 1, category = "SCENARIO", subCategory = "DEFAULT", sz = 36, dur = 2.5, liveUpdate = true, replaceInQueue = true },
+    SCENARIO_COMPLETE  = { pri = 2, category = "SCENARIO", subCategory = "DEFAULT", sz = 48, dur = 4.0 },
+    RARE_DEFEATED      = { pri = 2, category = "RARE", subCategory = "DEFAULT", sz = 48, dur = 4.0 },
 }
 
 local function getFrameY()
@@ -135,7 +137,8 @@ local function resolveColors(typeName, cfg, opts)
         return c, sc
     end
     local cat = cfg.category
-    if opts.category and (typeName == "SCENARIO_START" or typeName == "SCENARIO_UPDATE" or typeName == "ZONE_CHANGE" or typeName == "SUBZONE_CHANGE") then
+    if opts.category and (typeName == "SCENARIO_START" or typeName == "SCENARIO_UPDATE"
+        or typeName == "SCENARIO_COMPLETE" or typeName == "ZONE_CHANGE" or typeName == "SUBZONE_CHANGE") then
         cat = opts.category
     elseif opts.questID then
         if typeName == "QUEST_COMPLETE" and addon.GetQuestBaseCategory then

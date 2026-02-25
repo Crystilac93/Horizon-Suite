@@ -83,6 +83,31 @@ local CINEMATIC_BACKDROP = {
 -- HELPERS
 -- ============================================================================
 
+local floor = math.floor
+
+local function FormatNumberWithCommas(n)
+    if type(n) ~= "number" then return tostring(n) end
+    if BreakUpLargeNumbers then
+        return BreakUpLargeNumbers(floor(n))
+    end
+    local s = tostring(floor(n))
+    local i = #s % 3
+    if i == 0 then i = 3 end
+    return s:sub(1, i) .. s:sub(i + 1):gsub("(%d%d%d)", ",%1")
+end
+
+-- Format numbers (4+ digits) in a string with comma separators; used for mount source (e.g. "Vendor: 5000g").
+local function FormatNumbersInString(str)
+    if not str or str == "" then return str end
+    return (str:gsub("%d+", function(numStr)
+        local n = tonumber(numStr)
+        if n and #numStr >= 4 then
+            return FormatNumberWithCommas(n)
+        end
+        return numStr
+    end))
+end
+
 local function easeOut(t) return 1 - (1 - t) * (1 - t) end
 
 local function IsEnabled()
@@ -233,7 +258,7 @@ local function GetPlayerMountInfo(unit)
         local spellID = auraData.spellId
         if spellID then
             local mountID = C_MountJournal.GetMountFromSpell(spellID)
-            if mountID then
+            if mountID and type(mountID) == "number" and mountID > 0 then
                 local mName, _, mIcon, _, _, sourceType, _, _, _, _, isCollected =
                     C_MountJournal.GetMountInfoByID(mountID)
                 local _, description, source = C_MountJournal.GetMountInfoExtraByID(mountID)
@@ -444,7 +469,7 @@ local function ProcessUnitTooltip()
         pcall(function()
             local honorLevel = UnitHonorLevel(unit)
             if honorLevel and honorLevel > 0 then
-                GameTooltip:AddLine("Honor Level " .. honorLevel, 0.85, 0.70, 1.00)
+                GameTooltip:AddLine("Honor Level " .. FormatNumberWithCommas(honorLevel), 0.85, 0.70, 1.00)
             end
         end)
     end
@@ -487,7 +512,7 @@ local function ProcessUnitTooltip()
             local score = summary.currentSeasonScore
             local r, g, b = MythicScoreColor(score)
             EnsureStatsSep()
-            GameTooltip:AddLine(MYTHIC_ICON .. "M+ Score: " .. score, r, g, b)
+            GameTooltip:AddLine(MYTHIC_ICON .. "M+ Score: " .. FormatNumberWithCommas(score), r, g, b)
         end
     end
 
@@ -495,7 +520,7 @@ local function ProcessUnitTooltip()
     if cached then
         if ShowIlvl() and cached.ilvl then
             EnsureStatsSep()
-            GameTooltip:AddLine("Item Level: " .. cached.ilvl, ILVL_COLOR[1], ILVL_COLOR[2], ILVL_COLOR[3])
+            GameTooltip:AddLine("Item Level: " .. FormatNumberWithCommas(cached.ilvl), ILVL_COLOR[1], ILVL_COLOR[2], ILVL_COLOR[3])
         end
         GameTooltip:Show()
     else
@@ -510,7 +535,7 @@ local function ProcessUnitTooltip()
             GameTooltip:AddLine(SEPARATOR, SEP_COLOR[1], SEP_COLOR[2], SEP_COLOR[3])
             GameTooltip:AddLine(iconStr .. mount.name, MOUNT_COLOR[1], MOUNT_COLOR[2], MOUNT_COLOR[3])
             if mount.source and mount.source ~= "" then
-                GameTooltip:AddLine(mount.source, MOUNT_SRC_COLOR[1], MOUNT_SRC_COLOR[2], MOUNT_SRC_COLOR[3])
+                GameTooltip:AddLine(FormatNumbersInString(mount.source), MOUNT_SRC_COLOR[1], MOUNT_SRC_COLOR[2], MOUNT_SRC_COLOR[3])
             end
             if mount.isCollected == true then
                 GameTooltip:AddLine("|cff55ff55You own this mount|r", 1, 1, 1)
@@ -719,14 +744,18 @@ eventFrame:SetScript("OnEvent", function(self, event, guid)
     if event == "INSPECT_READY" then
         if not IsEnabled() then return end
         if not guid then return end
-        if UnitExists("mouseover") and UnitGUID("mouseover") == guid then
-            CacheInspect(guid, "mouseover")
-            -- Refresh the tooltip from scratch so Blizzard's lines are rebuilt
-            -- before we append ours — prevents every AddLine running twice.
-            if GameTooltip:IsShown() then
-                GameTooltip:SetUnit("mouseover")
+        -- pcall: UnitGUID returns secret, guid from event can be tainted; direct
+        -- comparison throws "attempt to compare a secret string value (tainted)".
+        pcall(function()
+            if UnitExists("mouseover") and UnitGUID("mouseover") == guid then
+                CacheInspect(guid, "mouseover")
+                -- Refresh the tooltip from scratch so Blizzard's lines are rebuilt
+                -- before we append ours — prevents every AddLine running twice.
+                if GameTooltip:IsShown() then
+                    GameTooltip:SetUnit("mouseover")
+                end
             end
-        end
+        end)
         PruneCache()
     end
 end)
@@ -790,15 +819,15 @@ SlashCmdList["HORIZONSUITEINSIGHT"] = function(msg)
         -- PvP title
         GameTooltip:AddLine("Duelist Testplayer", TITLE_COLOR[1], TITLE_COLOR[2], TITLE_COLOR[3])
         -- Honor level
-        GameTooltip:AddLine("Honor Level 247", 0.85, 0.70, 1.00)
+        GameTooltip:AddLine("Honor Level " .. FormatNumberWithCommas(247), 0.85, 0.70, 1.00)
         -- Status badges
         GameTooltip:AddLine("|cffff4444[Combat]|r  |cffff8c00[PvP]|r  |cff88ddff[Party]|r  |cff55ff55[Friend]|r  |cffff4466[Targeting You]|r", 1, 1, 1)
         -- Stats separator
         GameTooltip:AddLine(SEPARATOR, SEP_COLOR[1], SEP_COLOR[2], SEP_COLOR[3])
         -- M+ score
-        GameTooltip:AddLine(MYTHIC_ICON .. "M+ Score: 2847", MythicScoreColor(2847))
+        GameTooltip:AddLine(MYTHIC_ICON .. "M+ Score: " .. FormatNumberWithCommas(2847), MythicScoreColor(2847))
         -- Item level
-        GameTooltip:AddLine("Item Level: 639", ILVL_COLOR[1], ILVL_COLOR[2], ILVL_COLOR[3])
+        GameTooltip:AddLine("Item Level: " .. FormatNumberWithCommas(639), ILVL_COLOR[1], ILVL_COLOR[2], ILVL_COLOR[3])
         -- Mount separator
         GameTooltip:AddLine(SEPARATOR, SEP_COLOR[1], SEP_COLOR[2], SEP_COLOR[3])
         -- Mount

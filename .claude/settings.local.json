@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "Bash(find \"C:/World of Warcraft/_retail_/Interface/AddOns/HorizonSuite\" -type f -name \"*.lua\" | xargs grep -l \"VIGNETTE\\\\|showRareBosses\\\\|rareAddedSound\" 2>/dev/null)"
+    ]
+  }
+}
