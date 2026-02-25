@@ -2443,6 +2443,21 @@ local function CreateDrawerButton()
         self:SetPoint("CENTER", Minimap, "CENTER", ox, oy)
     end)
 
+    -- Click to toggle the drawer (only fires when not dragging)
+    drawerButton:SetScript("OnClick", function(self, button)
+        if button ~= "LeftButton" then return end
+        drawerOpen = not drawerOpen
+        if drawerPanel then
+            if drawerOpen then
+                drawerPanel:Show()
+                if drawerPanel._scheduleAutoClose then drawerPanel._scheduleAutoClose() end
+            else
+                drawerPanel:Hide()
+                drawerPanel:SetScript("OnUpdate", nil)
+            end
+        end
+    end)
+
     -- Drawer panel: separate background child frame to avoid overlapping button icons
     drawerPanel = CreateFrame("Frame", nil, UIParent)
     drawerPanel:SetFrameStrata("FULLSCREEN_DIALOG")

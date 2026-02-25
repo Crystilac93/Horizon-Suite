@@ -11,3 +11,10 @@ ignore:
   - .gitignore
   - .pkgmeta
   - scripts
+  - docs
+  - notes
+  - "modules/*/notes"
+  - pipeline.md
+  - .cursor
+  - .claude
+  - .vscode
