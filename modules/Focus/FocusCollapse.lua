@@ -252,12 +252,45 @@ local function StartNearbyTurnOnTransition()
 end
 
 --- Whether to show the tracker in the current instance type (dungeon, raid, bg, arena).
+--- Per-difficulty granularity for dungeon and raid; falls back to legacy toggle if granular keys are nil.
 --- @return boolean
 local function ShouldShowInInstance()
-    local inType = select(2, GetInstanceInfo())
+    local _, inType, difficultyID = GetInstanceInfo()
     if inType == "none" then return true end
-    if inType == "party"  then return addon.GetDB("showInDungeon", false) end
-    if inType == "raid"   then return addon.GetDB("showInRaid", false) end
+    if inType == "party" then
+        -- Per-difficulty dungeon toggles; fall back to legacy showInDungeon
+        if difficultyID == 1 then  -- Normal
+            local v = addon.GetDB("showInDungeonNormal", nil)
+            if v ~= nil then return v end
+        elseif difficultyID == 2 then  -- Heroic
+            local v = addon.GetDB("showInDungeonHeroic", nil)
+            if v ~= nil then return v end
+        elseif difficultyID == 23 then  -- Mythic
+            local v = addon.GetDB("showInDungeonMythic", nil)
+            if v ~= nil then return v end
+        elseif difficultyID == 8 then  -- Mythic Keystone (M+)
+            local v = addon.GetDB("showInDungeonMythicPlus", nil)
+            if v ~= nil then return v end
+        end
+        return addon.GetDB("showInDungeon", false)
+    end
+    if inType == "raid" then
+        -- Per-difficulty raid toggles; fall back to legacy showInRaid
+        if difficultyID == 17 then  -- LFR
+            local v = addon.GetDB("showInRaidLFR", nil)
+            if v ~= nil then return v end
+        elseif difficultyID == 14 then  -- Normal
+            local v = addon.GetDB("showInRaidNormal", nil)
+            if v ~= nil then return v end
+        elseif difficultyID == 15 then  -- Heroic
+            local v = addon.GetDB("showInRaidHeroic", nil)
+            if v ~= nil then return v end
+        elseif difficultyID == 16 then  -- Mythic
+            local v = addon.GetDB("showInRaidMythic", nil)
+            if v ~= nil then return v end
+        end
+        return addon.GetDB("showInRaid", false)
+    end
     if inType == "pvp"    then return addon.GetDB("showInBattleground", false) end
     if inType == "arena"  then return addon.GetDB("showInArena", false) end
     return true
@@ -321,8 +354,8 @@ local function RefreshContentInCombat()
                 local doneColor = (addon.GetCompletedObjectiveColor and addon.GetCompletedObjectiveColor(effectiveCat))
                     or (addon.GetObjectiveColor and addon.GetObjectiveColor(effectiveCat)) or addon.OBJ_DONE_COLOR or { 0.5, 0.8, 0.5 }
                 if shouldDim then
-                    objColor = { objColor[1] * DIM_FACTOR, objColor[2] * DIM_FACTOR, objColor[3] * DIM_FACTOR }
-                    doneColor = { doneColor[1] * DIM_FACTOR, doneColor[2] * DIM_FACTOR, doneColor[3] * DIM_FACTOR }
+                    objColor = addon.ApplyDimColor(objColor)
+                    doneColor = addon.ApplyDimColor(doneColor)
                 end
                 local effectiveDoneColor = doneColor
 
@@ -387,9 +420,10 @@ local function RefreshContentInCombat()
                 if questData.isDungeonQuest and not questData.isTracked then
                     titleColor = { titleColor[1] * DUNGEON_UNTRACKED_DIM_FACTOR, titleColor[2] * DUNGEON_UNTRACKED_DIM_FACTOR, titleColor[3] * DUNGEON_UNTRACKED_DIM_FACTOR }
                 elseif shouldDim then
-                    titleColor = { titleColor[1] * DIM_FACTOR, titleColor[2] * DIM_FACTOR, titleColor[3] * DIM_FACTOR }
+                    titleColor = addon.ApplyDimColor(titleColor)
                 end
-                entry.titleText:SetTextColor(titleColor[1], titleColor[2], titleColor[3], 1)
+                local dimAlpha = shouldDim and addon.GetDimAlpha() or 1
+                entry.titleText:SetTextColor(titleColor[1], titleColor[2], titleColor[3], dimAlpha)
 
                 local showZoneLabels = addon.GetDB("showZoneLabels", true)
                 local inCurrentZone = questData.isNearby or (questData.zoneName and playerZone and questData.zoneName:lower() == playerZone:lower())
@@ -402,9 +436,9 @@ local function RefreshContentInCombat()
                     entry.zoneShadow:SetText(zoneLabel)
                     local zoneColor = (addon.GetZoneColor and addon.GetZoneColor(effectiveCat)) or addon.ZONE_COLOR or { 0.8, 0.8, 0.8 }
                     if shouldDim then
-                        zoneColor = { zoneColor[1] * DIM_FACTOR, zoneColor[2] * DIM_FACTOR, zoneColor[3] * DIM_FACTOR }
+                        zoneColor = addon.ApplyDimColor(zoneColor)
                     end
-                    entry.zoneText:SetTextColor(zoneColor[1], zoneColor[2], zoneColor[3], 1)
+                    entry.zoneText:SetTextColor(zoneColor[1], zoneColor[2], zoneColor[3], dimAlpha)
                 end
 
                 local objectives = questData.objectives or {}
@@ -522,7 +556,10 @@ local function RefreshContentInCombat()
 
                 local isWorld = questData.category == "WORLD" or questData.category == "CALLING"
                 local isScenario = questData.category == "SCENARIO"
-                if (isWorld or isScenario) and not questData.isRare then
+                local hasEntryTimer = (questData.timerDuration and questData.timerStartTime) and true or false
+                local isGenericTimed = (not isScenario) and hasEntryTimer and not questData.isRare
+                local showTimerBarsToggle = addon.GetDB("showTimerBars", true)
+                if showTimerBarsToggle and (((isWorld or isScenario) and not questData.isRare) or isGenericTimed) then
                     local timerStr
                     if questData.timeLeftSeconds and questData.timeLeftSeconds > 0 then
                         timerStr = FormatTimeLeftSeconds(questData.timeLeftSeconds)
@@ -530,7 +567,7 @@ local function RefreshContentInCombat()
                         timerStr = FormatTimeLeftMinutes(questData.timeLeft)
                     end
                     if timerStr then
-                        local showTimer = isScenario or addon.GetDB("showWorldQuestTimer", true)
+                        local showTimer = isScenario or isGenericTimed or addon.GetDB("showWorldQuestTimer", true)
                         if showTimer then
                             entry.wqTimerText:SetText(timerStr)
                         end
@@ -538,7 +575,13 @@ local function RefreshContentInCombat()
 
                     local firstPercent
                     for _, o in ipairs(objectives) do
-                        if o.percent ~= nil and not o.finished then firstPercent = o.percent; break end
+                        if o.percent ~= nil and not o.finished then
+                            local nr = o.numRequired
+                            if nr ~= nil and type(nr) == "number" and nr > 1 then
+                                firstPercent = o.percent
+                                break
+                            end
+                        end
                     end
                     if firstPercent ~= nil then
                         entry.wqProgressText:SetText(tostring(firstPercent) .. "%")

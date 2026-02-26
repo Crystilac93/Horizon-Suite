@@ -30,16 +30,36 @@ local function TryCompleteQuestFromClick(questID)
     if not C_QuestLog or not C_QuestLog.GetLogIndexForQuestID or not C_QuestLog.IsComplete then return false end
     local logIndex = C_QuestLog.GetLogIndexForQuestID(questID)
     if not logIndex then return false end
-    if not C_QuestLog.GetInfo then return false end
-    -- pcall: GetInfo can throw on invalid logIndex.
-    local ok, info = pcall(C_QuestLog.GetInfo, logIndex)
-    if not ok or not info or not info.isAutoComplete then return false end
     if not C_QuestLog.IsComplete(questID) then return false end
-    if ShowQuestComplete and type(ShowQuestComplete) == "function" then
-        pcall(ShowQuestComplete, questID)
-        if addon.ScheduleRefresh then addon.ScheduleRefresh() end
-        return true
+
+    -- Check for isAutoComplete flag first (standard auto-complete quests)
+    local isAutoComplete = false
+    if C_QuestLog.GetInfo then
+        local ok, info = pcall(C_QuestLog.GetInfo, logIndex)
+        if ok and info and info.isAutoComplete then isAutoComplete = true end
     end
+
+    if isAutoComplete then
+        if ShowQuestComplete and type(ShowQuestComplete) == "function" then
+            pcall(ShowQuestComplete, questID)
+            if addon.ScheduleRefresh then addon.ScheduleRefresh() end
+            return true
+        end
+    end
+
+    -- Fallback for quests that are complete but not flagged isAutoComplete:
+    -- Try to open the quest completion dialog via SetSelectedQuest + CompleteQuest.
+    if C_QuestLog.SetSelectedQuest then
+        C_QuestLog.SetSelectedQuest(questID)
+    end
+    if ShowQuestComplete and type(ShowQuestComplete) == "function" then
+        local ok = pcall(ShowQuestComplete, questID)
+        if ok then
+            if addon.ScheduleRefresh then addon.ScheduleRefresh() end
+            return true
+        end
+    end
+
     return false
 end
 
@@ -285,17 +305,20 @@ for i = 1, addon.POOL_SIZE do
                     return
                 end
                 local vignetteGUID = self.entryKey:match("^vignette:(.+)$")
-                if vignetteGUID and C_SuperTrack and C_SuperTrack.SetSuperTrackedVignette then
-                    C_SuperTrack.SetSuperTrackedVignette(vignetteGUID)
+                local rareCreatureID = self.entryKey:match("^rare:(%d+)$")
+                if vignetteGUID or rareCreatureID then
+                    -- Set waypoint via TomTom or native API (no map opening).
+                    if addon.SetRareWaypoint then
+                        addon.SetRareWaypoint(self)
+                    elseif vignetteGUID and C_SuperTrack and C_SuperTrack.SetSuperTrackedVignette then
+                        C_SuperTrack.SetSuperTrackedVignette(vignetteGUID)
+                    end
                     local wqtPanel = _G.WorldQuestTrackerScreenPanel
                     if wqtPanel and wqtPanel:IsShown() then
                         wqtPanel:Hide()
                     end
+                    return
                 end
-                if WorldMapFrame and not WorldMapFrame:IsShown() and ToggleWorldMap then
-                    ToggleWorldMap()
-                end
-                return
             end
             if not self.questID then return end
 
@@ -359,11 +382,25 @@ for i = 1, addon.POOL_SIZE do
             end
 
             -- Left (no modifier): focus (set as super-tracked quest).
+            -- If already focused, toggle focus off (clear super-track).
             if requireCtrl and not IsControlKeyDown() then
                 -- Safety: ignore plain Left-click on quests when Ctrl is required.
                 return
             end
-            if C_SuperTrack and C_SuperTrack.SetSuperTrackedQuestID then
+            if C_SuperTrack and C_SuperTrack.SetSuperTrackedQuestID and C_SuperTrack.GetSuperTrackedQuestID then
+                local currentFocused = C_SuperTrack.GetSuperTrackedQuestID()
+                if currentFocused and currentFocused == self.questID then
+                    -- Re-click: remove focus
+                    C_SuperTrack.SetSuperTrackedQuestID(0)
+                    local wqtPanel = _G.WorldQuestTrackerScreenPanel
+                    if wqtPanel and wqtPanel:IsShown() then
+                        wqtPanel:Hide()
+                    end
+                    if addon.FullLayout and not InCombatLockdown() then
+                        addon.FullLayout()
+                    end
+                    return
+                end
                 C_SuperTrack.SetSuperTrackedQuestID(self.questID)
                 local wqtPanel = _G.WorldQuestTrackerScreenPanel
                 if wqtPanel and wqtPanel:IsShown() then
@@ -507,6 +544,10 @@ for i = 1, addon.POOL_SIZE do
                     else
                         if not addon.focus.recentlyUntrackedWorldQuests then addon.focus.recentlyUntrackedWorldQuests = {} end
                         addon.focus.recentlyUntrackedWorldQuests[self.questID] = true
+                        -- Persist so suppress-until-reload survives actual reloads.
+                        if addon.GetDB("suppressUntrackedUntilReload", false) then
+                            addon.SetDB("sessionSuppressedQuests", addon.focus.recentlyUntrackedWorldQuests)
+                        end
                     end
                 elseif C_QuestLog.RemoveQuestWatch then
                     C_QuestLog.RemoveQuestWatch(self.questID)

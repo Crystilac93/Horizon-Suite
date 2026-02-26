@@ -63,6 +63,61 @@ local function GetQuestTimerInfo(questID)
     return nil, nil
 end
 
+--- Probe UI widget manager for a scenario header timer (open-world events, prepatch, etc.).
+-- Walks the widget set attached to the current scenario step and looks for ScenarioHeaderTimer widgets.
+-- @return duration, startTime or nil, nil
+local function GetWidgetTimerInfo()
+    if not C_UIWidgetManager or not C_UIWidgetManager.GetAllWidgetsBySetID or not C_UIWidgetManager.GetScenarioHeaderTimerWidgetVisualizationInfo then
+        return nil, nil
+    end
+    -- Determine the widget set ID from the current scenario step.
+    local setID
+    -- Prefer C_ScenarioInfo.GetScenarioStepInfo (structured table with widgetSetID).
+    if C_ScenarioInfo and C_ScenarioInfo.GetScenarioStepInfo then
+        local siOk, stepInfo = pcall(C_ScenarioInfo.GetScenarioStepInfo)
+        if siOk and stepInfo and type(stepInfo) == "table" and stepInfo.widgetSetID and stepInfo.widgetSetID ~= 0 then
+            setID = stepInfo.widgetSetID
+        end
+    end
+    -- Fallback: positional extraction from C_Scenario.GetStepInfo.
+    if not setID and C_Scenario and C_Scenario.GetStepInfo then
+        local sOk, t = pcall(function() return { C_Scenario.GetStepInfo() } end)
+        if sOk and t and type(t) == "table" and #t >= 12 then
+            local ws = t[12]
+            if type(ws) == "number" and ws ~= 0 then setID = ws end
+        end
+    end
+    if not setID and C_UIWidgetManager.GetObjectiveTrackerWidgetSetID then
+        local oOk, objSet = pcall(C_UIWidgetManager.GetObjectiveTrackerWidgetSetID)
+        if oOk and objSet and type(objSet) == "number" then setID = objSet end
+    end
+    if not setID then return nil, nil end
+
+    local WIDGET_TIMER = (Enum and Enum.UIWidgetVisualizationType and Enum.UIWidgetVisualizationType.ScenarioHeaderTimer) or 20
+    local wOk, widgets = pcall(C_UIWidgetManager.GetAllWidgetsBySetID, setID)
+    if not wOk or not widgets or type(widgets) ~= "table" then return nil, nil end
+
+    for _, wInfo in pairs(widgets) do
+        local widgetID = (wInfo and type(wInfo) == "table" and type(wInfo.widgetID) == "number") and wInfo.widgetID
+            or (type(wInfo) == "number" and wInfo > 0) and wInfo
+        local wType = (wInfo and type(wInfo) == "table") and wInfo.widgetType
+        if widgetID and (not wType or wType == WIDGET_TIMER) then
+            local tOk, timerInfo = pcall(C_UIWidgetManager.GetScenarioHeaderTimerWidgetVisualizationInfo, widgetID)
+            if tOk and timerInfo and type(timerInfo) == "table" and timerInfo.hasTimer then
+                local timerMax = timerInfo.timerMax
+                local timerValue = timerInfo.timerValue
+                if timerMax and timerValue and type(timerMax) == "number" and type(timerValue) == "number" and timerMax > 0 then
+                    -- timerValue = seconds remaining; timerMax = total duration.
+                    local remaining = math.max(0, timerValue)
+                    local elapsed = timerMax - remaining
+                    return timerMax, GetTime() - elapsed
+                end
+            end
+        end
+    end
+    return nil, nil
+end
+
 local function IsScenarioActive()
     if not C_Scenario then return false end
     if C_Scenario.IsInScenario then
@@ -274,6 +329,12 @@ local function ReadScenarioEntries()
                     ScenarioDebug("Quest fallback: rewardQuestID=%s got timer=%s", tostring(rewardQuestID), (timerDuration and timerStartTime) and "yes" or "no")
                 end
             end
+            if not timerDuration or not timerStartTime then
+                timerDuration, timerStartTime = GetWidgetTimerInfo()
+                if ScenarioDebug then
+                    ScenarioDebug("Widget fallback: got timer=%s", (timerDuration and timerStartTime) and "yes" or "no")
+                end
+            end
             if ScenarioDebug then
                 ScenarioDebug("main: objs=%d timers=%s entryTimer=%s", #objectives,
                     timerDuration and "yes" or "no", (timerDuration and timerStartTime) and "yes" or "no")
@@ -365,6 +426,9 @@ local function ReadScenarioEntries()
                         if ScenarioDebug then
                             ScenarioDebug("Bonus step %d quest fallback: timer=%s", stepIndex, (timerDuration and timerStartTime) and "yes" or "no")
                         end
+                    end
+                    if not timerDuration or not timerStartTime then
+                        timerDuration, timerStartTime = GetWidgetTimerInfo()
                     end
 
                     local bonusEntry = {

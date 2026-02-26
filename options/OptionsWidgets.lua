@@ -107,6 +107,20 @@ function OptionsWidgets_CreateToggleSwitch(parent, labelText, description, get, 
     desc:SetPoint("RIGHT", track, "LEFT", -12, 0)
     desc:SetWordWrap(true)
 
+    -- Measure actual description height and adjust row to prevent overlap
+    row._desc = desc
+    row._baseHeight = 38
+    local function updateRowHeight()
+        local descH = desc:GetStringHeight() or 0
+        local labelH = label:GetStringHeight() or 0
+        local neededH = labelH + 2 + descH + 4
+        local h = math.max(row._baseHeight, neededH)
+        row:SetHeight(h)
+        row._measuredHeight = h
+    end
+    -- Defer measurement to after layout
+    C_Timer.After(0, updateRowHeight)
+
     local btn = CreateFrame("Button", nil, row)
     btn:SetAllPoints(track)
 
@@ -466,8 +480,21 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
 
     local btn = CreateFrame("Button", nil, row)
     btn:SetHeight(26)
-    btn:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -28)
+    btn:SetPoint("TOPLEFT", desc, "BOTTOMLEFT", 0, -4)
     btn:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+
+    -- Measure description height and adjust row dynamically to prevent overlap
+    row._desc = desc
+    row._baseHeight = 52
+    local function updateDropdownRowHeight()
+        local labelH = label:GetStringHeight() or 0
+        local descH = desc:GetStringHeight() or 0
+        local neededH = labelH + 2 + descH + 4 + 26 + 2
+        local h = math.max(row._baseHeight, neededH)
+        row:SetHeight(h)
+        row._measuredHeight = h
+    end
+    C_Timer.After(0, updateDropdownRowHeight)
 
     local btnBg = btn:CreateTexture(nil, "BACKGROUND")
     btnBg:SetPoint("TOPLEFT", btn, "TOPLEFT", 1, -1)

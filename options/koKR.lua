@@ -293,6 +293,8 @@ L["Show rare bosses"]                                   = "희귀 우두머리 �
 L["Show rare boss vignettes in the list."]              = "목록에 희귀 우두머리를 표시합니다."
 L["Rare added sound"]                                   = "희귀 몹 등장 효과음"
 L["Play a sound when a rare is added."]                 = "희귀 몹이 추가되면 효과음을 재생합니다."
+L["Rare added sound choice"]                            = "희귀 몹 효과음 선택"
+L["Choose which sound to play when a rare boss appears. Requires LibSharedMedia sounds to be installed for extra options."] = "희귀 보스가 나타날 때 재생할 효과음을 선택합니다. 추가 옵션을 사용하려면 LibSharedMedia 사운드가 설치되어 있어야 합니다."
 
 -- =====================================================================
 -- OptionsData.lua Features — World quests
@@ -378,6 +380,8 @@ L["Show affix names in Delves"]                         = "구렁에 시즌 효�
 L["Show season affix names on the first Delve entry. Requires Blizzard's objective tracker widgets to be populated; may not show when using a full tracker replacement."] = "첫 번째 구렁 항목에 시즌 효과 이름을 표시합니다. Blizzard 목표 추적기 위젯이 필요하며, 전체 추적기 대체 시 표시되지 않을 수 있습니다."
 L["Cinematic scenario bar"]                             = "보기 좋은 시나리오 바"
 L["Show timer and progress bar for scenario entries."]  = "시나리오 항목에 시간과 진행 바를 표시합니다."
+L["Show timer bars"]                                    = "타이머 바 표시"
+L["Show countdown timer bars on timed quests, events, and scenarios. When off, timer bars are hidden for all entry types."] = "시간 제한 퀘스트, 이벤트 및 시나리오에 카운트다운 타이머 바를 표시합니다. 꺼져 있으면 모든 항목에서 타이머 바가 숨겨집니다."
 
 -- =====================================================================
 -- OptionsData.lua Typography — Font

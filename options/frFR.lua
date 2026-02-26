@@ -293,6 +293,8 @@ L["Show rare bosses"]                                   = "Afficher les boss rar
 L["Show rare boss vignettes in the list."]              = "Affiche les boss rares dans la liste."
 L["Rare added sound"]                                   = "Son d'ajout de rare"
 L["Play a sound when a rare is added."]                 = "Joue un son quand un rare est ajouté."
+L["Rare added sound choice"]                            = "Choix du son de rare"
+L["Choose which sound to play when a rare boss appears. Requires LibSharedMedia sounds to be installed for extra options."] = "Choisissez le son à jouer quand un boss rare apparaît. Nécessite des sons LibSharedMedia installés pour des options supplémentaires."
 
 -- =====================================================================
 -- OptionsData.lua Features — World quests
@@ -378,6 +380,8 @@ L["Show affix names in Delves"]                         = "Afficher le nom des a
 L["Show season affix names on the first Delve entry. Requires Blizzard's objective tracker widgets to be populated; may not show when using a full tracker replacement."] = "Affiche les noms des affixes saisonniers sur la première ligne du Gouffre. Nécessite les widgets Blizzard ; peut ne pas s'afficher correctement."
 L["Cinematic scenario bar"]                             = "Barre cinématique de scénario"
 L["Show timer and progress bar for scenario entries."]  = "Affiche le timer et la barre de progression pour les scénarios."
+L["Show timer bars"]                                    = "Afficher les barres de timer"
+L["Show countdown timer bars on timed quests, events, and scenarios. When off, timer bars are hidden for all entry types."] = "Affiche les barres de décompte sur les quêtes, événements et scénarios chronométrés. Lorsque désactivé, les barres de timer sont masquées pour tous les types d'entrées."
 
 -- =====================================================================
 -- OptionsData.lua Typography — Font

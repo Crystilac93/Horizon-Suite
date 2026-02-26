@@ -384,3 +384,26 @@ function addon.GetFontNameForPath(path)
     return path
 end
 
+-- ============================================================================
+-- SOUND LIST (for rare boss sound picker via LibSharedMedia)
+-- ============================================================================
+
+function addon.GetSoundDropdownOptions()
+    local list = { { "Default (Quest Complete)", "default" } }
+    local LSM = (LibStub and LibStub("LibSharedMedia-3.0", true)) or nil
+    if not (LSM and LSM.HashTable) then return list end
+    local hash = LSM:HashTable("sound")
+    if type(hash) ~= "table" then return list end
+    local names = {}
+    for name in pairs(hash) do
+        if type(name) == "string" and name ~= "" then
+            names[#names + 1] = name
+        end
+    end
+    table.sort(names)
+    for _, name in ipairs(names) do
+        list[#list + 1] = { name, name }
+    end
+    return list
+end
+

@@ -50,7 +50,7 @@ local function AcquireSectionHeader(groupKey, focusedGroupKey)
     label = addon.ApplyTextCase(label, "sectionHeaderTextCase", "upper")
     local color = addon.GetSectionColor(groupKey)
     if addon.GetDB("dimNonSuperTracked", false) and focusedGroupKey and groupKey ~= focusedGroupKey then
-        color = { color[1] * 0.60, color[2] * 0.60, color[3] * 0.60 }
+        color = addon.ApplyDimColor(color)
     end
     s.text:SetText(label)
     s.shadow:SetText(label)

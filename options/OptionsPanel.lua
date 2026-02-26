@@ -430,6 +430,40 @@ local function FinalizeCard(card)
     else
         card:SetHeight(fullH)
     end
+    -- Deferred re-measurement: after widgets measure their wrapped text heights,
+    -- recalculate card height to prevent description overlap.
+    C_Timer.After(0.05, function()
+        if not card or not card.contentContainer then return end
+        local cc = card.contentContainer
+        local measuredH = 0
+        local children = { cc:GetChildren() }
+        for _, child in ipairs(children) do
+            if child:IsShown() then
+                local bottom = child:GetBottom()
+                local ccTop = cc:GetTop()
+                if bottom and ccTop then
+                    local offset = ccTop - bottom
+                    if offset > measuredH then measuredH = offset end
+                end
+            end
+        end
+        if measuredH > 0 then
+            local headerH = card.headerHeight or (CardPadding + 24)
+            local newContentH = headerH + measuredH + 4
+            if newContentH > card.contentHeight then
+                card.contentHeight = newContentH
+                local newFullH = newContentH + CardBottomPadding
+                card.fullHeight = newFullH
+                cc:SetHeight(math.max(1, newContentH - headerH))
+                local collapsed = card.sectionKey and GetCardCollapsed(card.sectionKey)
+                if not collapsed then
+                    card:SetHeight(newFullH)
+                end
+                local tab = card:GetParent()
+                if tab and ResizeTabFrame then ResizeTabFrame(tab) end
+            end
+        end
+    end)
     -- Resize parent tab frame so scroll stops at actual content end
     C_Timer.After(0, function()
         local tab = card:GetParent()

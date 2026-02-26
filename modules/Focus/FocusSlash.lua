@@ -150,7 +150,10 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
         end
 
     elseif cmd == "testsound" then
-        if PlaySound then
+        if addon.PlayRareAddedSound then
+            addon.PlayRareAddedSound()
+            HSPrint("Played rare-added sound (choice: " .. tostring(addon.GetDB("rareAddedSoundChoice", "default")) .. ").")
+        elseif PlaySound then
             local ok, err = pcall(PlaySound, addon.RARE_ADDED_SOUND)
             if not ok and HSPrint then HSPrint("PlaySound rare failed: " .. tostring(err)) end
             HSPrint("Played rare-added sound.")

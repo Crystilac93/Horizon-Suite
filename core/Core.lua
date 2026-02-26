@@ -98,6 +98,35 @@ function addon.GetSectionSpacing()
     local v = tonumber(addon.GetDB("sectionSpacing", addon.SECTION_SPACING)) or addon.SECTION_SPACING
     return addon.Scaled(math.max(0, math.min(24, v)))
 end
+
+--- Returns the color multiplier for non-focused entries (0–1 range). Default 0.60 (40% dim).
+function addon.GetDimFactor()
+    local strength = tonumber(addon.GetDB("dimStrength", 40)) or 40
+    return 1 - math.max(0, math.min(100, strength)) / 100
+end
+
+--- Returns the alpha for non-focused entries (0–1 range). Default 1.0 (no alpha change).
+function addon.GetDimAlpha()
+    local v = tonumber(addon.GetDB("dimAlpha", 100)) or 100
+    return math.max(0, math.min(100, v)) / 100
+end
+
+--- Applies dimming (color multiply) and optional desaturation to a color table.
+--- @param color table {r,g,b} input color
+--- @return table {r,g,b} dimmed color
+function addon.ApplyDimColor(color)
+    if not color or not color[1] then return color end
+    local factor = addon.GetDimFactor()
+    local r, g, b = color[1] * factor, color[2] * factor, color[3] * factor
+    if addon.GetDB("dimDesaturate", false) then
+        local lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+        -- Partial desaturation: blend 70% towards greyscale
+        r = r + (lum - r) * 0.7
+        g = g + (lum - g) * 0.7
+        b = b + (lum - b) * 0.7
+    end
+    return { r, g, b }
+end
 function addon.GetSectionToEntryGap()
     local v = tonumber(addon.GetDB("sectionToEntryGap", 6)) or 6
     return addon.Scaled(math.max(0, math.min(16, v)))
@@ -121,6 +150,7 @@ function addon.GetPanelWidth()
 end
 function addon.GetMaxContentHeight()
     local v = tonumber(addon.GetDB("maxContentHeight", addon.MAX_CONTENT_HEIGHT)) or addon.MAX_CONTENT_HEIGHT
+    if v < 200 then v = addon.MAX_CONTENT_HEIGHT end
     return addon.Scaled(v)
 end
 
@@ -1180,7 +1210,10 @@ function addon.GetHeaderToContentGap()
 end
 
 function addon.GetContentTop()
-    -- Super-minimal uses same offset as full header so categories/quests do not move up (no overlap with chevron/options)
+    -- Super-minimal: move content to start just below the minimal header row with small padding
+    if addon.GetDB("hideObjectivesHeader", false) then
+        return -(addon.GetScaledMinimalHeaderHeight() + addon.Scaled(4))
+    end
     return -(addon.Scaled(addon.PADDING) + addon.GetHeaderHeight() + addon.Scaled(addon.DIVIDER_HEIGHT) + addon.GetHeaderToContentGap())
 end
 function addon.GetCollapsedHeight()

@@ -57,6 +57,7 @@ pcall(function() eventFrame:RegisterEvent("INITIATIVE_TASKS_TRACKED_UPDATED") en
 pcall(function() eventFrame:RegisterEvent("INITIATIVE_TASKS_TRACKED_LIST_CHANGED") end)
 pcall(function() eventFrame:RegisterEvent("TRACKING_TARGET_INFO_UPDATE") end)
 pcall(function() eventFrame:RegisterEvent("TRACKABLE_INFO_UPDATE") end)
+pcall(function() eventFrame:RegisterEvent("QUEST_AUTOCOMPLETE") end)
 -- CHALLENGE_MODE_START: fires when an M+ run begins. Replaces the instance-state
 -- recursive poll for detecting that the player is now inside a dungeon.
 pcall(function() eventFrame:RegisterEvent("CHALLENGE_MODE_START") end)
@@ -375,27 +376,32 @@ local function OnQuestWatchListChanged(questID, added)
                 end
             end
         end
+        -- Persist to DB so suppress-until-reload actually survives reload.
+        if addon.GetDB("suppressUntrackedUntilReload", false) then
+            addon.SetDB("sessionSuppressedQuests", addon.focus.recentlyUntrackedWorldQuests)
+        end
     end
     ScheduleRefresh()
 end
 
 --- Handles M+ dungeon enter/exit: snapshot overworld height on enter, restore on exit.
+local MIN_SNAPSHOT_HEIGHT = 200
 local function RunMplusHeightTransitionCheck()
     if not addon.GetDB or not addon.IsInMythicDungeon then return end
     local inMplus = addon.IsInMythicDungeon()
     if addon.focus.wasInMplusDungeon and not inMplus then
         addon.focus.wasInMplusDungeon = false
         local owH = addon.GetDB("maxContentHeightOverworld", nil)
-        if owH and type(owH) == "number" then
+        if owH and type(owH) == "number" and owH >= MIN_SNAPSHOT_HEIGHT then
             addon.SetDB("maxContentHeight", owH)
         end
-    elseif inMplus then
+    elseif inMplus and not addon.focus.wasInMplusDungeon then
         addon.focus.wasInMplusDungeon = true
         local cur = addon.GetDB("maxContentHeight", nil)
-        if cur and type(cur) == "number" then
+        if cur and type(cur) == "number" and cur >= MIN_SNAPSHOT_HEIGHT then
             addon.SetDB("maxContentHeightOverworld", cur)
         end
-    else
+    elseif not inMplus then
         addon.focus.wasInMplusDungeon = false
     end
 end
@@ -413,6 +419,7 @@ local function OnZoneChanged(event)
     if event == "ZONE_CHANGED_NEW_AREA" then
         if not addon.GetDB("suppressUntrackedUntilReload", false) then
             if addon.focus.recentlyUntrackedWorldQuests then wipe(addon.focus.recentlyUntrackedWorldQuests) end
+            addon.SetDB("sessionSuppressedQuests", nil)
         end
         C_Timer.After(2.5, function() if addon.focus.enabled then ScheduleRefresh() end end)
     end
@@ -525,6 +532,19 @@ local eventHandlers = {
     INITIATIVE_TASKS_TRACKED_LIST_CHANGED = function() ScheduleRefresh() end,
     TRACKING_TARGET_INFO_UPDATE = function() ScheduleRefresh() end,
     TRACKABLE_INFO_UPDATE = function() ScheduleRefresh() end,
+    -- QUEST_AUTOCOMPLETE: fires for popup quests (auto-accepted quests that complete via dialog).
+    -- Add them to the watch list so they appear in the tracker.
+    QUEST_AUTOCOMPLETE = function(_, questID)
+        if not addon.focus.enabled then ScheduleRefresh(); return end
+        if questID and questID > 0 then
+            if C_QuestLog and C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(questID) then
+                if C_QuestLog.AddQuestWatch then
+                    C_QuestLog.AddQuestWatch(questID)
+                end
+            end
+        end
+        ScheduleRefresh()
+    end,
     -- WORLD_MAP_OPEN: fires when the world map opens. Sync watch-list state immediately
     -- rather than waiting for the 0.5s map ticker to detect the visibility change.
     WORLD_MAP_OPEN           = function()

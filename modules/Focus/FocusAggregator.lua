@@ -302,6 +302,31 @@ local function ReadTrackedQuests()
         local questTypeAtlas = addon.GetQuestTypeAtlas(questID, category)
         local isGroupQuest = addon.IsGroupQuest and addon.IsGroupQuest(questID) or false
 
+        local timerDuration, timerStartTime
+        if C_QuestLog and C_QuestLog.GetTimeAllowed then
+            local tokT, total, elapsed = pcall(C_QuestLog.GetTimeAllowed, questID)
+            if tokT and total and elapsed and total > 0 and elapsed >= 0 then
+                local elapsedCapped = math.min(elapsed, total)
+                timerDuration = total
+                timerStartTime = GetTime() - elapsedCapped
+            end
+        end
+        if not timerDuration and C_TaskQuest then
+            if C_TaskQuest.GetQuestTimeLeftSeconds then
+                local tokS, secs = pcall(C_TaskQuest.GetQuestTimeLeftSeconds, questID)
+                if tokS and secs and secs > 0 then
+                    timerDuration = secs
+                    timerStartTime = GetTime()
+                end
+            elseif C_TaskQuest.GetQuestTimeLeftMinutes then
+                local tokM, mins = pcall(C_TaskQuest.GetQuestTimeLeftMinutes, questID)
+                if tokM and mins and mins > 0 then
+                    timerDuration = mins * 60
+                    timerStartTime = GetTime()
+                end
+            end
+        end
+
         local entry = {
             entryKey = questID, questID = questID, title = title, objectives = objectives,
             color = color, category = category, baseCategory = baseCategory,
@@ -312,6 +337,8 @@ local function ReadTrackedQuests()
             isAutoAdded = isAutoAdded,
             isInQuestArea = isInQuestArea,
             isGroupQuest = isGroupQuest,
+            timerDuration = timerDuration,
+            timerStartTime = timerStartTime,
         }
         if objectivesDoneCount and objectivesTotalCount then
             entry.objectivesDoneCount = objectivesDoneCount

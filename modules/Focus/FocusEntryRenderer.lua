@@ -94,8 +94,8 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
     local doneColor = (addon.GetCompletedObjectiveColor and addon.GetCompletedObjectiveColor(cat))
         or (addon.GetObjectiveColor and addon.GetObjectiveColor(cat)) or addon.OBJ_DONE_COLOR
     if addon.GetDB("dimNonSuperTracked", false) and not questData.isSuperTracked then
-        objColor = { objColor[1] * 0.60, objColor[2] * 0.60, objColor[3] * 0.60 }
-        doneColor = { doneColor[1] * 0.60, doneColor[2] * 0.60, doneColor[3] * 0.60 }
+        objColor = addon.ApplyDimColor(objColor)
+        doneColor = addon.ApplyDimColor(doneColor)
     end
     local effectiveDoneColor = doneColor
 
@@ -334,7 +334,10 @@ local function FormatTimeLeftMinutes(minutes)
 end
 
 local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor, totalH)
-    if questData.category == "DELVES" then
+    -- Master toggle for timer / reverse-progress bars.
+    local showTimerBars = addon.GetDB("showTimerBars", true)
+
+    if questData.category == "DELVES" or not showTimerBars then
         entry.wqTimerText:Hide()
         entry.wqProgressBg:Hide()
         entry.wqProgressFill:Hide()
@@ -346,7 +349,36 @@ local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor
     end
     local isWorld = questData.category == "WORLD" or questData.category == "CALLING"
     local isScenario = questData.category == "SCENARIO"
-    if (not isWorld and not isScenario) or questData.isRare then
+
+    -- Determine whether this entry carries structured timer data (duration + startTime)
+    -- on the entry itself or on one of its objectives.
+    local hasStructuredTimer = (questData.timerDuration and questData.timerStartTime) and true or false
+    if not hasStructuredTimer and questData.objectives then
+        for _, o in ipairs(questData.objectives) do
+            if o.timerDuration and o.timerStartTime then hasStructuredTimer = true; break end
+        end
+    end
+
+    -- Legacy timer fields (minutes/seconds text only, no progress bar).
+    local hasLegacyTimer = (questData.timeLeftSeconds and questData.timeLeftSeconds > 0)
+        or (questData.timeLeft and questData.timeLeft > 0)
+
+    local hasAnyTimer = hasStructuredTimer or hasLegacyTimer
+
+    -- Any non-scenario entry with timer data gets the timed treatment (reverse progress bar + countdown).
+    local isGenericTimed = (not isScenario) and hasAnyTimer and not questData.isRare
+
+    if not isWorld and not isScenario and not isGenericTimed then
+        entry.wqTimerText:Hide()
+        entry.wqProgressBg:Hide()
+        entry.wqProgressFill:Hide()
+        entry.wqProgressText:Hide()
+        if entry.scenarioTimerBars then
+            for _, bar in ipairs(entry.scenarioTimerBars) do bar:Hide() end
+        end
+        return totalH
+    end
+    if (isWorld or isScenario) and questData.isRare then
         entry.wqTimerText:Hide()
         entry.wqProgressBg:Hide()
         entry.wqProgressFill:Hide()
@@ -359,20 +391,27 @@ local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor
 
     local S = addon.Scaled or function(v) return v end
     local objIndent = addon.GetObjIndent()
-    local barW = textWidth - objIndent
-    if barW < 40 then barW = addon.GetPanelWidth() - S(addon.PADDING) * 2 - objIndent - S(addon.CONTENT_RIGHT_PADDING or 0) end
+
+    -- Use the same bar width as objective progress bars for consistent alignment.
+    local OBJ_EXTRA_LEFT_PAD = S(14)
+    local objTextWidth = textWidth - objIndent
+    if objTextWidth < 1 then objTextWidth = addon.GetPanelWidth() - S(addon.PADDING) * 2 - objIndent - S(addon.CONTENT_RIGHT_PADDING or 0) end
+    local barW = objTextWidth - OBJ_EXTRA_LEFT_PAD
+    if barW < 20 then barW = objTextWidth end
+
     local barH = S(addon.WQ_TIMER_BAR_HEIGHT or 6)
     local spacing = addon.GetObjSpacing()
-    local scenarioBarTopMargin = isScenario and S(4) or 0
-    local scenarioFirstElementPlaced = false
+    local timedBarTopMargin = (isScenario or isGenericTimed) and S(4) or 0
+    local timedFirstElementPlaced = false
 
-    -- Quest bar format for scenario: same height, colors, and font as objective progress bars
+    -- Quest bar format for scenario/timed entries: same height, colors, and font as objective progress bars
     local progBarFontSz = tonumber(addon.GetDB("progressBarFontSize", 10)) or 10
     local PROGRESS_BAR_HEIGHT = S(math.max(8, progBarFontSz + 4))
     local progFillColor, progTextColor
-    if isScenario then
+    if isScenario or isGenericTimed then
         if addon.GetDB("progressBarUseCategoryColor", true) then
-            progFillColor = (addon.GetQuestColor and addon.GetQuestColor("SCENARIO")) or (addon.QUEST_COLORS and addon.QUEST_COLORS.SCENARIO) or { 0.55, 0.35, 0.85 }
+            local colorCat = questData.category or "DEFAULT"
+            progFillColor = (addon.GetQuestColor and addon.GetQuestColor(colorCat)) or (addon.QUEST_COLORS and addon.QUEST_COLORS[colorCat]) or { 0.55, 0.35, 0.85 }
         else
             progFillColor = addon.GetDB("progressBarFillColor", nil)
             if not progFillColor or type(progFillColor) ~= "table" then progFillColor = { 0.40, 0.65, 0.90 } end
@@ -382,7 +421,9 @@ local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor
     end
 
     local showBar
-    if isScenario and entry.scenarioTimerBars and addon.GetDB("cinematicScenarioBar", true) then
+    -- Use cinematic timer bars (reverse progress) for scenario entries and any entry with structured timer data.
+    local wantTimerBars = (isScenario and addon.GetDB("cinematicScenarioBar", true)) or (isGenericTimed and hasStructuredTimer)
+    if wantTimerBars and entry.scenarioTimerBars then
         local timerSources = {}
         for _, o in ipairs(questData.objectives or {}) do
             if o.timerDuration and o.timerStartTime then
@@ -396,7 +437,7 @@ local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor
         for i, src in ipairs(timerSources) do
             local bar = entry.scenarioTimerBars[i]
             if bar then
-                local barSpacing = (i == 1) and (spacing + scenarioBarTopMargin) or spacing
+                local barSpacing = (i == 1) and (spacing + timedBarTopMargin) or spacing
                 bar.duration = src.duration
                 bar.startTime = src.startTime
                 bar:SetWidth(barW)
@@ -406,7 +447,7 @@ local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor
                 bar:Show()
                 totalH = totalH + barSpacing + barHeight
                 prevAnchor = bar
-                scenarioFirstElementPlaced = true
+                timedFirstElementPlaced = true
             end
         end
         for i = #timerSources + 1, #(entry.scenarioTimerBars or {}) do
@@ -414,7 +455,7 @@ local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor
             if bar then bar.duration = nil; bar.startTime = nil; bar:Hide() end
         end
         entry.wqTimerText:Hide()
-        showBar = addon.GetDB("cinematicScenarioBar", true)
+        showBar = true
     else
         if entry.scenarioTimerBars then
             for _, bar in ipairs(entry.scenarioTimerBars) do
@@ -435,18 +476,22 @@ local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor
         if isScenario then
             showTimer = (timerStr ~= nil)
             showBar = addon.GetDB("cinematicScenarioBar", true)
-        else
+        elseif isWorld and not hasStructuredTimer then
+            -- Legacy WORLD quest timer (no structured timer data)
             showTimer = addon.GetDB("showWorldQuestTimer", true) and (timerStr ~= nil)
             showBar = addon.GetDB("showWorldQuestProgressBar", true)
+        else
+            showTimer = (timerStr ~= nil)
+            showBar = true
         end
 
         if showTimer and timerStr then
-            local timerSpacing = isScenario and (spacing + scenarioBarTopMargin) or spacing
+            local timerSpacing = (isScenario or isGenericTimed) and (spacing + timedBarTopMargin) or spacing
             entry.wqTimerText:SetText(timerStr)
             entry.wqTimerText:SetWidth(barW)
             entry.wqTimerText:ClearAllPoints()
             entry.wqTimerText:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", 0, -timerSpacing)
-            if isScenario then
+            if isScenario or isGenericTimed then
                 local sc = addon.GetQuestColor and addon.GetQuestColor(questData.category) or (addon.QUEST_COLORS and addon.QUEST_COLORS[questData.category]) or { 0.38, 0.52, 0.88 }
                 entry.wqTimerText:SetTextColor(sc[1], sc[2], sc[3], 1)
             else
@@ -457,52 +502,65 @@ local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor
             if not th or th < 1 then th = addon.OBJ_SIZE + 2 end
             totalH = totalH + timerSpacing + th
             prevAnchor = entry.wqTimerText
-            if isScenario then scenarioFirstElementPlaced = true end
+            if isScenario or isGenericTimed then timedFirstElementPlaced = true end
         else
             entry.wqTimerText:Hide()
         end
     end
 
+    -- Percent progress bar: find the first unfinished objective with percent that has numRequired > 1.
+    -- Skip objectives where numRequired <= 1 (single kills/loots don't need a bar).
+    -- Also skip if the objective progress bar system already handles this entry (avoid duplicates).
     local firstPercent
-    for _, o in ipairs(questData.objectives or {}) do
-        if o.percent ~= nil and not o.finished then
-            firstPercent = o.percent
-            break
+    local hasObjProgressBar = questData._progressBarActive
+    if not hasObjProgressBar then
+        for _, o in ipairs(questData.objectives or {}) do
+            if o.percent ~= nil and not o.finished then
+                local nr = o.numRequired
+                if nr ~= nil and type(nr) == "number" and nr > 1 then
+                    firstPercent = o.percent
+                    break
+                end
+            end
         end
     end
     if showBar and firstPercent ~= nil then
-        local barHeight = isScenario and PROGRESS_BAR_HEIGHT or barH
-        local percentBarSpacing = spacing + (isScenario and not scenarioFirstElementPlaced and scenarioBarTopMargin or 0)
+        local barHeight = (isScenario or isGenericTimed) and PROGRESS_BAR_HEIGHT or barH
+        local percentBarSpacing = spacing + ((isScenario or isGenericTimed) and not timedFirstElementPlaced and timedBarTopMargin or 0)
         entry.wqProgressBg:SetHeight(barHeight)
         entry.wqProgressBg:SetWidth(barW)
         entry.wqProgressBg:ClearAllPoints()
         entry.wqProgressBg:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", 0, -percentBarSpacing)
-        if isScenario then
-            entry.wqProgressBg:SetColorTexture(0.15, 0.15, 0.18, 0.7)
-        else
-            entry.wqProgressBg:SetColorTexture(0.2, 0.2, 0.25, 0.8)
-        end
+        entry.wqProgressBg:SetColorTexture(0.15, 0.15, 0.18, 0.7)
         entry.wqProgressBg:Show()
         local pct = firstPercent and math.min(100, math.max(0, firstPercent)) or 0
         entry.wqProgressFill:SetHeight(barHeight)
         entry.wqProgressFill:SetWidth(math.max(2, barW * pct / 100))
         entry.wqProgressFill:ClearAllPoints()
         entry.wqProgressFill:SetPoint("TOPLEFT", entry.wqProgressBg, "TOPLEFT", 0, 0)
-        if isScenario then
-            entry.wqProgressFill:SetColorTexture(progFillColor[1], progFillColor[2], progFillColor[3], progFillColor[4] or 0.85)
-        else
-            entry.wqProgressFill:SetColorTexture(0.45, 0.35, 0.65, 0.9)
+        -- Use consistent fill color for all bar types.
+        local fillColor = progFillColor
+        if not fillColor then
+            if addon.GetDB("progressBarUseCategoryColor", true) then
+                local colorCat = questData.category or "DEFAULT"
+                fillColor = (addon.GetQuestColor and addon.GetQuestColor(colorCat)) or (addon.QUEST_COLORS and addon.QUEST_COLORS[colorCat]) or { 0.40, 0.65, 0.90 }
+            else
+                fillColor = addon.GetDB("progressBarFillColor", nil)
+                if not fillColor or type(fillColor) ~= "table" then fillColor = { 0.40, 0.65, 0.90 } end
+            end
         end
+        entry.wqProgressFill:SetColorTexture(fillColor[1], fillColor[2], fillColor[3], fillColor[4] or 0.85)
         entry.wqProgressFill:Show()
         entry.wqProgressText:SetText(firstPercent ~= nil and (tostring(firstPercent) .. "%") or "")
         entry.wqProgressText:ClearAllPoints()
         entry.wqProgressText:SetPoint("CENTER", entry.wqProgressBg, "CENTER", 0, 0)
-        if isScenario then
-            entry.wqProgressText:SetFontObject(addon.ProgressBarFont or addon.ObjFont)
-            entry.wqProgressText:SetTextColor(progTextColor[1], progTextColor[2], progTextColor[3], 1)
-        else
-            entry.wqProgressText:SetTextColor(0.9, 0.9, 0.9, 1)
+        local txtColor = progTextColor
+        if not txtColor then
+            txtColor = addon.GetDB("progressBarTextColor", nil)
+            if not txtColor or type(txtColor) ~= "table" then txtColor = { 0.95, 0.95, 0.95 } end
         end
+        entry.wqProgressText:SetFontObject(addon.ProgressBarFont or addon.ObjFont)
+        entry.wqProgressText:SetTextColor(txtColor[1], txtColor[2], txtColor[3], 1)
         entry.wqProgressText:SetShown(firstPercent ~= nil)
         totalH = totalH + percentBarSpacing + barHeight
     else
@@ -697,9 +755,10 @@ local function PopulateEntry(entry, questData, groupKey)
     if questData.isDungeonQuest and not questData.isTracked then
         c = { c[1] * 0.65, c[2] * 0.65, c[3] * 0.65 }
     elseif addon.GetDB("dimNonSuperTracked", false) and not questData.isSuperTracked then
-        c = { c[1] * 0.60, c[2] * 0.60, c[3] * 0.60 }
+        c = addon.ApplyDimColor(c)
     end
-    entry.titleText:SetTextColor(c[1], c[2], c[3], 1)
+    local dimAlpha = (addon.GetDB("dimNonSuperTracked", false) and not questData.isSuperTracked) and addon.GetDimAlpha() or 1
+    entry.titleText:SetTextColor(c[1], c[2], c[3], dimAlpha)
     entry._savedColor = nil
 
     local highlightStyle, hc, ha, barW, topPadding, bottomPadding = ApplyHighlightStyle(entry, questData)
@@ -773,9 +832,9 @@ local function PopulateEntry(entry, questData, groupKey)
         entry.zoneShadow:SetText(zoneLabel)
         local zoneColor = (addon.GetZoneColor and addon.GetZoneColor(effectiveCat)) or addon.ZONE_COLOR
         if addon.GetDB("dimNonSuperTracked", false) and not questData.isSuperTracked then
-            zoneColor = { zoneColor[1] * 0.60, zoneColor[2] * 0.60, zoneColor[3] * 0.60 }
+            zoneColor = addon.ApplyDimColor(zoneColor)
         end
-        entry.zoneText:SetTextColor(zoneColor[1], zoneColor[2], zoneColor[3], 1)
+        entry.zoneText:SetTextColor(zoneColor[1], zoneColor[2], zoneColor[3], dimAlpha)
         entry.zoneText:ClearAllPoints()
         entry.zoneText:SetPoint("TOPLEFT", entry.titleText, "BOTTOMLEFT", 0, -titleToContentSpacing)
         entry.zoneText:Show()
@@ -873,6 +932,11 @@ local function PopulateEntry(entry, questData, groupKey)
         entry.decorID    = nil
         entry.itemLink   = nil
         entry.isTracked  = nil
+        entry.title      = questData.title
+        entry.vignetteGUID  = questData.vignetteGUID
+        entry.vignetteMapID = questData.vignetteMapID
+        entry.vignetteX     = questData.vignetteX
+        entry.vignetteY     = questData.vignetteY
     elseif questData.isAchievement or questData.category == "ACHIEVEMENT" then
         entry.questID    = nil
         entry.entryKey   = questData.entryKey
@@ -881,6 +945,7 @@ local function PopulateEntry(entry, questData, groupKey)
         entry.achievementID = questData.achievementID
         entry.endeavorID = nil
         entry.isTracked  = true
+        entry.vignetteGUID = nil; entry.vignetteMapID = nil; entry.vignetteX = nil; entry.vignetteY = nil; entry.title = nil
     elseif questData.isEndeavor or questData.category == "ENDEAVOR" then
         entry.questID    = nil
         entry.entryKey   = questData.entryKey
@@ -890,6 +955,7 @@ local function PopulateEntry(entry, questData, groupKey)
         entry.endeavorID = questData.endeavorID
         entry.decorID    = nil
         entry.isTracked  = true
+        entry.vignetteGUID = nil; entry.vignetteMapID = nil; entry.vignetteX = nil; entry.vignetteY = nil; entry.title = nil
     elseif questData.isDecor or questData.category == "DECOR" then
         entry.questID    = nil
         entry.entryKey   = questData.entryKey
@@ -901,6 +967,7 @@ local function PopulateEntry(entry, questData, groupKey)
         entry.adventureGuideID   = nil
         entry.adventureGuideType = nil
         entry.isTracked  = true
+        entry.vignetteGUID = nil; entry.vignetteMapID = nil; entry.vignetteX = nil; entry.vignetteY = nil; entry.title = nil
     elseif questData.isAdventureGuide or questData.category == "ADVENTURE" then
         entry.questID    = nil
         entry.entryKey   = questData.entryKey
@@ -912,6 +979,7 @@ local function PopulateEntry(entry, questData, groupKey)
         entry.adventureGuideID   = questData.adventureGuideID
         entry.adventureGuideType = questData.adventureGuideType
         entry.isTracked  = true
+        entry.vignetteGUID = nil; entry.vignetteMapID = nil; entry.vignetteX = nil; entry.vignetteY = nil; entry.title = nil
     elseif questData.isScenarioMain or questData.isScenarioBonus then
         entry.questID    = questData.questID
         entry.entryKey   = questData.entryKey
@@ -921,6 +989,7 @@ local function PopulateEntry(entry, questData, groupKey)
         entry.endeavorID = nil
         entry.decorID    = nil
         entry.isTracked  = questData.isTracked
+        entry.vignetteGUID = nil; entry.vignetteMapID = nil; entry.vignetteX = nil; entry.vignetteY = nil; entry.title = nil
     else
         entry.questID    = questData.questID
         entry.entryKey   = nil
@@ -930,6 +999,7 @@ local function PopulateEntry(entry, questData, groupKey)
         entry.endeavorID = nil
         entry.decorID    = nil
         entry.isTracked  = questData.isTracked
+        entry.vignetteGUID = nil; entry.vignetteMapID = nil; entry.vignetteX = nil; entry.vignetteY = nil; entry.title = nil
     end
     return totalH
 end

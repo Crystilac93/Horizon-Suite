@@ -127,12 +127,51 @@ local function getDiscoveryColor()
     return (addon.GetPresenceDiscoveryColor and addon.GetPresenceDiscoveryColor()) or addon.PRESENCE_DISCOVERY_COLOR or getCategoryColor("COMPLETE", { 0.4, 1, 0.5 })
 end
 
+--- Returns a color for the current zone PvP type (friendly/hostile/contested/sanctuary).
+--- Uses user-configured colors if set, otherwise sane defaults.
+--- @return table|nil {r,g,b} or nil if zone type is unknown
+local function GetZoneTypeColor()
+    local pvpType = (C_PvP and C_PvP.GetZonePVPInfo) and C_PvP.GetZonePVPInfo() or (GetZonePVPInfo and GetZonePVPInfo()) or nil
+    if not pvpType or pvpType == "" then return nil end
+    local colorKey
+    if pvpType == "friendly" then
+        colorKey = "presenceZoneColorFriendly"
+    elseif pvpType == "hostile" then
+        colorKey = "presenceZoneColorHostile"
+    elseif pvpType == "contested" then
+        colorKey = "presenceZoneColorContested"
+    elseif pvpType == "sanctuary" then
+        colorKey = "presenceZoneColorSanctuary"
+    else
+        return nil
+    end
+    local c = addon.GetDB and addon.GetDB(colorKey, nil)
+    if c and type(c) == "table" and c[1] and c[2] and c[3] then return c end
+    -- Sane defaults
+    local defaults = {
+        presenceZoneColorFriendly  = { 0.1, 1.0, 0.1 },  -- green
+        presenceZoneColorHostile   = { 1.0, 0.1, 0.1 },  -- red
+        presenceZoneColorContested = { 1.0, 0.7, 0.0 },  -- orange
+        presenceZoneColorSanctuary = { 0.41, 0.8, 0.94 }, -- light blue
+    }
+    return defaults[colorKey] or nil
+end
+
 local function resolveColors(typeName, cfg, opts)
     opts = opts or {}
     if cfg.specialColor and typeName == "BOSS_EMOTE" then
         local c = (addon.GetPresenceBossEmoteColor and addon.GetPresenceBossEmoteColor()) or addon.PRESENCE_BOSS_EMOTE_COLOR or { 1, 0.2, 0.2 }
         local sc = getCategoryColor("DEFAULT", { 1, 1, 1 })
         return c, sc
+    end
+    -- Zone-type coloring for zone/subzone changes when enabled
+    if (typeName == "ZONE_CHANGE" or typeName == "SUBZONE_CHANGE") and addon.GetDB and addon.GetDB("presenceZoneTypeColoring", false) then
+        local ztc = GetZoneTypeColor()
+        if ztc then
+            local subCat = cfg.subCategory or "DEFAULT"
+            local sc = getCategoryColor(subCat, { 1, 1, 1 })
+            return ztc, sc
+        end
     end
     local cat = cfg.category
     if opts.category and (typeName == "SCENARIO_START" or typeName == "SCENARIO_UPDATE" or typeName == "ZONE_CHANGE" or typeName == "SUBZONE_CHANGE") then

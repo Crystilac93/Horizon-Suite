@@ -86,6 +86,18 @@ local function ShouldSuppressInMplus()
     return addon.GetDB and addon.GetDB("presenceSuppressZoneInMplus", true) and addon.IsInMythicDungeon and addon.IsInMythicDungeon()
 end
 
+--- True when Presence should be suppressed for the current instance type (dungeon/raid/pvp/bg).
+--- This is separate from the M+ suppression; it covers all non-essential notifications.
+local function ShouldSuppressInInstance()
+    if not addon.GetDB then return false end
+    local inType = select(2, GetInstanceInfo())
+    if inType == "party" and addon.GetDB("presenceSuppressInDungeon", false) then return true end
+    if inType == "raid"  and addon.GetDB("presenceSuppressInRaid", false)    then return true end
+    if inType == "arena" and addon.GetDB("presenceSuppressInPvP", false)     then return true end
+    if inType == "pvp"   and addon.GetDB("presenceSuppressInBattleground", false) then return true end
+    return false
+end
+
 --- Check if a Presence type is enabled, with optional fallback to a legacy grouped option.
 --- @param key string DB key for the per-type toggle (e.g. presenceQuestAccept)
 --- @param fallbackKey string|nil DB key for fallback when key is nil (e.g. presenceQuestEvents)
@@ -161,6 +173,7 @@ end
 
 local function OnQuestAccepted(_, questID)
     if ShouldSuppressInMplus() then return end
+    if ShouldSuppressInInstance() then return end
     local opts = (questID and { questID = questID }) or {}
     if C_QuestLog and C_QuestLog.GetTitleForQuestID then
         local questName = StripPresenceMarkup(C_QuestLog.GetTitleForQuestID(questID) or "New Quest")
@@ -183,6 +196,7 @@ end
 
 local function OnQuestTurnedIn(_, questID)
     if ShouldSuppressInMplus() then return end
+    if ShouldSuppressInInstance() then return end
     local opts = (questID and { questID = questID }) or {}
     local questName = "Objective"
     if C_QuestLog then
@@ -288,6 +302,7 @@ local function ExecuteQuestUpdate(questID, isBlindUpdate, source, isRetry)
     -- 8. Trigger notification
     if not IsPresenceTypeEnabled("presenceQuestUpdate", "presenceQuestEvents", true) then return end
     if ShouldSuppressInMplus() then return end
+    if ShouldSuppressInInstance() then return end
     local L = addon.L or {}
     addon.Presence.QueueOrPlay("QUEST_UPDATE", L["QUEST UPDATE"], normalized, { questID = questID, source = source })
     DbgWQ("ExecuteQuestUpdate: Shown", questID, msg)
@@ -374,6 +389,7 @@ local function OnUIInfoMessage(_, msgType, msg)
             if hasPendingUpdate then return end
             if not IsPresenceTypeEnabled("presenceQuestUpdate", "presenceQuestEvents", true) then return end
             if ShouldSuppressInMplus() then return end
+            if ShouldSuppressInInstance() then return end
 
             local now = GetTime()
             if lastUIInfoMsg == msg and (now - lastUIInfoTime) < UI_MSG_THROTTLE then return end
@@ -465,6 +481,7 @@ local function ExecuteScenarioCriteriaUpdate()
     scenarioCriteriaUpdateTimer = nil
     if not addon.IsScenarioActive or not addon.IsScenarioActive() then return end
     if ShouldSuppressInMplus() then return end
+    if ShouldSuppressInInstance() then return end
     if addon.GetDB and not addon.GetDB("showScenarioEvents", true) then return end
     if not IsPresenceTypeEnabled("presenceScenarioUpdate", "showScenarioEvents", true) then return end
     if not addon.GetScenarioDisplayInfo then return end
@@ -583,6 +600,7 @@ local function TryShowScenarioStart()
     -- Delve objective update feature disabled for now; zone entry already shows ZONE_CHANGE
     if addon.IsDelveActive and addon.IsDelveActive() then return end
     if ShouldSuppressInMplus() then return end
+    if ShouldSuppressInInstance() then return end
     if addon.GetDB and not addon.GetDB("showScenarioEvents", true) then return end
     if not IsPresenceTypeEnabled("presenceScenarioStart", "showScenarioEvents", true) then return end
     if not addon.GetScenarioDisplayInfo then return end
@@ -682,6 +700,7 @@ local function ScheduleZoneNotification(isNewArea)
         pendingZoneTimer = nil
         if not addon:IsModuleEnabled("presence") then return end
         if ShouldSuppressInMplus() then return end
+        if ShouldSuppressInInstance() then return end
 
         -- Re-sample at fire time to always use the freshest state.
         zone = GetZoneText() or "Unknown Zone"

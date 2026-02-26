@@ -55,6 +55,18 @@ local function GetRaresOnMap()
                             creatureID = tonumber(id)
                         end
                         if creatureID then
+                            -- Get vignette position for waypoint support.
+                            local vX, vY, vMapID
+                            if C_VignetteInfo.GetVignettePosition then
+                                local ok, pos = pcall(C_VignetteInfo.GetVignettePosition, vignetteGUID)
+                                if ok and pos then
+                                    vX = pos.x or (pos.GetXY and select(1, pos:GetXY()))
+                                    vY = pos.y or (pos.GetXY and select(2, pos:GetXY()))
+                                end
+                            end
+                            if not vMapID and C_Map and C_Map.GetBestMapForUnit then
+                                vMapID = C_Map.GetBestMapForUnit("player")
+                            end
                             out[#out + 1] = {
                                 entryKey    = "vignette:" .. tostring(vignetteGUID),
                                 questID     = nil,
@@ -70,6 +82,10 @@ local function GetRaresOnMap()
                                 itemTexture = nil,
                                 isRare      = true,
                                 creatureID  = creatureID,
+                                vignetteGUID = vignetteGUID,
+                                vignetteMapID = vMapID,
+                                vignetteX   = vX,
+                                vignetteY   = vY,
                             }
                         end
                     end
@@ -125,3 +141,83 @@ local function GetRaresOnMap()
 end
 
 addon.GetRaresOnMap = GetRaresOnMap
+
+-- ============================================================================
+-- RARE BOSS WAYPOINT
+-- ============================================================================
+
+--- Set a waypoint for a rare boss entry. TomTom first, then native API.
+--- Does NOT open the world map.
+--- @param entry table The rare boss entry from the tracker
+local function SetRareWaypoint(entry)
+    if not entry then return end
+
+    local vignetteGUID = entry.vignetteGUID or (entry.entryKey and entry.entryKey:match("^vignette:(.+)$"))
+    local mapID = entry.vignetteMapID
+    local x, y = entry.vignetteX, entry.vignetteY
+    local name = entry.title or "Rare"
+
+    -- If we have a vignetteGUID but no position, try to fetch it now.
+    if vignetteGUID and (not x or not y) and C_VignetteInfo and C_VignetteInfo.GetVignettePosition then
+        local ok, pos = pcall(C_VignetteInfo.GetVignettePosition, vignetteGUID)
+        if ok and pos then
+            x = pos.x or (pos.GetXY and select(1, pos:GetXY()))
+            y = pos.y or (pos.GetXY and select(2, pos:GetXY()))
+        end
+    end
+    if not mapID and C_Map and C_Map.GetBestMapForUnit then
+        mapID = C_Map.GetBestMapForUnit("player")
+    end
+
+    -- Priority 1: TomTom addon
+    local TomTom = _G.TomTom
+    if TomTom and TomTom.AddWaypoint and mapID and x and y then
+        pcall(TomTom.AddWaypoint, TomTom, mapID, x, y, { title = name, persistent = false, minimap = true, world = true })
+        return
+    end
+
+    -- Priority 2: Native waypoint (no map opening)
+    if vignetteGUID and C_SuperTrack and C_SuperTrack.SetSuperTrackedVignette then
+        C_SuperTrack.SetSuperTrackedVignette(vignetteGUID)
+        return
+    end
+
+    -- Priority 3: C_Map.SetUserWaypoint for known coordinates
+    if mapID and x and y and C_Map and C_Map.SetUserWaypoint then
+        local uiMapPoint = UiMapPoint and UiMapPoint.CreateFromCoordinates(mapID, x, y)
+        if uiMapPoint then
+            pcall(C_Map.SetUserWaypoint, uiMapPoint)
+            if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
+                pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, true)
+            end
+        end
+    end
+end
+
+addon.SetRareWaypoint = SetRareWaypoint
+
+-- ============================================================================
+-- RARE BOSS SOUND
+-- ============================================================================
+
+--- Play the user-selected rare-added sound. Uses SharedMedia if a custom sound is chosen.
+function addon.PlayRareAddedSound()
+    if not addon.GetDB("rareAddedSound", true) then return end
+    local choice = addon.GetDB("rareAddedSoundChoice", "default")
+    if choice == "default" or not choice or choice == "" then
+        if PlaySound then pcall(PlaySound, addon.RARE_ADDED_SOUND) end
+        return
+    end
+    -- Resolve via LibSharedMedia
+    local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
+    if LSM then
+        local path = LSM:Fetch("sound", choice)
+        if path and PlaySoundFile then
+            pcall(PlaySoundFile, path, "Master")
+            return
+        end
+    end
+    -- Fallback to default
+    if PlaySound then pcall(PlaySound, addon.RARE_ADDED_SOUND) end
+end
+

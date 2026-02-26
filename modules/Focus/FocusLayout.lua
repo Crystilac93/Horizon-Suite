@@ -370,8 +370,12 @@ local function FullLayout()
         for _, r in ipairs(rares) do currentRareKeys[r.entryKey or r.questID] = true end
         if addon.focus.rares.trackingInit and not addon.focus.zoneJustChanged then
             for key in pairs(currentRareKeys) do
-                if not addon.focus.rares.prevKeys[key] and PlaySound and addon.GetDB("rareAddedSound", true) then
-                    pcall(PlaySound, addon.RARE_ADDED_SOUND)
+                if not addon.focus.rares.prevKeys[key] then
+                    if addon.PlayRareAddedSound then
+                        addon.PlayRareAddedSound()
+                    elseif PlaySound and addon.GetDB("rareAddedSound", true) then
+                        pcall(PlaySound, addon.RARE_ADDED_SOUND)
+                    end
                     break
                 end
             end
@@ -444,7 +448,12 @@ local function FullLayout()
             scrollFrame:SetVerticalScroll(0)
             addon.focus.layout.scrollOffset = 0
             if addon.UpdateScrollIndicators then addon.UpdateScrollIndicators() end
-            local headerArea = addon.GetScaledPadding() + addon.GetHeaderHeight() + addon.GetScaledDividerHeight() + addon.GetHeaderToContentGap()
+            local headerArea
+            if addon.GetDB("hideObjectivesHeader", false) then
+                headerArea = addon.GetScaledMinimalHeaderHeight() + addon.Scaled(4)
+            else
+                headerArea = addon.GetScaledPadding() + addon.GetHeaderHeight() + addon.GetScaledDividerHeight() + addon.GetHeaderToContentGap()
+            end
             local visibleH = math.min(totalContentH, addon.GetMaxContentHeight())
             local blockHeight = (hasMplus and addon.GetMplusBlockHeight and (addon.GetMplusBlockHeight() + gap * 2)) or 0
             local desiredH = math.max(addon.GetScaledMinHeight(), headerArea + visibleH + addon.GetScaledPadding() + blockHeight)
@@ -723,6 +732,15 @@ local function FullLayout()
     -- Persist for other modules/tests.
     addon.focus.layout.sectionLabelX = sectionLabelX
 
+    -- Section divider pool (lazy-created textures for between-section dividers)
+    if not addon.focus.layout.sectionDividers then addon.focus.layout.sectionDividers = {} end
+    local sectionDividers = addon.focus.layout.sectionDividers
+    local showSectionDividers = addon.GetDB("showSectionDividers", false)
+    local sectionDividerIdx = 0
+
+    -- Hide all section dividers first
+    for _, div in ipairs(sectionDividers) do div:Hide() end
+
     for gi, grp in ipairs(grouped) do
         local isCollapsed = false
         if showSections and addon.IsCategoryCollapsed then
@@ -733,7 +751,33 @@ local function FullLayout()
             local sectionGap = 0
             if gi > 1 then
                 sectionGap = addon.GetSectionSpacing()
-                yOff = yOff - sectionGap
+
+                -- Draw a divider between sections if enabled
+                if showSectionDividers then
+                    local divH = 1
+                    local divPad = math.floor(sectionGap / 2)
+                    yOff = yOff - divPad
+                    sectionDividerIdx = sectionDividerIdx + 1
+                    local div = sectionDividers[sectionDividerIdx]
+                    if not div then
+                        div = scrollChild:CreateTexture(nil, "ARTWORK")
+                        sectionDividers[sectionDividerIdx] = div
+                    end
+                    local divColor = addon.GetDB("sectionDividerColor", nil)
+                    if not divColor or type(divColor) ~= "table" or not divColor[1] then
+                        divColor = { 0.3, 0.3, 0.35, 0.4 }
+                    end
+                    div:SetColorTexture(divColor[1], divColor[2], divColor[3], divColor[4] or 0.4)
+                    local divX = addon.GetScaledPadding()
+                    local divW = addon.GetPanelWidth() - divX * 2
+                    div:SetSize(divW, divH)
+                    div:ClearAllPoints()
+                    div:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", divX, yOff)
+                    div:Show()
+                    yOff = yOff - divH - (sectionGap - divPad)
+                else
+                    yOff = yOff - sectionGap
+                end
             end
             local sec = addon.AcquireSectionHeader(grp.key, focusedGroupKey)
             if sec then
@@ -871,7 +915,12 @@ local function FullLayout()
     scrollFrame:SetVerticalScroll(addon.focus.layout.scrollOffset)
     if addon.UpdateScrollIndicators then addon.UpdateScrollIndicators() end
 
-    local headerArea    = addon.GetScaledPadding() + addon.GetHeaderHeight() + addon.GetScaledDividerHeight() + addon.GetHeaderToContentGap()
+    local headerArea
+    if addon.GetDB("hideObjectivesHeader", false) then
+        headerArea = addon.GetScaledMinimalHeaderHeight() + addon.Scaled(4)
+    else
+        headerArea = addon.GetScaledPadding() + addon.GetHeaderHeight() + addon.GetScaledDividerHeight() + addon.GetHeaderToContentGap()
+    end
     local visibleH      = math.min(totalContentH, addon.GetMaxContentHeight())
     local blockHeight   = (hasMplus and addon.GetMplusBlockHeight and (addon.GetMplusBlockHeight() + gap * 2)) or 0
     local desiredH      = math.max(addon.GetScaledMinHeight(), headerArea + visibleH + addon.GetScaledPadding() + blockHeight)
@@ -901,7 +950,7 @@ function addon.ApplyFocusColors()
             local color = addon.GetSectionColor and addon.GetSectionColor(s.groupKey)
             if color and type(color) == "table" and color[1] and color[2] and color[3] then
                 if addon.GetDB("dimNonSuperTracked", false) and focusedGroupKey and s.groupKey ~= focusedGroupKey then
-                    color = { color[1] * 0.60, color[2] * 0.60, color[3] * 0.60 }
+                    color = addon.ApplyDimColor(color)
                 end
                 s.text:SetTextColor(color[1], color[2], color[3], addon.SECTION_COLOR_A or 1)
             end
@@ -918,21 +967,25 @@ function addon.ApplyFocusColors()
 
             local titleColor = (addon.GetTitleColor and addon.GetTitleColor(effectiveCat)) or addon.QUEST_COLORS and addon.QUEST_COLORS.DEFAULT
             if titleColor and type(titleColor) == "table" and titleColor[1] and titleColor[2] and titleColor[3] then
+                local dimAlpha = 1
                 if entry.isDungeonQuest and not entry.isTracked then
                     titleColor = { titleColor[1] * 0.65, titleColor[2] * 0.65, titleColor[3] * 0.65 }
                 elseif addon.GetDB("dimNonSuperTracked", false) and not entry.isSuperTracked then
-                    titleColor = { titleColor[1] * 0.60, titleColor[2] * 0.60, titleColor[3] * 0.60 }
+                    titleColor = addon.ApplyDimColor(titleColor)
+                    dimAlpha = addon.GetDimAlpha()
                 end
-                entry.titleText:SetTextColor(titleColor[1], titleColor[2], titleColor[3], 1)
+                entry.titleText:SetTextColor(titleColor[1], titleColor[2], titleColor[3], dimAlpha)
             end
 
             if entry.zoneText and entry.zoneText:IsShown() then
                 local zoneColor = (addon.GetZoneColor and addon.GetZoneColor(effectiveCat)) or addon.ZONE_COLOR
                 if zoneColor and type(zoneColor) == "table" and zoneColor[1] and zoneColor[2] and zoneColor[3] then
+                    local dimAlpha = 1
                     if addon.GetDB("dimNonSuperTracked", false) and not entry.isSuperTracked then
-                        zoneColor = { zoneColor[1] * 0.60, zoneColor[2] * 0.60, zoneColor[3] * 0.60 }
+                        zoneColor = addon.ApplyDimColor(zoneColor)
+                        dimAlpha = addon.GetDimAlpha()
                     end
-                    entry.zoneText:SetTextColor(zoneColor[1], zoneColor[2], zoneColor[3], 1)
+                    entry.zoneText:SetTextColor(zoneColor[1], zoneColor[2], zoneColor[3], dimAlpha)
                 end
             end
 
@@ -942,9 +995,11 @@ function addon.ApplyFocusColors()
                 local doneColor = (addon.GetCompletedObjectiveColor and addon.GetCompletedObjectiveColor(effectiveCat))
                     or (addon.GetObjectiveColor and addon.GetObjectiveColor(effectiveCat))
                     or addon.OBJ_DONE_COLOR or objColor
+                local dimAlpha = 1
                 if addon.GetDB("dimNonSuperTracked", false) and not entry.isSuperTracked then
-                    objColor = { objColor[1] * 0.60, objColor[2] * 0.60, objColor[3] * 0.60 }
-                    doneColor = { doneColor[1] * 0.60, doneColor[2] * 0.60, doneColor[3] * 0.60 }
+                    objColor = addon.ApplyDimColor(objColor)
+                    doneColor = addon.ApplyDimColor(doneColor)
+                    dimAlpha = addon.GetDimAlpha()
                 end
                 for j = 1, addon.MAX_OBJECTIVES do
                     local obj = entry.objectives[j]
@@ -956,7 +1011,7 @@ function addon.ApplyFocusColors()
                         if isFinished and not useTick then
                             targetColor = doneColor
                         end
-                        obj.text:SetTextColor(targetColor[1], targetColor[2], targetColor[3], alpha)
+                        obj.text:SetTextColor(targetColor[1], targetColor[2], targetColor[3], alpha * dimAlpha)
 
                         -- Live-update progress bar colors
                         if obj.progressBarFill and obj.progressBarFill:IsShown() then

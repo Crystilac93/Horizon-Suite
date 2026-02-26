@@ -128,6 +128,16 @@ addon:RegisterModule("focus", {
                 end
             end
         end
+        -- Restore session-suppressed quests so "suppress until reload" actually survives reload.
+        if addon.GetDB("suppressUntrackedUntilReload", false) then
+            local saved = addon.GetDB("sessionSuppressedQuests", nil)
+            if saved and type(saved) == "table" and next(saved) then
+                addon.focus.recentlyUntrackedWorldQuests = addon.focus.recentlyUntrackedWorldQuests or {}
+                for questID, v in pairs(saved) do
+                    if v then addon.focus.recentlyUntrackedWorldQuests[questID] = true end
+                end
+            end
+        end
         addon.RestoreSavedPosition()
         addon.ApplyTypography()
         addon.ApplyDimensions()
