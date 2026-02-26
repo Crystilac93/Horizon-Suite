@@ -136,14 +136,17 @@ function addon.ApplyTextCase(text, dbKey, default)
     
     local v = addon.GetDB(dbKey, default or "proper")
     if v == "default" then return text end
+    local hasNonAscii = text:find("[\128-\255]") ~= nil
     local hasEscapes = text:find("|c") or text:find("|[TtAa]")
-    local hasExtendedCap = text:find("[%z\128-\255]") and text == strupper(text)
+    local hasExtendedCap = (not hasNonAscii) and (text == strupper(text))
     local _, spaceCount = text:gsub("%s", "")
     local isSystemText = spaceCount > 3 or text:find("%.%s*$") or #text > 35
     local isInternal = hasEscapes or hasExtendedCap or isSystemText
     local escapes = {}
     
     local function transform(s)
+        -- Lua case transforms are byte-based; avoid corrupting UTF-8 multibyte text.
+        if s and s:find("[\128-\255]") then return s end
         if v == "upper" then return strupper(s) end
         if v == "lower" then return strlower(s) end
         
