@@ -61,6 +61,7 @@ local ROLE_COLORS = {
 local MYTHIC_ICON = "|TInterface\\Icons\\achievement_challengemode_gold:14:14:0:0|t "
 local SEPARATOR   = string.rep("-", 22)
 local SEP_COLOR   = { 0.18, 0.18, 0.18 }
+local SEP_INSET   = 10
 
 -- Returns r, g, b for a Mythic+ score using WoW's tier thresholds.
 local function MythicScoreColor(score)
@@ -83,6 +84,31 @@ local CINEMATIC_BACKDROP = {
 -- HELPERS
 -- ============================================================================
 
+local floor = math.floor
+
+local function FormatNumberWithCommas(n)
+    if type(n) ~= "number" then return tostring(n) end
+    if BreakUpLargeNumbers then
+        return BreakUpLargeNumbers(floor(n))
+    end
+    local s = tostring(floor(n))
+    local i = #s % 3
+    if i == 0 then i = 3 end
+    return s:sub(1, i) .. s:sub(i + 1):gsub("(%d%d%d)", ",%1")
+end
+
+-- Format numbers (4+ digits) in a string with comma separators; used for mount source (e.g. "Vendor: 5000g").
+local function FormatNumbersInString(str)
+    if not str or str == "" then return str end
+    return (str:gsub("%d+", function(numStr)
+        local n = tonumber(numStr)
+        if n and #numStr >= 4 then
+            return FormatNumberWithCommas(n)
+        end
+        return numStr
+    end))
+end
+
 local function easeOut(t) return 1 - (1 - t) * (1 - t) end
 
 local function IsEnabled()
@@ -102,6 +128,17 @@ local function ShowMythicScore()  return addon.GetDB("insightShowMythicScore",  
 local function ShowTransmog()     return addon.GetDB("insightShowTransmog",     true)  end
 local function ShowGuildRank()    return addon.GetDB("insightShowGuildRank",    true)  end
 local function ShowHonorLevel()   return addon.GetDB("insightShowHonorLevel",   true)  end
+
+-- Repositions tooltip so its bottom does not clip below the screen edge (cursor mode only).
+local function ClampTooltipToScreen()
+    if GetAnchorMode() ~= "cursor" then return end
+    local bottom = GameTooltip:GetBottom()
+    if not bottom or bottom >= 2 then return end
+    local left    = GameTooltip:GetLeft() or 0
+    local uiScale = UIParent:GetEffectiveScale()
+    GameTooltip:ClearAllPoints()
+    GameTooltip:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left / uiScale, 2 / uiScale)
+end
 
 -- ============================================================================
 -- BACKBONE TOOLTIP STYLING
@@ -174,6 +211,74 @@ local function HookTooltipShowMethod(tooltip)
 end
 
 -- ============================================================================
+-- SEPARATOR TEXTURES (defined before animation hooks that reference them)
+-- ============================================================================
+
+local SEP_TEXTURE_POOL_SIZE = 4
+
+local function HideSeparatorTextures()
+    local textures = Insight.sepTextures
+    if textures then
+        for i = 1, #textures do
+            textures[i]:Hide()
+        end
+    end
+end
+
+local function UpdateSeparatorTextures()
+    if not GameTooltip or not GameTooltip:IsShown() then return end
+    local textures = Insight.sepTextures
+    if not textures then return end
+
+    for i = 1, #textures do
+        textures[i]:Hide()
+    end
+
+    local sepR = Insight.sepR or SEP_COLOR[1]
+    local sepG = Insight.sepG or SEP_COLOR[2]
+    local sepB = Insight.sepB or SEP_COLOR[3]
+
+    local name = GameTooltip:GetName()
+    if not name then return end
+
+    local numLines = GameTooltip:NumLines()
+    local texIdx = 0
+
+    for i = 1, numLines do
+        local left = _G[name .. "TextLeft" .. i]
+        if left and left:GetText() == SEPARATOR then
+            left:SetAlpha(0)
+            texIdx = texIdx + 1
+            local tex = textures[texIdx]
+            if tex then
+                tex:SetColorTexture(sepR, sepG, sepB, 1)
+                tex:ClearAllPoints()
+                tex:SetPoint("LEFT", GameTooltip, "LEFT", SEP_INSET, 0)
+                tex:SetPoint("RIGHT", GameTooltip, "RIGHT", -SEP_INSET, 0)
+                tex:SetPoint("TOP", left, "TOP", 0, 0)
+                tex:SetPoint("BOTTOM", left, "BOTTOM", 0, 0)
+                tex:Show()
+            end
+        end
+    end
+end
+
+local function ShowAndScheduleSeparators()
+    GameTooltip:Show()
+    C_Timer.After(0, function()
+        if GameTooltip and GameTooltip:IsShown() then
+            UpdateSeparatorTextures()
+        end
+    end)
+    -- Some tooltip widths finalize one frame later (inspect/data refresh path).
+    C_Timer.After(0.03, function()
+        if GameTooltip and GameTooltip:IsShown() then
+            UpdateSeparatorTextures()
+        end
+    end)
+end
+
+-- ============================================================================
 -- ANIMATION ENGINE
 -- ============================================================================
 
@@ -217,6 +322,7 @@ local function HookGameTooltipAnimation()
         animFrame:Hide()
         self:SetAlpha(1)
         if Insight.accentBar then Insight.accentBar:Hide() end
+        HideSeparatorTextures()
     end)
 end
 
@@ -350,6 +456,10 @@ local function ProcessUnitTooltip()
         classColor = classFile and C_ClassColor and C_ClassColor.GetClassColor(classFile)
         guildName, guildRankName = GetGuildInfo(unit)
     end)
+    local sepR = (classColor and classColor.r) or SEP_COLOR[1]
+    local sepG = (classColor and classColor.g) or SEP_COLOR[2]
+    local sepB = (classColor and classColor.b) or SEP_COLOR[3]
+    Insight.sepR, Insight.sepG, Insight.sepB = sepR, sepG, sepB
     local cached = guid and inspectCache[guid]
 
     -- 1. Name line: faction icon + faction colour
@@ -425,7 +535,7 @@ local function ProcessUnitTooltip()
     end
 
     -- Separator: identity block → PvP/status block
-    GameTooltip:AddLine(SEPARATOR, SEP_COLOR[1], SEP_COLOR[2], SEP_COLOR[3])
+    GameTooltip:AddLine(SEPARATOR, sepR, sepG, sepB)
 
     -- 4. PvP title + honor level
     -- All string comparisons on unit-API results are wrapped in pcall because
@@ -444,7 +554,7 @@ local function ProcessUnitTooltip()
         pcall(function()
             local honorLevel = UnitHonorLevel(unit)
             if honorLevel and honorLevel > 0 then
-                GameTooltip:AddLine("Honor Level " .. honorLevel, 0.85, 0.70, 1.00)
+                GameTooltip:AddLine("Honor Level " .. FormatNumberWithCommas(honorLevel), 0.85, 0.70, 1.00)
             end
         end)
     end
@@ -475,7 +585,7 @@ local function ProcessUnitTooltip()
     local hasStats = false
     local function EnsureStatsSep()
         if not hasStats then
-            GameTooltip:AddLine(SEPARATOR, SEP_COLOR[1], SEP_COLOR[2], SEP_COLOR[3])
+            GameTooltip:AddLine(SEPARATOR, sepR, sepG, sepB)
             hasStats = true
         end
     end
@@ -487,7 +597,7 @@ local function ProcessUnitTooltip()
             local score = summary.currentSeasonScore
             local r, g, b = MythicScoreColor(score)
             EnsureStatsSep()
-            GameTooltip:AddLine(MYTHIC_ICON .. "M+ Score: " .. score, r, g, b)
+            GameTooltip:AddLine(MYTHIC_ICON .. "M+ Score: " .. FormatNumberWithCommas(score), r, g, b)
         end
     end
 
@@ -495,9 +605,8 @@ local function ProcessUnitTooltip()
     if cached then
         if ShowIlvl() and cached.ilvl then
             EnsureStatsSep()
-            GameTooltip:AddLine("Item Level: " .. cached.ilvl, ILVL_COLOR[1], ILVL_COLOR[2], ILVL_COLOR[3])
+            GameTooltip:AddLine("Item Level: " .. FormatNumberWithCommas(cached.ilvl), ILVL_COLOR[1], ILVL_COLOR[2], ILVL_COLOR[3])
         end
-        GameTooltip:Show()
     else
         RequestInspect(unit)
     end
@@ -507,21 +616,22 @@ local function ProcessUnitTooltip()
         local mount = GetPlayerMountInfo(unit)
         if mount and mount.name then
             local iconStr = mount.icon and ("|T" .. mount.icon .. ":14:14:0:0|t ") or ""
-            GameTooltip:AddLine(SEPARATOR, SEP_COLOR[1], SEP_COLOR[2], SEP_COLOR[3])
+            GameTooltip:AddLine(SEPARATOR, sepR, sepG, sepB)
             GameTooltip:AddLine(iconStr .. mount.name, MOUNT_COLOR[1], MOUNT_COLOR[2], MOUNT_COLOR[3])
             if mount.source and mount.source ~= "" then
-                GameTooltip:AddLine(mount.source, MOUNT_SRC_COLOR[1], MOUNT_SRC_COLOR[2], MOUNT_SRC_COLOR[3])
+                GameTooltip:AddLine(FormatNumbersInString(mount.source), MOUNT_SRC_COLOR[1], MOUNT_SRC_COLOR[2], MOUNT_SRC_COLOR[3])
             end
             if mount.isCollected == true then
                 GameTooltip:AddLine("|cff55ff55You own this mount|r", 1, 1, 1)
             elseif mount.isCollected == false then
                 GameTooltip:AddLine("|cffff5555You don't own this mount|r", 1, 1, 1)
             end
-            GameTooltip:Show()
         end
     end
 
     StyleFonts(GameTooltip)
+    GameTooltip:Show()
+    ClampTooltipToScreen()
 end
 
 -- ============================================================================
@@ -681,6 +791,17 @@ function Insight.Init()
         Insight.accentBar = bar
     end
 
+    -- Separator texture pool for full-width class-coloured lines
+    if not Insight.sepTextures or #Insight.sepTextures == 0 then
+        Insight.sepTextures = {}
+        for i = 1, SEP_TEXTURE_POOL_SIZE do
+            local tex = GameTooltip:CreateTexture(nil, "ARTWORK")
+            tex:SetColorTexture(0.18, 0.18, 0.18, 1)
+            tex:Hide()
+            Insight.sepTextures[i] = tex
+        end
+    end
+
     HookGameTooltipAnimation()
     HideHealthBar()
     HookPositioning()
@@ -701,6 +822,7 @@ end
 function Insight.Disable()
     HideAnchorFrame()
     if Insight.accentBar then Insight.accentBar:Hide() end
+    HideSeparatorTextures()
     for _, tt in ipairs(tooltipsToStyle) do
         if tt then
             RestoreNineSlice(tt)
@@ -773,6 +895,8 @@ SlashCmdList["HORIZONSUITEINSIGHT"] = function(msg)
         if addon.HSPrint then addon.HSPrint("Horizon Insight: Fixed position reset to default.") end
 
     elseif cmd == "test" then
+        local testSepR, testSepG, testSepB = 0.77, 0.12, 0.23  -- DK class colour
+        Insight.sepR, Insight.sepG, Insight.sepB = testSepR, testSepG, testSepB
         GameTooltip:SetOwner(UIParent, "ANCHOR_CURSOR")
         GameTooltip:ClearLines()
         -- Name: faction icon + class colour (DK = dark red)
@@ -786,21 +910,21 @@ SlashCmdList["HORIZONSUITEINSIGHT"] = function(msg)
             "|TInterface\\Icons\\spell_deathknight_bloodpresence:14:14:0:0|t Blood Death Knight  |cff4d99ffTank|r",
             0.77, 0.12, 0.23)
         -- Identity / status separator
-        GameTooltip:AddLine(SEPARATOR, SEP_COLOR[1], SEP_COLOR[2], SEP_COLOR[3])
+        GameTooltip:AddLine(SEPARATOR, testSepR, testSepG, testSepB)
         -- PvP title
         GameTooltip:AddLine("Duelist Testplayer", TITLE_COLOR[1], TITLE_COLOR[2], TITLE_COLOR[3])
         -- Honor level
-        GameTooltip:AddLine("Honor Level 247", 0.85, 0.70, 1.00)
+        GameTooltip:AddLine("Honor Level " .. FormatNumberWithCommas(247), 0.85, 0.70, 1.00)
         -- Status badges
         GameTooltip:AddLine("|cffff4444[Combat]|r  |cffff8c00[PvP]|r  |cff88ddff[Party]|r  |cff55ff55[Friend]|r  |cffff4466[Targeting You]|r", 1, 1, 1)
         -- Stats separator
-        GameTooltip:AddLine(SEPARATOR, SEP_COLOR[1], SEP_COLOR[2], SEP_COLOR[3])
+        GameTooltip:AddLine(SEPARATOR, testSepR, testSepG, testSepB)
         -- M+ score
-        GameTooltip:AddLine(MYTHIC_ICON .. "M+ Score: 2847", MythicScoreColor(2847))
+        GameTooltip:AddLine(MYTHIC_ICON .. "M+ Score: " .. FormatNumberWithCommas(2847), MythicScoreColor(2847))
         -- Item level
-        GameTooltip:AddLine("Item Level: 639", ILVL_COLOR[1], ILVL_COLOR[2], ILVL_COLOR[3])
+        GameTooltip:AddLine("Item Level: " .. FormatNumberWithCommas(639), ILVL_COLOR[1], ILVL_COLOR[2], ILVL_COLOR[3])
         -- Mount separator
-        GameTooltip:AddLine(SEPARATOR, SEP_COLOR[1], SEP_COLOR[2], SEP_COLOR[3])
+        GameTooltip:AddLine(SEPARATOR, testSepR, testSepG, testSepB)
         -- Mount
         GameTooltip:AddLine(
             "|TInterface\\Icons\\ability_mount_drake_proto:14:14:0:0|t Reins of the Thundering Cobalt Cloud Serpent",
@@ -813,7 +937,7 @@ SlashCmdList["HORIZONSUITEINSIGHT"] = function(msg)
             Insight.accentBar:SetColorTexture(0.77, 0.12, 0.23, 0.85)
             Insight.accentBar:Show()
         end
-        GameTooltip:Show()
+        ShowAndScheduleSeparators()
         if addon.HSPrint then addon.HSPrint("Horizon Insight: Test tooltip shown at cursor.") end
 
     elseif cmd == "status" then

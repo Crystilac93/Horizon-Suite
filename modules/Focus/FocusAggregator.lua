@@ -104,7 +104,7 @@ local function SortAndGroupQuests(quests)
         elseif q.isNearby and not q.isAccepted then
             groups["AVAILABLE"][#groups["AVAILABLE"] + 1] = q
         elseif q.isNearby and q.isAccepted then
-            if addon.GetDB("showNearbyGroup", true) or q.category == "COMPLETE" then
+            if addon.GetDB("showNearbyGroup", true) then
                 groups["NEARBY"][#groups["NEARBY"] + 1] = q
             else
                 local grp = categoryToGroup[q.category] or DEFAULT_GROUP
