@@ -58,6 +58,7 @@ addon.DELVE_TIER_ATLAS = "delves-scenario-flag"  -- Blizzard atlas for Delve tie
 addon.SHADOW_OX       = 2
 addon.SHADOW_OY       = -2
 addon.SHADOW_A        = 0.8
+addon.DUNGEON_UNTRACKED_DIM = 0.65   -- dim factor for untracked dungeon quests (single source)
 
 -- Single source of truth for Focus fade/transition. All animation code reads from here.
 addon.FOCUS_ANIM = {

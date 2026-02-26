@@ -1531,9 +1531,9 @@ end)
 local RESIZE_MIN, RESIZE_MAX = 180, 800
 local RESIZE_HEIGHT_MIN = addon.MIN_HEIGHT
 local function GetResizeHeightMax()
-    return addon.GetScaledPadding() + addon.GetHeaderHeight() + addon.GetScaledDividerHeight() + addon.Scaled(24) + 1000 + addon.GetScaledPadding()
+    return addon.GetScaledPadding() + addon.GetHeaderHeight() + addon.GetScaledDividerHeight() + addon.Scaled(24) + 1600 + addon.GetScaledPadding()
 end
-local RESIZE_CONTENT_HEIGHT_MIN, RESIZE_CONTENT_HEIGHT_MAX = 200, 1000
+local RESIZE_CONTENT_HEIGHT_MIN, RESIZE_CONTENT_HEIGHT_MAX = 200, 1500
 
 local resizeHandle = CreateFrame("Frame", nil, HS)
 resizeHandle:SetSize(20, 20)
@@ -1551,6 +1551,7 @@ resizeHandle:SetScript("OnLeave", function()
 end)
 local isResizing = false
 local startWidth, startHeight, startMouseX, startMouseY
+local lastResizeRefreshTime = 0
 resizeHandle:RegisterForDrag("LeftButton")
 local function ResizeOnUpdate(self, elapsed)
     if not isResizing then return end
@@ -1571,6 +1572,32 @@ local function ResizeOnUpdate(self, elapsed)
     addon.focus.layout.targetHeight = newHeight
     addon.focus.layout.currentHeight = newHeight
     if addon.ApplyDimensions then addon.ApplyDimensions(newWidth) end
+
+    -- Live-update DB values so sliders reflect the drag in real-time
+    local widthUnscaled = newWidth / (addon.Scaled and addon.Scaled(1) or 1)
+    addon.SetDB("panelWidth", widthUnscaled)
+
+    local headerArea = addon.GetScaledPadding() + addon.GetHeaderHeight() + addon.GetScaledDividerHeight() + addon.GetHeaderToContentGap()
+    local contentH = newHeight - headerArea - addon.GetScaledPadding()
+    local mplus = addon.mplusBlock
+    local hasMplus = mplus and mplus:IsShown()
+    if hasMplus and addon.GetMplusBlockHeight then
+        local gapPx = 4
+        contentH = contentH - (addon.GetMplusBlockHeight() + gapPx * 2)
+    end
+    local contentUnscaled = contentH / (addon.Scaled and addon.Scaled(1) or 1)
+    contentUnscaled = math.max(RESIZE_CONTENT_HEIGHT_MIN, math.min(RESIZE_CONTENT_HEIGHT_MAX, contentUnscaled))
+    addon.SetDB("maxContentHeight", contentUnscaled)
+    if not (addon.IsInMythicDungeon and addon.IsInMythicDungeon()) then
+        addon.SetDB("maxContentHeightOverworld", contentUnscaled)
+    end
+
+    -- Refresh options sliders if the panel is open (throttled)
+    local now = GetTime()
+    if addon.OptionsPanel_Refresh and (now - lastResizeRefreshTime) > 0.15 then
+        lastResizeRefreshTime = now
+        addon.OptionsPanel_Refresh()
+    end
 end
 resizeHandle:SetScript("OnDragStart", function(self)
     if addon.GetDB("lockPosition", false) then return end
@@ -1588,24 +1615,10 @@ resizeHandle:SetScript("OnDragStop", function(self)
     isResizing = false
     self:SetScript("OnUpdate", nil)
     addon.EnsureDB()
-    local newWidth = HS:GetWidth()
-    addon.SetDB("panelWidth", newWidth)
-    local h = HS:GetHeight()
-    local headerArea = addon.GetScaledPadding() + addon.GetHeaderHeight() + addon.GetScaledDividerHeight() + addon.GetHeaderToContentGap()
-    local contentH = h - headerArea - addon.GetScaledPadding()
-    local mplus = addon.mplusBlock
-    local hasMplus = mplus and mplus:IsShown()
-    if hasMplus and addon.GetMplusBlockHeight then
-        local gap = 4
-        contentH = contentH - (addon.GetMplusBlockHeight() + gap * 2)
-    end
-    contentH = math.max(RESIZE_CONTENT_HEIGHT_MIN, math.min(RESIZE_CONTENT_HEIGHT_MAX, contentH))
-    addon.SetDB("maxContentHeight", contentH)
-    if not (addon.IsInMythicDungeon and addon.IsInMythicDungeon()) then
-        addon.SetDB("maxContentHeightOverworld", contentH)
-    end
+    -- DB values already saved during drag; just finalize layout
     if addon.ApplyDimensions then addon.ApplyDimensions() end
     if addon.FullLayout and not InCombatLockdown() then addon.FullLayout() end
+    if addon.OptionsPanel_Refresh then addon.OptionsPanel_Refresh() end
 end)
 
 -- Sleek L-shaped corner grip (two thin strips)

@@ -753,7 +753,8 @@ local function PopulateEntry(entry, questData, groupKey)
         c = addon.QUEST_COLORS and addon.QUEST_COLORS.DEFAULT or { 0.9, 0.9, 0.9 }
     end
     if questData.isDungeonQuest and not questData.isTracked then
-        c = { c[1] * 0.65, c[2] * 0.65, c[3] * 0.65 }
+        local df = addon.DUNGEON_UNTRACKED_DIM or 0.65
+        c = { c[1] * df, c[2] * df, c[3] * df }
     elseif addon.GetDB("dimNonSuperTracked", false) and not questData.isSuperTracked then
         c = addon.ApplyDimColor(c)
     end

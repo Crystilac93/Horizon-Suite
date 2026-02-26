@@ -12,8 +12,6 @@ local scrollFrame = addon.scrollFrame
 local scrollChild = addon.scrollChild
 
 local COLLAPSE_CANCEL_DEBOUNCE_SEC  = 2
-local DIM_FACTOR                     = 0.60
-local DUNGEON_UNTRACKED_DIM_FACTOR  = 0.65
 local COMPLETED_OBJECTIVE_FADE_ALPHA = 0.4
 local MIN_TICK_SIZE                  = 10
 
@@ -418,7 +416,8 @@ local function RefreshContentInCombat()
                     titleColor = addon.QUEST_COLORS and addon.QUEST_COLORS.DEFAULT or { 0.9, 0.9, 0.9 }
                 end
                 if questData.isDungeonQuest and not questData.isTracked then
-                    titleColor = { titleColor[1] * DUNGEON_UNTRACKED_DIM_FACTOR, titleColor[2] * DUNGEON_UNTRACKED_DIM_FACTOR, titleColor[3] * DUNGEON_UNTRACKED_DIM_FACTOR }
+                    local df = addon.DUNGEON_UNTRACKED_DIM or 0.65
+                    titleColor = { titleColor[1] * df, titleColor[2] * df, titleColor[3] * df }
                 elseif shouldDim then
                     titleColor = addon.ApplyDimColor(titleColor)
                 end

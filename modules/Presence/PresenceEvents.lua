@@ -81,6 +81,31 @@ local eventsRegistered = false
 --- Tracks the last zone name shown by Presence, used to detect same-zone subzone transitions.
 local lastKnownZone = nil
 
+--- Rare defeated detection state.
+local rareVignetteSnapshot = {}
+local rareSnapshotInit = false
+local lastCombatTime = 0
+local RARE_COMBAT_WINDOW = 6
+local RARE_DEBOUNCE = 0.5
+local RARE_COOLDOWN = 10
+local rareDefeatedCooldowns = {}
+local rareDebounceTimer = nil
+
+--- Build current rare entryKey -> title map from addon.GetRaresOnMap.
+--- @return table entryKey -> name
+local function BuildRareSnapshot()
+    local out = {}
+    if not addon.GetRaresOnMap then return out end
+    local rares = addon.GetRaresOnMap()
+    if not rares then return out end
+    for _, e in ipairs(rares) do
+        if e.entryKey and e.title and e.title ~= "" then
+            out[e.entryKey] = StripPresenceMarkup(e.title)
+        end
+    end
+    return out
+end
+
 --- True when we should suppress non-essential Presence notifications in Mythic+ (zone, quest, scenario).
 local function ShouldSuppressInMplus()
     return addon.GetDB and addon.GetDB("presenceSuppressZoneInMplus", true) and addon.IsInMythicDungeon and addon.IsInMythicDungeon()
@@ -414,6 +439,8 @@ local SCENARIO_DEBOUNCE = 0.4
 -- Scenario criteria update (delve/scenario objective progress toasts)
 local lastScenarioCriteriaCache = nil
 local lastScenarioObjectives = nil
+local lastScenarioTitle    = nil
+local lastScenarioCategory = nil
 local scenarioCriteriaUpdateTimer = nil
 local SCENARIO_UPDATE_BUFFER_TIME = 0.35
 
@@ -618,6 +645,8 @@ local function TryShowScenarioStart()
         if not title or title == "" then return end
 
         wasInScenario = true
+        lastScenarioTitle    = title
+        lastScenarioCategory = category
         -- Seed scenario criteria cache so first update has a baseline to diff against
         local seedKey, seedObjs = GetMainStepCriteria()
         if seedKey then
@@ -632,12 +661,32 @@ end
 local function OnPlayerEnteringWorld()
     -- Seed zone name for subzone-only display feature
     lastKnownZone = GetZoneText() or nil
+
+    -- Seed rare vignette baseline (prevents false "defeated" toasts on login/reload)
+    rareVignetteSnapshot = BuildRareSnapshot()
+    rareSnapshotInit = true
+
     if not addon.Presence._scenarioInitDone then
         addon.Presence._scenarioInitDone = true
         -- Delve objective update disabled; don't treat delve as scenario for this flow
         local inScenario = addon.IsScenarioActive and addon.IsScenarioActive()
         if inScenario and addon.IsDelveActive and addon.IsDelveActive() then inScenario = false end
         wasInScenario = inScenario
+        lastScenarioTitle    = nil
+        lastScenarioCategory = nil
+        -- Seed criteria baseline and title so completion toast works after /reload
+        if inScenario and addon.GetScenarioDisplayInfo then
+            local title, subtitle, category = addon.GetScenarioDisplayInfo()
+            if title and title ~= "" then
+                lastScenarioTitle    = title
+                lastScenarioCategory = category
+            end
+            local seedKey, seedObjs = GetMainStepCriteria()
+            if seedKey and seedKey ~= "" then
+                lastScenarioCriteriaCache = seedKey
+                lastScenarioObjectives = seedObjs
+            end
+        end
     end
 end
 
@@ -661,9 +710,38 @@ local function OnScenarioCriteriaUpdate()
 end
 
 local function OnScenarioCompleted()
+    -- Fire completion toast before clearing state
+    if lastScenarioTitle and addon.GetDB and addon.GetDB("showScenarioEvents", true)
+       and IsPresenceTypeEnabled("presenceScenarioComplete", "showScenarioEvents", true) then
+        local title    = lastScenarioTitle
+        local category = lastScenarioCategory or "SCENARIO"
+        local L = addon.L or {}
+        local subtitle
+        -- Try to show the final objective's completion text
+        if lastScenarioObjectives and #lastScenarioObjectives > 0 then
+            for i = #lastScenarioObjectives, 1, -1 do
+                local o = lastScenarioObjectives[i]
+                if o.text and o.text ~= "" then
+                    subtitle = formatObjectiveMsg(o)
+                    break
+                end
+            end
+        end
+        if not subtitle or subtitle == "" then
+            subtitle = (L["Scenario Complete"] and L["Scenario Complete"] ~= "")
+                       and L["Scenario Complete"] or "Scenario Complete"
+        end
+        addon.Presence.QueueOrPlay("SCENARIO_COMPLETE",
+            StripPresenceMarkup(title),
+            StripPresenceMarkup(subtitle),
+            { category = category, source = "SCENARIO_COMPLETED" })
+    end
+    -- Clear state
     wasInScenario = false
     lastScenarioCriteriaCache = nil
-    lastScenarioObjectives = nil
+    lastScenarioObjectives    = nil
+    lastScenarioTitle         = nil
+    lastScenarioCategory      = nil
     if scenarioCriteriaUpdateTimer then
         scenarioCriteriaUpdateTimer:Cancel()
         scenarioCriteriaUpdateTimer = nil
@@ -781,6 +859,64 @@ local function OnZoneChanged()
     end
 end
 
+-- ============================================================================
+-- RARE DEFEATED DETECTION
+-- ============================================================================
+
+local function OnPlayerRegenDisabled()
+    lastCombatTime = GetTime()
+end
+
+local function OnPlayerRegenEnabled()
+    lastCombatTime = GetTime()
+end
+
+--- Detect disappeared rares; show toast when one vanishes within combat window.
+local function ExecuteRareDefeatedCheck()
+    rareDebounceTimer = nil
+
+    if addon.GetDB and not addon.GetDB("presenceRareDefeated", true) then return end
+    if not addon.GetRaresOnMap then return end
+
+    local current = BuildRareSnapshot()
+
+    -- First call: seed baseline only (no toasts)
+    if not rareSnapshotInit then
+        rareVignetteSnapshot = current
+        rareSnapshotInit = true
+        return
+    end
+
+    -- Diff: find rares that were in snapshot but are no longer present
+    local now = GetTime()
+    if (now - lastCombatTime) > RARE_COMBAT_WINDOW then
+        rareVignetteSnapshot = current
+        return
+    end
+
+    for entryKey, name in pairs(rareVignetteSnapshot) do
+        if not current[entryKey] and name and name ~= "" then
+            local cooldownKey = name
+            if (rareDefeatedCooldowns[cooldownKey] or 0) + RARE_COOLDOWN <= now then
+                rareDefeatedCooldowns[cooldownKey] = now
+                local L = addon.L or {}
+                addon.Presence.QueueOrPlay("RARE_DEFEATED", L["RARE DEFEATED"] or "RARE DEFEATED", name, { source = "VIGNETTES_UPDATED" })
+            end
+        end
+    end
+
+    rareVignetteSnapshot = current
+end
+
+local function OnVignettesUpdated()
+    if addon.GetDB and not addon.GetDB("presenceRareDefeated", true) then return end
+
+    if rareDebounceTimer then
+        rareDebounceTimer:Cancel()
+    end
+    rareDebounceTimer = C_Timer.After(RARE_DEBOUNCE, ExecuteRareDefeatedCheck)
+end
+
 local eventHandlers = {
     ADDON_LOADED             = function(_, addonName) OnAddonLoaded(addonName) end,
     PLAYER_LEVEL_UP          = function(_, level) OnPlayerLevelUp(_, level) end,
@@ -798,6 +934,9 @@ local eventHandlers = {
     ZONE_CHANGED_NEW_AREA    = function() OnZoneChangedNewArea() end,
     ZONE_CHANGED             = function() OnZoneChanged() end,
     ZONE_CHANGED_INDOORS     = function() OnZoneChanged() end,
+    VIGNETTES_UPDATED        = function() OnVignettesUpdated() end,
+    PLAYER_REGEN_DISABLED    = function() OnPlayerRegenDisabled() end,
+    PLAYER_REGEN_ENABLED     = function() OnPlayerRegenEnabled() end,
 }
 
 eventFrame:SetScript("OnEvent", function(self, event, ...)

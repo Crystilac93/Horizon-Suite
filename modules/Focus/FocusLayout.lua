@@ -235,6 +235,28 @@ nearbyToggleKeybindBtn:RegisterForClicks("AnyUp")
 -- reuse pool entry and PopulateEntry. (7) Place section headers and entries by group,
 -- respecting collapsed categories. (8) Set scroll child height, clamp scroll offset,
 -- compute target panel height and show frame.
+
+--- Collect all tracked entries (quests + rares + achievements + endeavors + decor + adventure guide).
+--- @param rares table Array of rare entries from GetRaresOnMap
+--- @return table Combined entry array
+local function CollectAllEntries(rares)
+    local quests = addon.ReadTrackedQuests()
+    for _, r in ipairs(rares) do quests[#quests + 1] = r end
+    if addon.GetDB("showAchievements", true) and addon.ReadTrackedAchievements then
+        for _, a in ipairs(addon.ReadTrackedAchievements()) do quests[#quests + 1] = a end
+    end
+    if addon.ReadTrackedEndeavors then
+        for _, e in ipairs(addon.ReadTrackedEndeavors()) do quests[#quests + 1] = e end
+    end
+    if addon.ReadTrackedDecor then
+        for _, d in ipairs(addon.ReadTrackedDecor()) do quests[#quests + 1] = d end
+    end
+    if addon.ReadTrackedAdventureGuide then
+        for _, ag in ipairs(addon.ReadTrackedAdventureGuide()) do quests[#quests + 1] = ag end
+    end
+    return quests
+end
+
 local lastMinimal = false
 local function FullLayout()
     if not addon.focus.enabled then return end
@@ -391,20 +413,7 @@ local function FullLayout()
         if addon.focus.collapse.pendingWQCollapse then
             addon.focus.collapse.pendingWQCollapse = false
         end
-        local quests = addon.ReadTrackedQuests()
-        for _, r in ipairs(rares) do quests[#quests + 1] = r end
-        if addon.GetDB("showAchievements", true) and addon.ReadTrackedAchievements then
-            for _, a in ipairs(addon.ReadTrackedAchievements()) do quests[#quests + 1] = a end
-        end
-        if addon.ReadTrackedEndeavors then
-            for _, e in ipairs(addon.ReadTrackedEndeavors()) do quests[#quests + 1] = e end
-        end
-        if addon.ReadTrackedDecor then
-            for _, d in ipairs(addon.ReadTrackedDecor()) do quests[#quests + 1] = d end
-        end
-        if addon.ReadTrackedAdventureGuide then
-            for _, ag in ipairs(addon.ReadTrackedAdventureGuide()) do quests[#quests + 1] = ag end
-        end
+        local quests = CollectAllEntries(rares)
         SchedulePlaceholderRefreshes(quests)
         addon.UpdateFloatingQuestItem(quests)
         addon.UpdateHeaderQuestCount(#quests, addon.CountTrackedInLog(quests))
@@ -476,20 +485,7 @@ local function FullLayout()
 
     scrollFrame:Show()
 
-    local quests  = addon.ReadTrackedQuests()
-    for _, r in ipairs(rares) do quests[#quests + 1] = r end
-    if addon.GetDB("showAchievements", true) and addon.ReadTrackedAchievements then
-        for _, a in ipairs(addon.ReadTrackedAchievements()) do quests[#quests + 1] = a end
-    end
-    if addon.ReadTrackedEndeavors then
-        for _, e in ipairs(addon.ReadTrackedEndeavors()) do quests[#quests + 1] = e end
-    end
-    if addon.ReadTrackedDecor then
-        for _, d in ipairs(addon.ReadTrackedDecor()) do quests[#quests + 1] = d end
-    end
-    if addon.ReadTrackedAdventureGuide then
-        for _, ag in ipairs(addon.ReadTrackedAdventureGuide()) do quests[#quests + 1] = ag end
-    end
+    local quests = CollectAllEntries(rares)
     -- Allow SchedulePlaceholderRefreshes to re-evaluate on every FullLayout call.
     -- The retry loop will have set this to false after its last attempt; clearing it here
     -- ensures an event-driven layout (e.g. INITIATIVE_TASKS_TRACKED_UPDATED) re-checks.
@@ -969,7 +965,8 @@ function addon.ApplyFocusColors()
             if titleColor and type(titleColor) == "table" and titleColor[1] and titleColor[2] and titleColor[3] then
                 local dimAlpha = 1
                 if entry.isDungeonQuest and not entry.isTracked then
-                    titleColor = { titleColor[1] * 0.65, titleColor[2] * 0.65, titleColor[3] * 0.65 }
+                    local df = addon.DUNGEON_UNTRACKED_DIM or 0.65
+                    titleColor = { titleColor[1] * df, titleColor[2] * df, titleColor[3] * df }
                 elseif addon.GetDB("dimNonSuperTracked", false) and not entry.isSuperTracked then
                     titleColor = addon.ApplyDimColor(titleColor)
                     dimAlpha = addon.GetDimAlpha()
