@@ -1018,14 +1018,14 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             local otherDefs = {
                 { dbKey = "highlightColor", label = L["Highlight"], def = (addon.HIGHLIGHT_COLOR_DEFAULT or { 0.4, 0.7, 1 }) },
                 { dbKey = "completedObjectiveColor", label = L["Completed objective"], def = (addon.OBJ_DONE_COLOR or { 0.30, 0.80, 0.30 }) },
-                { dbKey = "progressBarFillColor", label = L["Progress bar fill"], def = { 0.40, 0.65, 0.90 }, disabled = function() return getDB("progressBarUseCategoryColor", true) end },
+                { dbKey = "progressBarFillColor", label = L["Progress bar fill"], def = { 0.40, 0.65, 0.90, 0.85 }, disabled = function() return getDB("progressBarUseCategoryColor", true) end, hasAlpha = true },
                 { dbKey = "progressBarTextColor", label = L["Progress bar text"], def = { 0.95, 0.95, 0.95 } },
             }
             local otherRows = {}
             for _, od in ipairs(otherDefs) do
                 local getTbl = function() return getDB(od.dbKey, nil) end
                 local setKeyVal = function(v) setDB(od.dbKey, v) if not addon._colorPickerLive then notifyMainAddon() end end
-                local row = OptionsWidgets_CreateColorSwatchRow(cardContent, currentCard.contentAnchor, od.label, od.def, getTbl, setKeyVal, notifyMainAddon, od.disabled)
+                local row = OptionsWidgets_CreateColorSwatchRow(cardContent, currentCard.contentAnchor, od.label, od.def, getTbl, setKeyVal, notifyMainAddon, od.disabled, od.hasAlpha)
                 currentCard.contentAnchor = row
                 currentCard.contentHeight = currentCard.contentHeight + GROUP_ROW_GAP + GROUP_ROW_H
                 otherRows[#otherRows + 1] = row

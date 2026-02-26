@@ -968,7 +968,7 @@ function addon.ApplyFocusColors()
                                 if not pfc or type(pfc) ~= "table" then pfc = { 0.40, 0.65, 0.90 } end
                             end
                             if pfc and pfc[1] and pfc[2] and pfc[3] then
-                                obj.progressBarFill:SetColorTexture(pfc[1], pfc[2], pfc[3], 0.85)
+                                obj.progressBarFill:SetColorTexture(pfc[1], pfc[2], pfc[3], pfc[4] or 0.85)
                             end
                         end
                         if obj.progressBarLabel and obj.progressBarLabel:IsShown() then

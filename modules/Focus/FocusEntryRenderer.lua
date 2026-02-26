@@ -241,7 +241,7 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
                 obj.progressBarFill:SetPoint("TOPLEFT", obj.progressBarBg, "TOPLEFT", 0, 0)
                 obj.progressBarFill:SetPoint("BOTTOMLEFT", obj.progressBarBg, "BOTTOMLEFT", 0, 0)
                 obj.progressBarFill:SetWidth(fillW)
-                obj.progressBarFill:SetColorTexture(progFillColor[1], progFillColor[2], progFillColor[3], 0.85)
+                obj.progressBarFill:SetColorTexture(progFillColor[1], progFillColor[2], progFillColor[3], progFillColor[4] or 0.85)
                 obj.progressBarFill:Show()
 
                 -- Label: "X/Y (Z%)" centered INSIDE the bar
@@ -489,7 +489,7 @@ local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor
         entry.wqProgressFill:ClearAllPoints()
         entry.wqProgressFill:SetPoint("TOPLEFT", entry.wqProgressBg, "TOPLEFT", 0, 0)
         if isScenario then
-            entry.wqProgressFill:SetColorTexture(progFillColor[1], progFillColor[2], progFillColor[3], 0.85)
+            entry.wqProgressFill:SetColorTexture(progFillColor[1], progFillColor[2], progFillColor[3], progFillColor[4] or 0.85)
         else
             entry.wqProgressFill:SetColorTexture(0.45, 0.35, 0.65, 0.9)
         end

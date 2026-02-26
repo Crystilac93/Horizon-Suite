@@ -360,9 +360,11 @@ local function UpdateMplusBlockDisplay(data)
     local barNormR = addon.GetDB("mplusBarColorR", 0.20)
     local barNormG = addon.GetDB("mplusBarColorG", 0.45)
     local barNormB = addon.GetDB("mplusBarColorB", 0.60)
+    local barNormA = tonumber(addon.GetDB("mplusBarColorA", 0.90)) or 0.90
     local barDoneR = addon.GetDB("mplusBarDoneColorR", 0.15)
     local barDoneG = addon.GetDB("mplusBarDoneColorG", 0.65)
     local barDoneB = addon.GetDB("mplusBarDoneColorB", 0.25)
+    local barDoneA = tonumber(addon.GetDB("mplusBarDoneColorA", 0.90)) or 0.90
 
     -- Line 1: Dungeon name + keystone level
     local dungeonName = data.dungeonName ~= "" and data.dungeonName or "Mythic+"
@@ -413,9 +415,9 @@ local function UpdateMplusBlockDisplay(data)
 
         -- Color: user-picked bar fill; switches to "done" color at 100%
         if data.enemyForces.percent >= 100 then
-            progressBarFill:SetColorTexture(barDoneR, barDoneG, barDoneB, 0.90)
+            progressBarFill:SetColorTexture(barDoneR, barDoneG, barDoneB, barDoneA)
         else
-            progressBarFill:SetColorTexture(barNormR, barNormG, barNormB, 0.90)
+            progressBarFill:SetColorTexture(barNormR, barNormG, barNormB, barNormA)
         end
         if not InCombatLockdown() then
             mplusProgressBar:SetHeight(math.max(PROGRESS_BAR_HEIGHT, progressSize + 6))

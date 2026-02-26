@@ -354,7 +354,7 @@ local function UpdateScenarioBar(bar, now)
     end
     local progTextColor = addon.GetDB("progressBarTextColor", nil)
     if not progTextColor or type(progTextColor) ~= "table" then progTextColor = { 0.95, 0.95, 0.95 } end
-    bar.Fill:SetColorTexture(progFillColor[1], progFillColor[2], progFillColor[3], 0.85)
+    bar.Fill:SetColorTexture(progFillColor[1], progFillColor[2], progFillColor[3], progFillColor[4] or 0.85)
     bar.Label:SetTextColor(progTextColor[1], progTextColor[2], progTextColor[3], 1)
 end
 
