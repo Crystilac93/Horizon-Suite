@@ -56,6 +56,15 @@ local SetTextColor = addon.SetTextColor or function(obj, color)
     obj:SetTextColor(color[1], color[2], color[3], color[4] or 1)
 end
 
+local DEFAULT_FALLBACK_FONT = (addon.GetDefaultFontPath and addon.GetDefaultFontPath()) or "Fonts\\FRIZQT__.TTF"
+local function SetSafeFont(fs, path, size, flags)
+    if not fs then return false end
+    path = path or Def.FontPath or DEFAULT_FALLBACK_FONT
+    if fs:SetFont(path, size, flags) then return true end
+    if path ~= DEFAULT_FALLBACK_FONT and fs:SetFont(DEFAULT_FALLBACK_FONT, size, flags) then return true end
+    return fs:SetFont("Fonts\\FRIZQT__.TTF", size, flags)
+end
+
 local easeOut = addon.easeOut or function(t) return 1 - (1 - t) * (1 - t) end
 local TOGGLE_ANIM_DUR = 0.15
 
@@ -90,7 +99,7 @@ function OptionsWidgets_CreateToggleSwitch(parent, labelText, description, get, 
     thumb:SetPoint("CENTER", track, "LEFT", TOGGLE_INSET + thumbSize/2, 0)
 
     local label = row:CreateFontString(nil, "OVERLAY")
-    label:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+    SetSafeFont(label, Def.FontPath, Def.LabelSize, "OUTLINE")
     label:SetJustifyH("LEFT")
     SetTextColor(label, Def.TextColorLabel)
     label:SetText(labelText or "")
@@ -99,7 +108,7 @@ function OptionsWidgets_CreateToggleSwitch(parent, labelText, description, get, 
     label:SetWordWrap(true)
 
     local desc = row:CreateFontString(nil, "OVERLAY")
-    desc:SetFont(Def.FontPath, Def.SectionSize, "OUTLINE")
+    SetSafeFont(desc, Def.FontPath, Def.SectionSize, "OUTLINE")
     desc:SetJustifyH("LEFT")
     SetTextColor(desc, Def.TextColorSection)
     desc:SetText(description or "")
@@ -203,7 +212,7 @@ function OptionsWidgets_CreateButton(parent, labelText, onClick, opts)
     hi:SetColorTexture(1, 1, 1, 0.06)
 
     local lbl = btn:CreateFontString(nil, "OVERLAY")
-    lbl:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+    SetSafeFont(lbl, Def.FontPath, Def.LabelSize, "OUTLINE")
     SetTextColor(lbl, Def.TextColorLabel)
     lbl:SetText(labelText or "")
     lbl:SetPoint("CENTER", btn, "CENTER", 0, 0)
@@ -251,13 +260,13 @@ function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, m
     row.searchText = searchText:lower()
 
     local label = row:CreateFontString(nil, "OVERLAY")
-    label:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+    SetSafeFont(label, Def.FontPath, Def.LabelSize, "OUTLINE")
     label:SetJustifyH("LEFT")
     SetTextColor(label, Def.TextColorLabel)
     label:SetText(labelText or "")
     label:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
     local desc = row:CreateFontString(nil, "OVERLAY")
-    desc:SetFont(Def.FontPath, Def.SectionSize, "OUTLINE")
+    SetSafeFont(desc, Def.FontPath, Def.SectionSize, "OUTLINE")
     desc:SetJustifyH("LEFT")
     SetTextColor(desc, Def.TextColorSection)
     desc:SetText(description or "")
@@ -308,7 +317,7 @@ function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, m
     -- Do NOT use SetNumeric(true) — it blocks negative numbers.
     -- We validate manually in OnEnterPressed / OnEditFocusLost.
     edit:SetAutoFocus(false)
-    edit:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+    SetSafeFont(edit, Def.FontPath, Def.LabelSize, "OUTLINE")
     local tc = Def.TextColorLabel
     edit:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
     edit:SetScript("OnEscapePressed", function()
@@ -449,14 +458,14 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
     row.searchText = searchText:lower()
 
     local label = row:CreateFontString(nil, "OVERLAY")
-    label:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+    SetSafeFont(label, Def.FontPath, Def.LabelSize, "OUTLINE")
     label:SetJustifyH("LEFT")
     SetTextColor(label, Def.TextColorLabel)
     label:SetText(resolvedLabel or "")
     label:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
 
     local desc = row:CreateFontString(nil, "OVERLAY")
-    desc:SetFont(Def.FontPath, Def.SectionSize, "OUTLINE")
+    SetSafeFont(desc, Def.FontPath, Def.SectionSize, "OUTLINE")
     desc:SetJustifyH("LEFT")
     SetTextColor(desc, Def.TextColorSection)
     desc:SetText(description or "")
@@ -481,14 +490,14 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
     btnHi:SetColorTexture(1, 1, 1, 0.06)
 
     local btnText = btn:CreateFontString(nil, "OVERLAY")
-    btnText:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+    SetSafeFont(btnText, Def.FontPath, Def.LabelSize, "OUTLINE")
     SetTextColor(btnText, Def.TextColorLabel)
     btnText:SetPoint("LEFT", btn, "LEFT", 8, 0)
     btnText:SetPoint("RIGHT", btn, "RIGHT", -24, 0)
     btnText:SetJustifyH("LEFT")
 
     local chevron = btn:CreateFontString(nil, "OVERLAY")
-    chevron:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+    SetSafeFont(chevron, Def.FontPath, Def.LabelSize, "OUTLINE")
     SetTextColor(chevron, Def.TextColorSection)
     chevron:SetText("v")
     chevron:SetPoint("RIGHT", btn, "RIGHT", -6, 0)
@@ -508,7 +517,7 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
         searchEdit:SetPoint("TOPLEFT", list, "TOPLEFT", 6, -6)
         searchEdit:SetPoint("TOPRIGHT", list, "TOPRIGHT", -6, 0)
         searchEdit:SetAutoFocus(false)
-        searchEdit:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+        SetSafeFont(searchEdit, Def.FontPath, Def.LabelSize, "OUTLINE")
         searchEdit:SetTextInsets(8, 8, 0, 0)
         local tc = Def.TextColorLabel
         searchEdit:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
@@ -516,7 +525,7 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
         searchBg:SetAllPoints(searchEdit)
         searchBg:SetColorTexture(Def.InputBg[1], Def.InputBg[2], Def.InputBg[3], Def.InputBg[4])
         local ph = searchEdit:CreateFontString(nil, "OVERLAY")
-        ph:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+        SetSafeFont(ph, Def.FontPath, Def.LabelSize, "OUTLINE")
         SetTextColor(ph, Def.TextColorSection)
         ph:SetText(L["Search fonts..."] or "Search fonts...")
         ph:SetPoint("LEFT", searchEdit, "LEFT", 8, 0)
@@ -672,7 +681,7 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
                  b:SetHeight(rowH)
 
                 local tb = b:CreateFontString(nil, "OVERLAY")
-                tb:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+                SetSafeFont(tb, Def.FontPath, Def.LabelSize, "OUTLINE")
                 tb:SetPoint("LEFT", b, "LEFT", 8, 0)
                 tb:SetJustifyH("LEFT")
                 b.text = tb
@@ -897,7 +906,7 @@ function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultT
     row:SetSize(280, 24)
     row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -4)
     local lab = row:CreateFontString(nil, "OVERLAY")
-    lab:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+    SetSafeFont(lab, Def.FontPath, Def.LabelSize, "OUTLINE")
     lab:SetJustifyH("LEFT")
     SetTextColor(lab, Def.TextColorLabel)
     lab:SetText(labelText or "")
@@ -1057,7 +1066,7 @@ function OptionsWidgets_CreateSearchInput(parent, onTextChanged, placeholder)
     edit:SetAllPoints(editWrapper)
     edit:SetAutoFocus(false)
     edit:EnableMouse(true)
-    edit:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+    SetSafeFont(edit, Def.FontPath, Def.LabelSize, "OUTLINE")
     edit:SetTextInsets(SEARCH_ICON_LEFT, SEARCH_CLEAR_SIZE + 14, 0, 0)
     local tc = Def.TextColorLabel
     edit:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
@@ -1070,7 +1079,7 @@ function OptionsWidgets_CreateSearchInput(parent, onTextChanged, placeholder)
 
     if placeholder then
         local ph = edit:CreateFontString(nil, "OVERLAY")
-        ph:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+        SetSafeFont(ph, Def.FontPath, Def.LabelSize, "OUTLINE")
         SetTextColor(ph, Def.TextColorSection)
         ph:SetText(placeholder)
         ph:SetPoint("LEFT", edit, "LEFT", SEARCH_ICON_LEFT, 0)
@@ -1122,7 +1131,7 @@ function OptionsWidgets_CreateSearchInput(parent, onTextChanged, placeholder)
     clearBtn:EnableMouse(true)
     clearBtn:Hide()
     local clearText = clearBtn:CreateFontString(nil, "OVERLAY")
-    clearText:SetFont(Def.FontPath, Def.LabelSize - 1, "OUTLINE")
+    SetSafeFont(clearText, Def.FontPath, Def.LabelSize - 1, "OUTLINE")
     SetTextColor(clearText, Def.TextColorSection)
     clearText:SetText("X")
     clearText:SetPoint("CENTER", clearBtn, "CENTER", 0, 0)
@@ -1212,7 +1221,7 @@ function OptionsWidgets_CreateSectionHeader(parent, text, sectionKey, getCollaps
         hdrBg:SetColorTexture(0.10, 0.10, 0.12, 0.0)
 
         local chevron = hdr:CreateFontString(nil, "OVERLAY")
-        chevron:SetFont(Def.FontPath, Def.LabelSize or 13, "OUTLINE")
+        SetSafeFont(chevron, Def.FontPath, Def.LabelSize or 13, "OUTLINE")
         SetTextColor(chevron, Def.TextColorSection)
         chevron:SetText(getFn(sk) and "+" or "-")
         local cw = chevron:GetStringWidth()
@@ -1220,7 +1229,7 @@ function OptionsWidgets_CreateSectionHeader(parent, text, sectionKey, getCollaps
         parent.header = hdr
 
         local hdrLabel = hdr:CreateFontString(nil, "OVERLAY")
-        hdrLabel:SetFont(Def.FontPath, Def.SectionSize + 1, "OUTLINE")
+        SetSafeFont(hdrLabel, Def.FontPath, Def.SectionSize + 1, "OUTLINE")
         SetTextColor(hdrLabel, Def.TextColorSection)
         hdrLabel:SetText(text and text:upper() or "")
         hdrLabel:SetJustifyH("LEFT")
@@ -1283,7 +1292,7 @@ function OptionsWidgets_CreateSectionHeader(parent, text, sectionKey, getCollaps
     end
 
     local label = parent:CreateFontString(nil, "OVERLAY")
-    label:SetFont(Def.FontPath, Def.SectionSize + 1, "OUTLINE")
+    SetSafeFont(label, Def.FontPath, Def.SectionSize + 1, "OUTLINE")
     label:SetJustifyH("LEFT")
     SetTextColor(label, Def.TextColorSection)
     label:SetText(text and text:upper() or "")
@@ -1349,7 +1358,7 @@ function OptionsWidgets_CreateReorderList(parent, anchor, opt, scrollFrameRef, p
         ghost:SetBackdropBorderColor(Def.SectionCardBorder[1], Def.SectionCardBorder[2], Def.SectionCardBorder[3], Def.SectionCardBorder[4])
         state.ghostFrame = ghost
         state.ghostLabel = ghost:CreateFontString(nil, "OVERLAY")
-        state.ghostLabel:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+        SetSafeFont(state.ghostLabel, Def.FontPath, Def.LabelSize, "OUTLINE")
         SetTextColor(state.ghostLabel, Def.TextColorLabel)
         state.ghostLabel:SetPoint("LEFT", ghost, "LEFT", 28, 0)
         return ghost
@@ -1542,14 +1551,14 @@ function OptionsWidgets_CreateReorderList(parent, anchor, opt, scrollFrameRef, p
         row.index = i
         keyToRow[key] = row
         local lab = row:CreateFontString(nil, "OVERLAY")
-        lab:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+        SetSafeFont(lab, Def.FontPath, Def.LabelSize, "OUTLINE")
         lab:SetJustifyH("LEFT")
         SetTextColor(lab, Def.TextColorLabel)
         lab:SetText(addon.L[(labelMap[key]) or key:gsub("^%l", string.upper)])
         lab:SetPoint("LEFT", row, "LEFT", 24, 0)
         row.label = lab
         local grip = row:CreateFontString(nil, "OVERLAY")
-        grip:SetFont(Def.FontPath, Def.LabelSize, "OUTLINE")
+        SetSafeFont(grip, Def.FontPath, Def.LabelSize, "OUTLINE")
         SetTextColor(grip, Def.TextColorSection)
         grip:SetText("::")
         grip:SetPoint("LEFT", row, "LEFT", 4, 0)

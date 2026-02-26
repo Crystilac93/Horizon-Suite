@@ -102,6 +102,7 @@ L["Cinematic square minimap with zone text, coordinates, and button collector."]
 L["Cinematic square minimap with zone text, coordinates, time, and button collector."] = true
 L["Cinematic tooltips with class colors, spec display, and faction icons."] = true
 L["Cinematic zone text and notifications (zone changes, level up, boss emotes, achievements, quest updates)."] = true
+L["Click to search for a group for this quest."] = true
 L["Circular minimap"] = true
 L["Clock position"] = true
 L["Close / Fade Timing"] = true
@@ -208,6 +209,7 @@ L["Fade tracker when not hovering; move mouse over it to show."] = true
 L["Faded opacity"] = true
 L["Features"] = true
 L["Filtering"] = true
+L["Find a Group"] = true
 L["Fixed"] = true
 L["Flash color"] = true
 L["Flash intensity"] = true

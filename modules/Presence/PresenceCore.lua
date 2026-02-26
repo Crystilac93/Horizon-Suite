@@ -91,6 +91,14 @@ end
 local PRESENCE_FONT_USE_GLOBAL = "__global__"
 local defaultFontPath = (addon.GetDefaultFontPath and addon.GetDefaultFontPath()) or "Fonts\\FRIZQT__.TTF"
 
+-- Apply a font path with hard fallback so FontStrings never end up without a font.
+local function SetSafeFont(fs, path, size, flags)
+    if not fs then return false end
+    if fs:SetFont(path, size, flags) then return true end
+    if path ~= defaultFontPath and fs:SetFont(defaultFontPath, size, flags) then return true end
+    return fs:SetFont("Fonts\\FRIZQT__.TTF", size, flags)
+end
+
 local function getPresenceFontPath()
     local raw = addon.GetDB and addon.GetDB("fontPath", defaultFontPath) or defaultFontPath
     return (addon.ResolveFontPath and addon.ResolveFontPath(raw)) or raw
@@ -164,12 +172,12 @@ local function CreateLayer(parent)
     local shadowY = (addon.GetDB and tonumber(addon.GetDB("shadowOffsetY", -2))) or addon.SHADOW_OY or -2
 
     L.titleShadow = parent:CreateFontString(nil, "BORDER")
-    L.titleShadow:SetFont(getPresenceTitleFontPath(), MAIN_SIZE, "OUTLINE")
+    SetSafeFont(L.titleShadow, getPresenceTitleFontPath(), MAIN_SIZE, "OUTLINE")
     L.titleShadow:SetTextColor(0, 0, 0, shadowA)
     L.titleShadow:SetJustifyH("CENTER")
 
     L.titleText = parent:CreateFontString(nil, "OVERLAY")
-    L.titleText:SetFont(getPresenceTitleFontPath(), MAIN_SIZE, "OUTLINE")
+    SetSafeFont(L.titleText, getPresenceTitleFontPath(), MAIN_SIZE, "OUTLINE")
     L.titleText:SetTextColor(1, 1, 1, 1)
     L.titleText:SetJustifyH("CENTER")
     L.titleText:SetPoint("TOP", 0, 0)
@@ -188,24 +196,24 @@ local function CreateLayer(parent)
     L.divider:SetAlpha(0)
 
     L.subShadow = parent:CreateFontString(nil, "BORDER")
-    L.subShadow:SetFont(getPresenceSubtitleFontPath(), SUB_SIZE, "OUTLINE")
+    SetSafeFont(L.subShadow, getPresenceSubtitleFontPath(), SUB_SIZE, "OUTLINE")
     L.subShadow:SetTextColor(0, 0, 0, shadowA)
     L.subShadow:SetJustifyH("CENTER")
 
     L.subText = parent:CreateFontString(nil, "OVERLAY")
-    L.subText:SetFont(getPresenceSubtitleFontPath(), SUB_SIZE, "OUTLINE")
+    SetSafeFont(L.subText, getPresenceSubtitleFontPath(), SUB_SIZE, "OUTLINE")
     L.subText:SetTextColor(1, 1, 1, 1)  -- neutral; resolved at play via resolveColors
     L.subText:SetJustifyH("CENTER")
     L.subText:SetPoint("TOP", L.divider, "BOTTOM", 0, -10)
     L.subShadow:SetPoint("CENTER", L.subText, "CENTER", shadowX, shadowY)
 
     L.discoveryShadow = parent:CreateFontString(nil, "BORDER")
-    L.discoveryShadow:SetFont(getPresenceSubtitleFontPath(), DISCOVERY_SIZE, "OUTLINE")
+    SetSafeFont(L.discoveryShadow, getPresenceSubtitleFontPath(), DISCOVERY_SIZE, "OUTLINE")
     L.discoveryShadow:SetTextColor(0, 0, 0, shadowA)
     L.discoveryShadow:SetJustifyH("CENTER")
 
     L.discoveryText = parent:CreateFontString(nil, "OVERLAY")
-    L.discoveryText:SetFont(getPresenceSubtitleFontPath(), DISCOVERY_SIZE, "OUTLINE")
+    SetSafeFont(L.discoveryText, getPresenceSubtitleFontPath(), DISCOVERY_SIZE, "OUTLINE")
     L.discoveryText:SetTextColor(1, 1, 1, 1)  -- neutral; resolved at show via getDiscoveryColor
     L.discoveryText:SetJustifyH("CENTER")
     L.discoveryText:SetPoint("TOP", L.subText, "BOTTOM", 0, -5)
@@ -670,10 +678,10 @@ PlayCinematic = function(typeName, title, subtitle, opts)
     local mainSz = math.max(12, math.min(72, math.floor(cfg.sz * (getMainSize() / MAIN_SIZE))))
     local subSz  = math.max(12, math.min(40, math.floor(((cfg.sz >= SUB_SIZE) and SUB_SIZE or cfg.sz) * (getSubSize() / SUB_SIZE))))
 
-    L.titleText:SetFont(getPresenceTitleFontPath(), mainSz, "OUTLINE")
-    L.titleShadow:SetFont(getPresenceTitleFontPath(), mainSz, "OUTLINE")
-    L.subText:SetFont(getPresenceSubtitleFontPath(), subSz, "OUTLINE")
-    L.subShadow:SetFont(getPresenceSubtitleFontPath(), subSz, "OUTLINE")
+    SetSafeFont(L.titleText, getPresenceTitleFontPath(), mainSz, "OUTLINE")
+    SetSafeFont(L.titleShadow, getPresenceTitleFontPath(), mainSz, "OUTLINE")
+    SetSafeFont(L.subText, getPresenceSubtitleFontPath(), subSz, "OUTLINE")
+    SetSafeFont(L.subShadow, getPresenceSubtitleFontPath(), subSz, "OUTLINE")
 
     L.titleText:SetTextColor(c[1], c[2], c[3], 1)
     L.subText:SetTextColor(sc[1], sc[2], sc[3], 1)

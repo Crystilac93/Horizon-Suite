@@ -979,3 +979,5 @@ L["Show mount info"]                                                = "Mostrar i
 L["When hovering a mounted player, show their mount name, source, and whether you own it."] = "Ao passar o mouse sobre um jogador montado, mostra nome da montaria, origem e se você a possui."
 L["Presence: Playing demo reel (all notification types)..."]        = "Presence: reproduzindo demo (todos os tipos de notificação)..."
 L["  /horizon presence debugtypes - Dump notification toggles and Blizzard suppression state"] = "  /horizon presence debugtypes - Exibir toggles de notificação e estado de supressão da Blizzard"
+L["Find a Group"]                                                   = "Encontrar um Grupo"
+L["Click to search for a group for this quest."]                   = "Clique para procurar um grupo para esta missao."

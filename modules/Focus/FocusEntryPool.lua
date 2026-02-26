@@ -4,6 +4,9 @@
 ]]
 
 local addon = _G.HorizonSuite
+local function T(key)
+    return (addon.L and addon.L[key]) or key
+end
 
 -- ============================================================================
 -- ENTRY POOL
@@ -139,8 +142,8 @@ local function CreateQuestEntry(parent, index)
     e.lfgBtn:SetScript("OnEnter", function(self)
         self.icon:SetAlpha(1)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:AddLine("Find a Group", 1, 1, 1)
-        GameTooltip:AddLine("Click to search for a group for this quest.", 0.7, 0.7, 0.7, true)
+        GameTooltip:AddLine(T("Find a Group"), 1, 1, 1)
+        GameTooltip:AddLine(T("Click to search for a group for this quest."), 0.7, 0.7, 0.7, true)
         GameTooltip:Show()
     end)
     e.lfgBtn:SetScript("OnLeave", function(self)
