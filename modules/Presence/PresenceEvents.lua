@@ -108,6 +108,7 @@ local PRESENCE_EVENTS = {
     "ACHIEVEMENT_EARNED",
     "QUEST_ACCEPTED",
     "QUEST_TURNED_IN",
+    "QUEST_REMOVED",
     "QUEST_WATCH_UPDATE",
     "QUEST_LOG_UPDATE",
     "UI_INFO_MESSAGE",
@@ -181,6 +182,22 @@ local function OnQuestAccepted(_, questID)
     end
 end
 
+local lastQuestObjectivesCache = {}  -- questID -> serialized objectives
+local lastQuestObjectivesState = {}  -- questID -> { { text = string, finished = boolean }, ... }
+local bufferedUpdates = {}           -- questID -> timerObject
+
+--- Remove cached quest state for a quest that is no longer relevant (turned in, abandoned, etc.)
+--- @param questID number
+local function DisposeQuestState(questID)
+    if not questID then return end
+    lastQuestObjectivesCache[questID] = nil
+    lastQuestObjectivesState[questID] = nil
+    if bufferedUpdates[questID] then
+        bufferedUpdates[questID]:Cancel()
+        bufferedUpdates[questID] = nil
+    end
+end
+
 local function OnQuestTurnedIn(_, questID)
     if ShouldSuppressInMplus() then return end
     local opts = (questID and { questID = questID }) or {}
@@ -194,19 +211,23 @@ local function OnQuestTurnedIn(_, questID)
             if not IsPresenceTypeEnabled("presenceWorldQuest", "presenceQuestEvents", true) then return end
             local L = addon.L or {}
             addon.Presence.QueueOrPlay("WORLD_QUEST", L["WORLD QUEST"], questName, opts)
+            DisposeQuestState(questID)
             return
         end
     end
     if not IsPresenceTypeEnabled("presenceQuestComplete", "presenceQuestEvents", true) then return end
     addon.Presence.QueueOrPlay("QUEST_COMPLETE", "QUEST COMPLETE", questName, opts)
+    DisposeQuestState(questID)
+end
+
+local function OnQuestRemoved(_, questID)
+    DisposeQuestState(questID)
 end
 
 -- ============================================================================
 -- QUEST UPDATE LOGIC (DEBOUNCED)
 -- ============================================================================
 
-local lastQuestObjectivesCache = {}  -- questID -> serialized objectives
-local bufferedUpdates = {}           -- questID -> timerObject
 local UPDATE_BUFFER_TIME = 0.35      -- Time to wait for data to settle (fix for 55/100 vs 71/100)
 local ZERO_PROGRESS_RETRY_TIME = 0.45 -- Re-sample when we get 0/X (meta quests like "0/8 WQs" may lag; fix for stale 0/8 after completion)
 
@@ -228,13 +249,18 @@ local function ExecuteQuestUpdate(questID, isBlindUpdate, source, isRetry)
     -- If no objectives (quest vanished/completed fully), abort.
     if #objectives == 0 then return end
 
-    -- 2. Build state string
+    -- 2. Build comparable state (string + per-objective snapshot)
     local parts = {}
+    local state = {}
     for i = 1, #objectives do
         local o = objectives[i]
-        parts[i] = (o and o.text or "") .. "|" .. (o and o.finished and "1" or "0")
+        local text = (o and o.text) or ""
+        local finished = (o and o.finished) and true or false
+        parts[i] = text .. "|" .. (finished and "1" or "0")
+        state[i] = { text = text, finished = finished }
     end
     local objKey = table.concat(parts, ";")
+    local oldState = lastQuestObjectivesState[questID]
 
     -- 3. Compare with cache
     if lastQuestObjectivesCache[questID] == objKey then
@@ -246,26 +272,49 @@ local function ExecuteQuestUpdate(questID, isBlindUpdate, source, isRetry)
     -- If this is a blind update (guessed ID) AND we have no history of this quest, assume it's just initialization.
     local isNew = (lastQuestObjectivesCache[questID] == nil)
     lastQuestObjectivesCache[questID] = objKey -- Update cache now
+    lastQuestObjectivesState[questID] = state
 
     if isBlindUpdate and isNew then
         DbgWQ("ExecuteQuestUpdate: Suppressed blind new entry", questID)
         return
     end
 
-    -- 5. Find the text to display
+    -- 5. Find the objective text that actually changed
     local msg = nil
-    for i = 1, #objectives do
-        local o = objectives[i]
-        -- Prioritize the first unfinished objective with text
-        if o and o.text and o.text ~= "" and not o.finished then
-            msg = o.text
-            break
+
+    -- Prefer objective whose state changed compared to previous cache.
+    if oldState and type(oldState) == "table" then
+        local maxCount = math.max(#oldState, #state)
+        for i = 1, maxCount do
+            local oldO = oldState[i]
+            local newO = state[i]
+            if newO then
+                local changed = (not oldO) or oldO.text ~= newO.text or oldO.finished ~= newO.finished
+                if changed and newO.text ~= "" then
+                    msg = newO.text
+                    break
+                end
+            end
         end
     end
-    -- Fallback: Use any text if everything is finished (e.g. 8/8)
-    if not msg and #objectives > 0 then
-        local o = objectives[1]
-        if o and o.text and o.text ~= "" then msg = o.text end
+
+    -- Fallback: first unfinished objective with text.
+    if not msg then
+        for i = 1, #state do
+            local o = state[i]
+            if o and o.text ~= "" and not o.finished then
+                msg = o.text
+                break
+            end
+        end
+    end
+
+    -- Fallback: first objective text (e.g. all finished / structure change).
+    if not msg and #state > 0 then
+        local o = state[1]
+        if o and o.text ~= "" then
+            msg = o.text
+        end
     end
     
     if not msg or msg == "" then msg = "Objective updated" end
@@ -278,6 +327,7 @@ local function ExecuteQuestUpdate(questID, isBlindUpdate, source, isRetry)
     --    often lag; client may not have updated yet when we first sample after completion).
     if not isRetry and source == "QUEST_WATCH_UPDATE" and normalized and normalized:match("^0/%d+") then
         lastQuestObjectivesCache[questID] = nil -- Roll back cache so retry sees "changed"
+        lastQuestObjectivesState[questID] = nil
         bufferedUpdates[questID] = C_Timer.After(ZERO_PROGRESS_RETRY_TIME, function()
             ExecuteQuestUpdate(questID, isBlindUpdate, source, true)
         end)
@@ -769,6 +819,7 @@ local eventHandlers = {
     ACHIEVEMENT_EARNED       = function(_, achID) OnAchievementEarned(_, achID) end,
     QUEST_ACCEPTED           = function(_, questID) OnQuestAccepted(_, questID) end,
     QUEST_TURNED_IN          = function(_, questID) OnQuestTurnedIn(_, questID) end,
+    QUEST_REMOVED            = function(_, questID) OnQuestRemoved(_, questID) end,
     QUEST_WATCH_UPDATE       = function(_, questID) OnQuestWatchUpdate(_, questID) end,
     QUEST_LOG_UPDATE         = function() OnQuestLogUpdate() end,
     UI_INFO_MESSAGE          = function(_, msgType, msg) OnUIInfoMessage(_, msgType, msg) end,
