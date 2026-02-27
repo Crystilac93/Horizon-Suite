@@ -301,12 +301,39 @@ end
 
 --- Refreshes entry text and colors in combat (objectives, titles, timers, zone labels).
 --- Called when combat events fire and ShouldHideInCombat is false.
+--- Uses same combined dataset as CollectAllEntries so achievements, endeavors, decor,
+--- rares, and adventure guide update during combat (not just quests).
 local function RefreshContentInCombat()
     if not addon.focus.enabled then return end
     if addon.ShouldHideInCombat and addon.ShouldHideInCombat() then return end
 
     local quests = addon.ReadTrackedQuests and addon.ReadTrackedQuests() or {}
-    if not quests or #quests == 0 then return end
+    if not quests then quests = {} end
+
+    -- pcall: GetRaresOnMap may throw or be blocked during combat; on failure omit rares
+    -- so existing rare entries keep their current display until combat ends.
+    local raresOk, raresResult = pcall(function()
+        if not (addon.GetDB and addon.GetDB("showRareBosses", true)) then return {} end
+        return addon.GetRaresOnMap and addon.GetRaresOnMap() or {}
+    end)
+    if raresOk and raresResult and type(raresResult) == "table" then
+        for _, r in ipairs(raresResult) do quests[#quests + 1] = r end
+    end
+
+    if addon.GetDB("showAchievements", true) and addon.ReadTrackedAchievements then
+        for _, a in ipairs(addon.ReadTrackedAchievements()) do quests[#quests + 1] = a end
+    end
+    if addon.ReadTrackedEndeavors then
+        for _, e in ipairs(addon.ReadTrackedEndeavors()) do quests[#quests + 1] = e end
+    end
+    if addon.ReadTrackedDecor then
+        for _, d in ipairs(addon.ReadTrackedDecor()) do quests[#quests + 1] = d end
+    end
+    if addon.ReadTrackedAdventureGuide then
+        for _, ag in ipairs(addon.ReadTrackedAdventureGuide()) do quests[#quests + 1] = ag end
+    end
+
+    if #quests == 0 then return end
 
     local grouped = addon.SortAndGroupQuests and addon.SortAndGroupQuests(quests) or {}
     local dataMap = {}

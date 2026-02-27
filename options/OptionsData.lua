@@ -1,6 +1,6 @@
 --[[
     Horizon Suite - Focus - Options Data
-    OptionCategories (Modules, Panel, Display, Typography, Behaviour, Mythic+, Delves, Content Types, Colors, Blacklist), getDB/setDB/notifyMainAddon, search index.
+    OptionCategories (Profiles, Modules, Layout, Display, Typography, Interactions, Instances, Content, Colors, Hidden Quests, Presence General/Notifications/Typography, Insight, Vista Minimap/Appearance/Addon Buttons, Yield), getDB/setDB/notifyMainAddon, search index.
 ]]
 
 if not HorizonDB then HorizonDB = {} end
@@ -446,7 +446,7 @@ local function getActiveQuestHighlight()
 end
 
 -- ---------------------------------------------------------------------------
--- OptionCategories: Modules, Panel, Display, Typography, Behaviour, Mythic+, Delves, Content Types, Colors, Blacklist
+-- OptionCategories: Profiles, Modules, Layout, Display, Typography, Interactions, Instances, Content, Colors, Hidden Quests, Presence (General, Notifications, Typography), Insight, Vista (Minimap, Appearance, Addon Buttons), Yield
 -- ---------------------------------------------------------------------------
 
 local OptionCategories = {
@@ -939,8 +939,8 @@ local OptionCategories = {
         end)(),
     },
     {
-        key = "Panel",
-        name = L["Panel"],
+        key = "Layout",
+        name = L["Layout"],
         moduleKey = "focus",
         options = {
             { type = "section", name = L["Position & layout"] },
@@ -977,6 +977,21 @@ local OptionCategories = {
             { type = "slider", name = L["Faded opacity"], desc = L["How visible the tracker is when faded (0 = invisible)."], dbKey = "fadeOnMouseoverOpacity", min = 0, max = 100, get = function() return math.max(0, math.min(100, tonumber(getDB("fadeOnMouseoverOpacity", 10)) or 10)) end, set = function(v) setDB("fadeOnMouseoverOpacity", math.max(0, math.min(100, v))); if addon.FullLayout then addon.FullLayout() end end },
             { type = "section", name = L["Filtering"] },
             { type = "toggle", name = L["Current zone only"], desc = L["Hide quests outside your current zone."], dbKey = "filterByZone", get = function() return getDB("filterByZone", false) end, set = function(v) setDB("filterByZone", v) end },
+            { type = "section", name = L["Spacing"] },
+            { type = "toggle", name = L["Compact mode"], desc = L["Preset: sets entry and objective spacing to 4 and 1 px."], dbKey = "compactMode", get = function() return getDB("compactMode", false) end, set = function(v) setDB("compactMode", v); if v then setDB("titleSpacing", 4); setDB("objSpacing", 1) else setDB("titleSpacing", 8); setDB("objSpacing", 2) end end },
+            { type = "slider", name = L["Entry spacing"], desc = L["Vertical gap between quest entries."], dbKey = "titleSpacing", min = 2, max = 20, get = function() return math.max(2, math.min(20, tonumber(getDB("titleSpacing", 8)) or 8)) end, set = function(v) setDB("titleSpacing", math.max(2, math.min(20, v))) end },
+            { type = "slider", name = L["Before section header"], desc = L["Gap between last entry of a group and the next category label."], dbKey = "sectionSpacing", min = 0, max = 24, get = function() return math.max(0, math.min(24, tonumber(getDB("sectionSpacing", 10)) or 10)) end, set = function(v) setDB("sectionSpacing", math.max(0, math.min(24, v))) end },
+            { type = "slider", name = L["After section header"], desc = L["Gap between category label and first quest entry below it."], dbKey = "sectionToEntryGap", min = 0, max = 16, get = function() return math.max(0, math.min(16, tonumber(getDB("sectionToEntryGap", 6)) or 6)) end, set = function(v) setDB("sectionToEntryGap", math.max(0, math.min(16, v))) end },
+            { type = "slider", name = L["Objective spacing"], desc = L["Vertical gap between objective lines within a quest."], dbKey = "objSpacing", min = 0, max = 8, get = function() return math.max(0, math.min(8, tonumber(getDB("objSpacing", 2)) or 2)) end, set = function(v) setDB("objSpacing", math.max(0, math.min(8, v))) end },
+            { type = "slider", name = L["Below header"], desc = L["Vertical gap between the objectives bar and the quest list."], dbKey = "headerToContentGap", min = 0, max = 24, get = function() return math.max(0, math.min(24, tonumber(getDB("headerToContentGap", 6)) or 6)) end, set = function(v) setDB("headerToContentGap", math.max(0, math.min(24, v))) end },
+            { type = "button", name = L["Reset spacing"], onClick = function()
+                setDB("compactMode", false)
+                setDB("titleSpacing", 8)
+                setDB("sectionSpacing", 10)
+                setDB("sectionToEntryGap", 6)
+                setDB("objSpacing", 2)
+                setDB("headerToContentGap", 6)
+            end, refreshIds = { "compactMode", "titleSpacing", "sectionSpacing", "sectionToEntryGap", "objSpacing", "headerToContentGap" } },
         },
     },
     {
@@ -1031,21 +1046,9 @@ local OptionCategories = {
             { type = "section", name = L["Highlight"] },
             { type = "slider", name = L["Highlight alpha"], desc = L["Opacity of focused quest highlight (0–100%)."], dbKey = "highlightAlpha", min = 0, max = 100, get = function() local v = tonumber(getDB("highlightAlpha", 0.25)) or 0.25; if v <= 1 and v > 0 then return math.floor(v * 100 + 0.5) end; return math.max(0, math.min(100, v)) end, set = function(v) setDB("highlightAlpha", math.max(0, math.min(100, v)) / 100) end },
             { type = "slider", name = L["Bar width"], desc = L["Width of bar-style highlights (2–6 px)."], dbKey = "highlightBarWidth", min = 2, max = 6, get = function() return math.max(2, math.min(6, tonumber(getDB("highlightBarWidth", 2)) or 2)) end, set = function(v) setDB("highlightBarWidth", math.max(2, math.min(6, v))) end },
-            { type = "section", name = L["Spacing"] },
-            { type = "toggle", name = L["Compact mode"], desc = L["Preset: sets entry and objective spacing to 4 and 1 px."], dbKey = "compactMode", get = function() return getDB("compactMode", false) end, set = function(v) setDB("compactMode", v); if v then setDB("titleSpacing", 4); setDB("objSpacing", 1) else setDB("titleSpacing", 8); setDB("objSpacing", 2) end end },
-            { type = "slider", name = L["Entry spacing"], desc = L["Vertical gap between quest entries."], dbKey = "titleSpacing", min = 2, max = 20, get = function() return math.max(2, math.min(20, tonumber(getDB("titleSpacing", 8)) or 8)) end, set = function(v) setDB("titleSpacing", math.max(2, math.min(20, v))) end },
-            { type = "slider", name = L["Before section header"], desc = L["Gap between last entry of a group and the next category label."], dbKey = "sectionSpacing", min = 0, max = 24, get = function() return math.max(0, math.min(24, tonumber(getDB("sectionSpacing", 10)) or 10)) end, set = function(v) setDB("sectionSpacing", math.max(0, math.min(24, v))) end },
-            { type = "slider", name = L["After section header"], desc = L["Gap between category label and first quest entry below it."], dbKey = "sectionToEntryGap", min = 0, max = 16, get = function() return math.max(0, math.min(16, tonumber(getDB("sectionToEntryGap", 6)) or 6)) end, set = function(v) setDB("sectionToEntryGap", math.max(0, math.min(16, v))) end },
-            { type = "slider", name = L["Objective spacing"], desc = L["Vertical gap between objective lines within a quest."], dbKey = "objSpacing", min = 0, max = 8, get = function() return math.max(0, math.min(8, tonumber(getDB("objSpacing", 2)) or 2)) end, set = function(v) setDB("objSpacing", math.max(0, math.min(8, v))) end },
-            { type = "slider", name = L["Below header"], desc = L["Vertical gap between the objectives bar and the quest list."], dbKey = "headerToContentGap", min = 0, max = 24, get = function() return math.max(0, math.min(24, tonumber(getDB("headerToContentGap", 6)) or 6)) end, set = function(v) setDB("headerToContentGap", math.max(0, math.min(24, v))) end },
-            { type = "button", name = L["Reset spacing"], onClick = function()
-                setDB("compactMode", false)
-                setDB("titleSpacing", 8)
-                setDB("sectionSpacing", 10)
-                setDB("sectionToEntryGap", 6)
-                setDB("objSpacing", 2)
-                setDB("headerToContentGap", 6)
-            end, refreshIds = { "compactMode", "titleSpacing", "sectionSpacing", "sectionToEntryGap", "objSpacing", "headerToContentGap" } },
+            { type = "section", name = L["Sorting"] },
+            { type = "reorderList", name = L["Category order"], labelMap = addon.SECTION_LABELS, presets = addon.GROUP_ORDER_PRESETS, get = function() return addon.GetGroupOrder() end, set = function(order) addon.SetGroupOrder(order) end, desc = L["Drag to reorder. Delves and Scenarios stay first."] },
+            { type = "dropdown", name = L["Sort mode"], desc = L["Order of entries within each category."], dbKey = "entrySortMode", options = { { L["Alphabetical"], "alpha" }, { L["Quest Type"], "questType" }, { L["Zone"], "zone" }, { L["Quest Level"], "level" } }, get = function() return getDB("entrySortMode", "questType") end, set = function(v) setDB("entrySortMode", v) end },
         },
     },
     {
@@ -1079,14 +1082,10 @@ local OptionCategories = {
         },
     },
     {
-        key = "Behaviour",
-        name = L["Behaviour"],
+        key = "Interactions",
+        name = L["Interactions"],
         moduleKey = "focus",
         options = {
-            { type = "section", name = L["Category order"] },
-            { type = "reorderList", name = L["Category order"], labelMap = addon.SECTION_LABELS, presets = addon.GROUP_ORDER_PRESETS, get = function() return addon.GetGroupOrder() end, set = function(order) addon.SetGroupOrder(order) end, desc = L["Drag to reorder. Delves and Scenarios stay first."] },
-            { type = "section", name = L["Sort"] },
-            { type = "dropdown", name = L["Sort mode"], desc = L["Order of entries within each category."], dbKey = "entrySortMode", options = { { L["Alphabetical"], "alpha" }, { L["Quest Type"], "questType" }, { L["Zone"], "zone" }, { L["Quest Level"], "level" } }, get = function() return getDB("entrySortMode", "questType") end, set = function(v) setDB("entrySortMode", v) end },
             { type = "section", name = L["Interactions"] },
             { type = "toggle", name = L["Ctrl for focus / untrack"], desc = L["Prevent accidental clicks."], dbKey = "requireCtrlForQuestClicks", get = function() return getDB("requireCtrlForQuestClicks", false) end, set = function(v) setDB("requireCtrlForQuestClicks", v) end, tooltip = L["Ctrl+Left = focus/add, Ctrl+Right = unfocus/untrack."] },
             { type = "toggle", name = L["Classic clicks"], desc = L["L-click opens map, R-click opens menu."], dbKey = "useClassicClickBehaviour", get = function() return getDB("useClassicClickBehaviour", false) end, set = function(v) setDB("useClassicClickBehaviour", v) end, tooltip = L["Off: L-click focuses, R-click untracks. Ctrl+Right shares."] },
@@ -1105,8 +1104,8 @@ local OptionCategories = {
         },
     },
     {
-        key = "MythicPlus",
-        name = L["Mythic+"],
+        key = "Instances",
+        name = L["Instances"],
         moduleKey = "focus",
         options = {
             { type = "section", name = L["Behaviour"] },
@@ -1146,14 +1145,7 @@ local OptionCategories = {
                 setDB("mplusBossSize", 12)
                 setDB("mplusBossColorR", 0.78); setDB("mplusBossColorG", 0.82); setDB("mplusBossColorB", 0.92)
             end, refreshIds = { "mplusDungeonSize", "mplusDungeonColor", "mplusTimerSize", "mplusTimerColor", "mplusTimerOvertimeColor", "mplusProgressSize", "mplusProgressColor", "mplusBarColor", "mplusBarDoneColor", "mplusAffixSize", "mplusAffixColor", "mplusBossSize", "mplusBossColor" } },
-        },
-    },
-    {
-        key = "Delves",
-        name = L["Delves"],
-        moduleKey = "focus",
-        options = {
-            { type = "section", name = L["Behaviour"] },
+            { type = "section", name = L["Delves"] },
             { type = "toggle", name = L["Scenario events"], desc = L["Track Delves and scenario activities."], dbKey = "showScenarioEvents", get = function() return getDB("showScenarioEvents", true) end, set = function(v) setDB("showScenarioEvents", v) end, tooltip = L["Delves appear in Delves section; other scenarios in Scenario Events."] },
             { type = "toggle", name = L["Delve/Dungeon only"], desc = L["Show only the active instance section."], dbKey = "hideOtherCategoriesInDelve", get = function() return getDB("hideOtherCategoriesInDelve", false) end, set = function(v) setDB("hideOtherCategoriesInDelve", v) end, tooltip = L["Hides other categories while in a Delve or party dungeon."] },
             { type = "toggle", name = L["Delve affix names"], desc = L["Show affix names on first Delve entry."], dbKey = "showDelveAffixes", get = function() return getDB("showDelveAffixes", getDB("delveBlockShowAffixes", true)) end, set = function(v) setDB("showDelveAffixes", v); if addon.ScheduleRefresh then addon.ScheduleRefresh() end end, tooltip = L["May not appear with full tracker replacements."] },
@@ -1201,16 +1193,16 @@ local OptionCategories = {
         },
     },
     {
-        key = "Blacklist",
-        name = L["Blacklist"],
+        key = "HiddenQuests",
+        name = L["Hidden Quests"] or "Hidden Quests",
         moduleKey = "focus",
         options = {
-            { type = "blacklistGrid", name = L["Blacklisted quests"], desc = L["Quests hidden via right-click untrack."], tooltip = L["Enable 'Blacklist untracked' in Behaviour to add quests here."] },
+            { type = "blacklistGrid", name = L["Blacklisted quests"], desc = L["Quests hidden via right-click untrack."], tooltip = L["Enable 'Blacklist untracked' in Interactions to add quests here."] or "Enable 'Blacklist untracked' in Interactions to add quests here." },
         },
     },
     {
-        key = "PresenceDisplay",
-        name = L["Display"],
+        key = "PresenceGeneral",
+        name = L["General"] or "General",
         moduleKey = "presence",
         options = {
             { type = "section", name = L["Display"] },
@@ -1219,27 +1211,16 @@ local OptionCategories = {
             { type = "toggle", name = L["Discovery line"], desc = L["Show 'Discovered' under zone/subzone when entering a new area."], dbKey = "showPresenceDiscovery", get = function() return getDB("showPresenceDiscovery", true) end, set = function(v) setDB("showPresenceDiscovery", v) end },
             { type = "slider", name = L["Frame vertical position"], desc = L["Vertical offset of the Presence frame from center (-300 to 0)."], dbKey = "presenceFrameY", min = -300, max = 0, get = function() return math.max(-300, math.min(0, tonumber(getDB("presenceFrameY", -180)) or -180)) end, set = function(v) setDB("presenceFrameY", math.max(-300, math.min(0, v))) end },
             { type = "slider", name = L["Frame scale"], desc = L["Scale of the Presence frame (0.5–2)."], dbKey = "presenceFrameScale", min = 0.5, max = 2, step = 0.1, get = function() return math.max(0.5, math.min(2, tonumber(getDB("presenceFrameScale", 1)) or 1)) end, set = function(v) setDB("presenceFrameScale", math.max(0.5, math.min(2, v))) end },
-        },
-    },
-    {
-        key = "PresenceColors",
-        name = L["Colors"],
-        moduleKey = "presence",
-        options = {
-            { type = "section", name = L["Colors"] },
-            { type = "color", name = L["Boss emote color"], desc = L["Color of raid and dungeon boss emote text."], dbKey = "presenceBossEmoteColor", default = addon.PRESENCE_BOSS_EMOTE_COLOR },
-            { type = "color", name = L["Discovery line color"], desc = L["Color of the 'Discovered' line under zone text."], dbKey = "presenceDiscoveryColor", default = addon.PRESENCE_DISCOVERY_COLOR },
-            { type = "section", name = L["Zone type coloring"] },
-            { type = "toggle", name = L["Color by zone type"], desc = L["Color zone/subzone titles by PvP zone type (friendly, hostile, contested, sanctuary). When off, uses the default category color."], dbKey = "presenceZoneTypeColoring", get = function() return getDB("presenceZoneTypeColoring", false) end, set = function(v) setDB("presenceZoneTypeColoring", v) end },
-            { type = "color", name = L["Friendly zone color"], desc = L["Color for friendly zones (green by default)."], dbKey = "presenceZoneColorFriendly", default = { 0.1, 1.0, 0.1 } },
-            { type = "color", name = L["Hostile zone color"], desc = L["Color for hostile zones (red by default)."], dbKey = "presenceZoneColorHostile", default = { 1.0, 0.1, 0.1 } },
-            { type = "color", name = L["Contested zone color"], desc = L["Color for contested zones (orange by default)."], dbKey = "presenceZoneColorContested", default = { 1.0, 0.7, 0.0 } },
-            { type = "color", name = L["Sanctuary zone color"], desc = L["Color for sanctuary zones (blue by default)."], dbKey = "presenceZoneColorSanctuary", default = { 0.41, 0.8, 0.94 } },
+            { type = "section", name = L["Animation"] },
+            { type = "toggle", name = L["Animations"], desc = L["Enable entrance and exit animations for Presence notifications."], dbKey = "presenceAnimations", get = function() return getDB("presenceAnimations", true) end, set = function(v) setDB("presenceAnimations", v) end },
+            { type = "slider", name = L["Entrance duration"], desc = L["Duration of the entrance animation in seconds (0.2–1.5)."], dbKey = "presenceEntranceDur", min = 0.2, max = 1.5, step = 0.1, get = function() return math.max(0.2, math.min(1.5, tonumber(getDB("presenceEntranceDur", 0.7)) or 0.7)) end, set = function(v) setDB("presenceEntranceDur", math.max(0.2, math.min(1.5, v))) end },
+            { type = "slider", name = L["Exit duration"], desc = L["Duration of the exit animation in seconds (0.2–1.5)."], dbKey = "presenceExitDur", min = 0.2, max = 1.5, step = 0.1, get = function() return math.max(0.2, math.min(1.5, tonumber(getDB("presenceExitDur", 0.8)) or 0.8)) end, set = function(v) setDB("presenceExitDur", math.max(0.2, math.min(1.5, v))) end },
+            { type = "slider", name = L["Hold duration scale"], desc = L["Multiplier for how long each notification stays on screen (0.5–2)."], dbKey = "presenceHoldScale", min = 0.5, max = 2, step = 0.1, get = function() return math.max(0.5, math.min(2, tonumber(getDB("presenceHoldScale", 1)) or 1)) end, set = function(v) setDB("presenceHoldScale", math.max(0.5, math.min(2, v))) end },
         },
     },
     {
         key = "PresenceNotifications",
-        name = L["Notification types"],
+        name = L["Notifications"],
         moduleKey = "presence",
         options = {
             { type = "section", name = L["Notification types"] },
@@ -1267,18 +1248,6 @@ local OptionCategories = {
         },
     },
     {
-        key = "PresenceAnimation",
-        name = L["Animation"],
-        moduleKey = "presence",
-        options = {
-            { type = "section", name = L["Animation"] },
-            { type = "toggle", name = L["Animations"], desc = L["Enable entrance and exit animations for Presence notifications."], dbKey = "presenceAnimations", get = function() return getDB("presenceAnimations", true) end, set = function(v) setDB("presenceAnimations", v) end },
-            { type = "slider", name = L["Entrance duration"], desc = L["Duration of the entrance animation in seconds (0.2–1.5)."], dbKey = "presenceEntranceDur", min = 0.2, max = 1.5, step = 0.1, get = function() return math.max(0.2, math.min(1.5, tonumber(getDB("presenceEntranceDur", 0.7)) or 0.7)) end, set = function(v) setDB("presenceEntranceDur", math.max(0.2, math.min(1.5, v))) end },
-            { type = "slider", name = L["Exit duration"], desc = L["Duration of the exit animation in seconds (0.2–1.5)."], dbKey = "presenceExitDur", min = 0.2, max = 1.5, step = 0.1, get = function() return math.max(0.2, math.min(1.5, tonumber(getDB("presenceExitDur", 0.8)) or 0.8)) end, set = function(v) setDB("presenceExitDur", math.max(0.2, math.min(1.5, v))) end },
-            { type = "slider", name = L["Hold duration scale"], desc = L["Multiplier for how long each notification stays on screen (0.5–2)."], dbKey = "presenceHoldScale", min = 0.5, max = 2, step = 0.1, get = function() return math.max(0.5, math.min(2, tonumber(getDB("presenceHoldScale", 1)) or 1)) end, set = function(v) setDB("presenceHoldScale", math.max(0.5, math.min(2, v))) end },
-        },
-    },
-    {
         key = "PresenceTypography",
         name = L["Typography"],
         moduleKey = "presence",
@@ -1288,11 +1257,20 @@ local OptionCategories = {
             { type = "dropdown", name = L["Subtitle font"], desc = L["Font family for the subtitle."], dbKey = "presenceSubtitleFontPath", searchable = true, options = function() return GetPerElementFontDropdownOptions("presenceSubtitleFontPath") end, get = function() return getDB("presenceSubtitleFontPath", FONT_USE_GLOBAL) end, set = function(v) setDB("presenceSubtitleFontPath", v) end, displayFn = DisplayPerElementFont },
             { type = "slider", name = L["Main title size"], desc = L["Font size for the main title (24–72 px)."], dbKey = "presenceMainSize", min = 24, max = 72, get = function() return math.max(24, math.min(72, tonumber(getDB("presenceMainSize", 48)) or 48)) end, set = function(v) setDB("presenceMainSize", math.max(24, math.min(72, v))) end },
             { type = "slider", name = L["Subtitle size"], desc = L["Font size for the subtitle (12–40 px)."], dbKey = "presenceSubSize", min = 12, max = 40, get = function() return math.max(12, math.min(40, tonumber(getDB("presenceSubSize", 24)) or 24)) end, set = function(v) setDB("presenceSubSize", math.max(12, math.min(40, v))) end },
+            { type = "section", name = L["Colors"] },
+            { type = "color", name = L["Boss emote color"], desc = L["Color of raid and dungeon boss emote text."], dbKey = "presenceBossEmoteColor", default = addon.PRESENCE_BOSS_EMOTE_COLOR },
+            { type = "color", name = L["Discovery line color"], desc = L["Color of the 'Discovered' line under zone text."], dbKey = "presenceDiscoveryColor", default = addon.PRESENCE_DISCOVERY_COLOR },
+            { type = "section", name = L["Zone type coloring"] },
+            { type = "toggle", name = L["Color by zone type"], desc = L["Color zone/subzone titles by PvP zone type (friendly, hostile, contested, sanctuary). When off, uses the default category color."], dbKey = "presenceZoneTypeColoring", get = function() return getDB("presenceZoneTypeColoring", false) end, set = function(v) setDB("presenceZoneTypeColoring", v) end },
+            { type = "color", name = L["Friendly zone color"], desc = L["Color for friendly zones (green by default)."], dbKey = "presenceZoneColorFriendly", default = { 0.1, 1.0, 0.1 } },
+            { type = "color", name = L["Hostile zone color"], desc = L["Color for hostile zones (red by default)."], dbKey = "presenceZoneColorHostile", default = { 1.0, 0.1, 0.1 } },
+            { type = "color", name = L["Contested zone color"], desc = L["Color for contested zones (orange by default)."], dbKey = "presenceZoneColorContested", default = { 1.0, 0.7, 0.0 } },
+            { type = "color", name = L["Sanctuary zone color"], desc = L["Color for sanctuary zones (blue by default)."], dbKey = "presenceZoneColorSanctuary", default = { 0.41, 0.8, 0.94 } },
         },
     },
     {
         key = "Insight",
-        name = L["Insight"] or "Insight",
+        name = L["Tooltips"] or "Tooltips",
         moduleKey = "insight",
         options = {
             { type = "section", name = L["Position"] or "Position" },
@@ -1319,8 +1297,8 @@ local OptionCategories = {
         },
     },
     {
-        key = "VistaGeneral",
-        name = L["General"] or "General",
+        key = "VistaMinimap",
+        name = L["Minimap"] or "Minimap",
         moduleKey = "vista",
         options = {
             { type = "section", name = L["Minimap"] or "Minimap" },
@@ -1353,177 +1331,6 @@ local OptionCategories = {
               dbKey = "vistaAutoZoom", min = 0, max = 30,
               get = function() return math.max(0, math.min(30, tonumber(getDB("vistaAutoZoom", 5)) or 5)) end,
               set = function(v) setDB("vistaAutoZoom", math.max(0, math.min(30, v))) end },
-        },
-    },
-    {
-        key = "VistaTypography",
-        name = L["Typography"] or "Typography",
-        moduleKey = "vista",
-        options = function()
-            local GLOBAL_SENTINEL = "__global__"
-            local GLOBAL_LABEL = L["Use global font"] or "Use global font"
-
-            -- Build font list with "Use global" as the first entry.
-            local function fontOpts(dbKey)
-                local list = { { GLOBAL_LABEL, GLOBAL_SENTINEL } }
-                local fontList = (addon.GetFontList and addon.GetFontList()) or {}
-                for _, f in ipairs(fontList) do list[#list + 1] = f end
-                -- If the saved value is a custom path not in the list, append it.
-                local saved = getDB(dbKey, GLOBAL_SENTINEL)
-                if saved and saved ~= GLOBAL_SENTINEL and saved ~= "" then
-                    local found = false
-                    for _, o in ipairs(list) do if o[2] == saved then found = true; break end end
-                    if not found then list[#list + 1] = { "Custom", saved } end
-                end
-                return list
-            end
-
-            -- Display name: global sentinel shows readable label, paths show font name.
-            local function displayFont(v)
-                if v == GLOBAL_SENTINEL or v == nil or v == "" then return GLOBAL_LABEL end
-                if addon.GetFontNameForPath then return addon.GetFontNameForPath(v) end
-                return v
-            end
-
-            -- Get: return sentinel when nothing (or sentinel) is stored.
-            local function getFont(dbKey)
-                local v = getDB(dbKey, GLOBAL_SENTINEL)
-                if v == nil or v == "" then return GLOBAL_SENTINEL end
-                return v
-            end
-
-            return {
-                { type = "section", name = L["Zone Text"] or "Zone Text" },
-                { type = "dropdown", name = L["Zone font"] or "Zone font",
-                  desc = L["Font for the zone name below the minimap."] or "Font for the zone name below the minimap.",
-                  dbKey = "vistaZoneFontPath", searchable = true,
-                  options = function() return fontOpts("vistaZoneFontPath") end,
-                  get = function() return getFont("vistaZoneFontPath") end,
-                  set = function(v) setDB("vistaZoneFontPath", v) end,
-                  displayFn = displayFont },
-                { type = "slider", name = L["Zone font size"] or "Zone font size",
-                  dbKey = "vistaZoneFontSize", min = 7, max = 24,
-                  get = function() return math.max(7, math.min(24, tonumber(getDB("vistaZoneFontSize", 12)) or 12)) end,
-                  set = function(v) setDB("vistaZoneFontSize", math.max(7, math.min(24, v))) end },
-                { type = "color", name = L["Zone text color"] or "Zone text color",
-                  desc = L["Color of the zone name text."] or "Color of the zone name text.",
-                  dbKey = "vistaZoneColor",
-                  get = function()
-                      return getDB("vistaZoneColorR", 1), getDB("vistaZoneColorG", 1), getDB("vistaZoneColorB", 1)
-                  end,
-                  set = function(r, g, b)
-                      setDB("vistaZoneColorR", r); setDB("vistaZoneColorG", g); setDB("vistaZoneColorB", b)
-                  end },
-
-                { type = "section", name = L["Coordinates Text"] or "Coordinates Text" },
-                { type = "dropdown", name = L["Coordinates font"] or "Coordinates font",
-                  desc = L["Font for the coordinates text below the minimap."] or "Font for the coordinates text below the minimap.",
-                  dbKey = "vistaCoordFontPath", searchable = true,
-                  options = function() return fontOpts("vistaCoordFontPath") end,
-                  get = function() return getFont("vistaCoordFontPath") end,
-                  set = function(v) setDB("vistaCoordFontPath", v) end,
-                  displayFn = displayFont },
-                { type = "slider", name = L["Coordinates font size"] or "Coordinates font size",
-                  dbKey = "vistaCoordFontSize", min = 7, max = 20,
-                  get = function() return math.max(7, math.min(20, tonumber(getDB("vistaCoordFontSize", 10)) or 10)) end,
-                  set = function(v) setDB("vistaCoordFontSize", math.max(7, math.min(20, v))) end },
-                { type = "color", name = L["Coordinates text color"] or "Coordinates text color",
-                  desc = L["Color of the coordinates text."] or "Color of the coordinates text.",
-                  dbKey = "vistaCoordColor",
-                  get = function()
-                      return getDB("vistaCoordColorR", 0.55), getDB("vistaCoordColorG", 0.65), getDB("vistaCoordColorB", 0.75)
-                  end,
-                  set = function(r, g, b)
-                      setDB("vistaCoordColorR", r); setDB("vistaCoordColorG", g); setDB("vistaCoordColorB", b)
-                  end },
-                { type = "dropdown", name = L["Coordinate precision"] or "Coordinate precision",
-                  desc = L["Number of decimal places shown for X and Y coordinates."] or "Number of decimal places shown for X and Y coordinates.",
-                  dbKey = "vistaCoordPrecision",
-                  options = function() return {
-                      { L["No decimals (e.g. 52, 37)"]      or "No decimals (e.g. 52, 37)",      0 },
-                      { L["1 decimal (e.g. 52.3, 37.1)"]    or "1 decimal (e.g. 52.3, 37.1)",    1 },
-                      { L["2 decimals (e.g. 52.34, 37.12)"] or "2 decimals (e.g. 52.34, 37.12)", 2 },
-                  } end,
-                  get = function() return tonumber(getDB("vistaCoordPrecision", 1)) or 1 end,
-                  set = function(v) setDB("vistaCoordPrecision", tonumber(v) or 1) end },
-
-                { type = "section", name = L["Time Text"] or "Time Text" },
-                { type = "dropdown", name = L["Time font"] or "Time font",
-                  desc = L["Font for the time text below the minimap."] or "Font for the time text below the minimap.",
-                  dbKey = "vistaTimeFontPath", searchable = true,
-                  options = function() return fontOpts("vistaTimeFontPath") end,
-                  get = function() return getFont("vistaTimeFontPath") end,
-                  set = function(v) setDB("vistaTimeFontPath", v) end,
-                  displayFn = displayFont },
-                { type = "slider", name = L["Time font size"] or "Time font size",
-                  dbKey = "vistaTimeFontSize", min = 7, max = 20,
-                  get = function() return math.max(7, math.min(20, tonumber(getDB("vistaTimeFontSize", 10)) or 10)) end,
-                  set = function(v) setDB("vistaTimeFontSize", math.max(7, math.min(20, v))) end },
-                { type = "color", name = L["Time text color"] or "Time text color",
-                  desc = L["Color of the time text."] or "Color of the time text.",
-                  dbKey = "vistaTimeColor",
-                  get = function()
-                      return getDB("vistaTimeColorR", 0.55), getDB("vistaTimeColorG", 0.65), getDB("vistaTimeColorB", 0.75)
-                  end,
-                  set = function(r, g, b)
-                      setDB("vistaTimeColorR", r); setDB("vistaTimeColorG", g); setDB("vistaTimeColorB", b)
-                  end },
-
-                { type = "section", name = L["Difficulty Text"] or "Difficulty Text" },
-                { type = "color", name = L["Difficulty text color (fallback)"] or "Difficulty text color (fallback)",
-                  desc = L["Default color when no per-difficulty color is set."] or "Default color when no per-difficulty color is set.",
-                  dbKey = "vistaDiffColor",
-                  get = function()
-                      return getDB("vistaDiffColorR", 0.55), getDB("vistaDiffColorG", 0.65), getDB("vistaDiffColorB", 0.75)
-                  end,
-                  set = function(r, g, b)
-                      setDB("vistaDiffColorR", r); setDB("vistaDiffColorG", g); setDB("vistaDiffColorB", b)
-                  end },
-                { type = "dropdown", name = L["Difficulty font"] or "Difficulty font",
-                  desc = L["Font for the instance difficulty text."] or "Font for the instance difficulty text.",
-                  dbKey = "vistaDiffFontPath", searchable = true,
-                  options = function() return fontOpts("vistaDiffFontPath") end,
-                  get = function() return getFont("vistaDiffFontPath") end,
-                  set = function(v) setDB("vistaDiffFontPath", v) end,
-                  displayFn = displayFont },
-                { type = "slider", name = L["Difficulty font size"] or "Difficulty font size",
-                  dbKey = "vistaDiffFontSize", min = 7, max = 24,
-                  get = function() return math.max(7, math.min(24, tonumber(getDB("vistaDiffFontSize", 10)) or 10)) end,
-                  set = function(v) setDB("vistaDiffFontSize", math.max(7, math.min(24, v))) end },
-                { type = "toggle", name = L["Lock difficulty text position"] or "Lock difficulty text position",
-                  desc = L["When on, the difficulty text cannot be dragged."] or "When on, the difficulty text cannot be dragged.",
-                  dbKey = "vistaLocked_diff",
-                  get = function() return getDB("vistaLocked_diff", false) end,
-                  set = function(v) setDB("vistaLocked_diff", v) end },
-                { type = "section", name = L["Per-Difficulty Colors"] or "Per-Difficulty Colors" },
-                { type = "color", name = L["Mythic color"] or "Mythic color",
-                  desc = L["Color for Mythic difficulty text."] or "Color for Mythic difficulty text.",
-                  dbKey = "vistaDiffColor_mythic",
-                  get = function() return getDB("vistaDiffColor_mythic_R", 0.64), getDB("vistaDiffColor_mythic_G", 0.21), getDB("vistaDiffColor_mythic_B", 0.93) end,
-                  set = function(r, g, b) setDB("vistaDiffColor_mythic_R", r); setDB("vistaDiffColor_mythic_G", g); setDB("vistaDiffColor_mythic_B", b) end },
-                { type = "color", name = L["Heroic color"] or "Heroic color",
-                  desc = L["Color for Heroic difficulty text."] or "Color for Heroic difficulty text.",
-                  dbKey = "vistaDiffColor_heroic",
-                  get = function() return getDB("vistaDiffColor_heroic_R", 1.00), getDB("vistaDiffColor_heroic_G", 0.12), getDB("vistaDiffColor_heroic_B", 0.12) end,
-                  set = function(r, g, b) setDB("vistaDiffColor_heroic_R", r); setDB("vistaDiffColor_heroic_G", g); setDB("vistaDiffColor_heroic_B", b) end },
-                { type = "color", name = L["Normal color"] or "Normal color",
-                  desc = L["Color for Normal difficulty text."] or "Color for Normal difficulty text.",
-                  dbKey = "vistaDiffColor_normal",
-                  get = function() return getDB("vistaDiffColor_normal_R", 0.12), getDB("vistaDiffColor_normal_G", 0.83), getDB("vistaDiffColor_normal_B", 0.12) end,
-                  set = function(r, g, b) setDB("vistaDiffColor_normal_R", r); setDB("vistaDiffColor_normal_G", g); setDB("vistaDiffColor_normal_B", b) end },
-                { type = "color", name = L["LFR color"] or "LFR color",
-                  desc = L["Color for Looking For Raid difficulty text."] or "Color for Looking For Raid difficulty text.",
-                  dbKey = "vistaDiffColor_lfr",
-                  get = function() return getDB("vistaDiffColor_looking_for_raid_R", 0.00), getDB("vistaDiffColor_looking_for_raid_G", 0.70), getDB("vistaDiffColor_looking_for_raid_B", 1.00) end,
-                  set = function(r, g, b) setDB("vistaDiffColor_looking_for_raid_R", r); setDB("vistaDiffColor_looking_for_raid_G", g); setDB("vistaDiffColor_looking_for_raid_B", b) end },
-            }
-        end,
-    },
-    {
-        key = "VistaVisibility",
-        name = L["Visibility"] or "Visibility",
-        moduleKey = "vista",
-        options = {
             { type = "section", name = L["Text Elements"] or "Text Elements" },
             { type = "toggle", name = L["Show zone text"] or "Show zone text",
               desc = L["Show the zone name below the minimap."] or "Show the zone name below the minimap.",
@@ -1559,7 +1366,6 @@ local OptionCategories = {
               disabled = function() return not getDB("vistaShowTimeText", false) end },
             { type = "section", name = L["Minimap Buttons"] or "Minimap Buttons" },
             { type = "header", name = L["Queue status and mail indicator are always shown when relevant."] or "Queue status and mail indicator are always shown when relevant." },
-            -- Tracking
             { type = "toggle", name = L["Show tracking button"] or "Show tracking button",
               desc = L["Show the minimap tracking button."] or "Show the minimap tracking button.",
               dbKey = "vistaShowTracking",
@@ -1578,7 +1384,6 @@ local OptionCategories = {
               get = function() return getDB("vistaMouseoverTracking", true) end,
               set = function(v) setDB("vistaMouseoverTracking", v) end,
               disabled = function() return not getDB("vistaShowTracking", true) end },
-            -- Calendar
             { type = "toggle", name = L["Show calendar button"] or "Show calendar button",
               desc = L["Show the minimap calendar button."] or "Show the minimap calendar button.",
               dbKey = "vistaShowCalendar",
@@ -1597,7 +1402,6 @@ local OptionCategories = {
               get = function() return getDB("vistaMouseoverCalendar", true) end,
               set = function(v) setDB("vistaMouseoverCalendar", v) end,
               disabled = function() return not getDB("vistaShowCalendar", true) end },
-            -- Zoom buttons
             { type = "toggle", name = L["Show zoom buttons"] or "Show zoom buttons",
               desc = L["Show the + and - zoom buttons on the minimap."] or "Show the + and - zoom buttons on the minimap.",
               dbKey = "vistaShowZoomBtns",
@@ -1619,10 +1423,39 @@ local OptionCategories = {
         },
     },
     {
-        key = "VistaDisplay",
-        name = L["Display"] or "Display",
+        key = "VistaAppearance",
+        name = L["Appearance"] or "Appearance",
         moduleKey = "vista",
-        options = {
+        options = function()
+            local GLOBAL_SENTINEL = "__global__"
+            local GLOBAL_LABEL = L["Use global font"] or "Use global font"
+
+            local function fontOpts(dbKey)
+                local list = { { GLOBAL_LABEL, GLOBAL_SENTINEL } }
+                local fontList = (addon.GetFontList and addon.GetFontList()) or {}
+                for _, f in ipairs(fontList) do list[#list + 1] = f end
+                local saved = getDB(dbKey, GLOBAL_SENTINEL)
+                if saved and saved ~= GLOBAL_SENTINEL and saved ~= "" then
+                    local found = false
+                    for _, o in ipairs(list) do if o[2] == saved then found = true; break end end
+                    if not found then list[#list + 1] = { "Custom", saved } end
+                end
+                return list
+            end
+
+            local function displayFont(v)
+                if v == GLOBAL_SENTINEL or v == nil or v == "" then return GLOBAL_LABEL end
+                if addon.GetFontNameForPath then return addon.GetFontNameForPath(v) end
+                return v
+            end
+
+            local function getFont(dbKey)
+                local v = getDB(dbKey, GLOBAL_SENTINEL)
+                if v == nil or v == "" then return GLOBAL_SENTINEL end
+                return v
+            end
+
+            return {
             { type = "section", name = L["Border"] or "Border" },
             { type = "toggle", name = L["Show border"] or "Show border",
               desc = L["Show a border around the minimap."] or "Show a border around the minimap.",
@@ -1701,11 +1534,6 @@ local OptionCategories = {
               dbKey = "vistaLocked_time",
               get = function() return getDB("vistaLocked_time", true) end,
               set = function(v) setDB("vistaLocked_time", v) end },
-            { type = "toggle", name = L["Lock difficulty text position"] or "Lock difficulty text position",
-              desc = L["When on, the difficulty text cannot be dragged."] or "When on, the difficulty text cannot be dragged.",
-              dbKey = "vistaLocked_diff",
-              get = function() return getDB("vistaLocked_diff", false) end,
-              set = function(v) setDB("vistaLocked_diff", v) end },
             { type = "section", name = L["Button Positions"] or "Button Positions" },
             { type = "header", name = L["Drag buttons to reposition them. Lock to prevent movement."] or "Drag buttons to reposition them. Lock to prevent movement." },
             { type = "toggle", name = L["Lock Zoom In button"] or "Lock Zoom In button",
@@ -1794,7 +1622,122 @@ local OptionCategories = {
                       end)
                   end
               end },
-        },
+            { type = "section", name = L["Zone Text"] or "Zone Text" },
+            { type = "dropdown", name = L["Zone font"] or "Zone font",
+              desc = L["Font for the zone name below the minimap."] or "Font for the zone name below the minimap.",
+              dbKey = "vistaZoneFontPath", searchable = true,
+              options = function() return fontOpts("vistaZoneFontPath") end,
+              get = function() return getFont("vistaZoneFontPath") end,
+              set = function(v) setDB("vistaZoneFontPath", v) end,
+              displayFn = displayFont },
+            { type = "slider", name = L["Zone font size"] or "Zone font size",
+              dbKey = "vistaZoneFontSize", min = 7, max = 24,
+              get = function() return math.max(7, math.min(24, tonumber(getDB("vistaZoneFontSize", 12)) or 12)) end,
+              set = function(v) setDB("vistaZoneFontSize", math.max(7, math.min(24, v))) end },
+            { type = "color", name = L["Zone text color"] or "Zone text color",
+              desc = L["Color of the zone name text."] or "Color of the zone name text.",
+              dbKey = "vistaZoneColor",
+              get = function()
+                  return getDB("vistaZoneColorR", 1), getDB("vistaZoneColorG", 1), getDB("vistaZoneColorB", 1)
+              end,
+              set = function(r, g, b)
+                  setDB("vistaZoneColorR", r); setDB("vistaZoneColorG", g); setDB("vistaZoneColorB", b)
+              end },
+            { type = "section", name = L["Coordinates Text"] or "Coordinates Text" },
+            { type = "dropdown", name = L["Coordinates font"] or "Coordinates font",
+              desc = L["Font for the coordinates text below the minimap."] or "Font for the coordinates text below the minimap.",
+              dbKey = "vistaCoordFontPath", searchable = true,
+              options = function() return fontOpts("vistaCoordFontPath") end,
+              get = function() return getFont("vistaCoordFontPath") end,
+              set = function(v) setDB("vistaCoordFontPath", v) end,
+              displayFn = displayFont },
+            { type = "slider", name = L["Coordinates font size"] or "Coordinates font size",
+              dbKey = "vistaCoordFontSize", min = 7, max = 20,
+              get = function() return math.max(7, math.min(20, tonumber(getDB("vistaCoordFontSize", 10)) or 10)) end,
+              set = function(v) setDB("vistaCoordFontSize", math.max(7, math.min(20, v))) end },
+            { type = "color", name = L["Coordinates text color"] or "Coordinates text color",
+              desc = L["Color of the coordinates text."] or "Color of the coordinates text.",
+              dbKey = "vistaCoordColor",
+              get = function()
+                  return getDB("vistaCoordColorR", 0.55), getDB("vistaCoordColorG", 0.65), getDB("vistaCoordColorB", 0.75)
+              end,
+              set = function(r, g, b)
+                  setDB("vistaCoordColorR", r); setDB("vistaCoordColorG", g); setDB("vistaCoordColorB", b)
+              end },
+            { type = "dropdown", name = L["Coordinate precision"] or "Coordinate precision",
+              desc = L["Number of decimal places shown for X and Y coordinates."] or "Number of decimal places shown for X and Y coordinates.",
+              dbKey = "vistaCoordPrecision",
+              options = function() return {
+                  { L["No decimals (e.g. 52, 37)"]      or "No decimals (e.g. 52, 37)",      0 },
+                  { L["1 decimal (e.g. 52.3, 37.1)"]    or "1 decimal (e.g. 52.3, 37.1)",    1 },
+                  { L["2 decimals (e.g. 52.34, 37.12)"] or "2 decimals (e.g. 52.34, 37.12)", 2 },
+              } end,
+              get = function() return tonumber(getDB("vistaCoordPrecision", 1)) or 1 end,
+              set = function(v) setDB("vistaCoordPrecision", tonumber(v) or 1) end },
+            { type = "section", name = L["Time Text"] or "Time Text" },
+            { type = "dropdown", name = L["Time font"] or "Time font",
+              desc = L["Font for the time text below the minimap."] or "Font for the time text below the minimap.",
+              dbKey = "vistaTimeFontPath", searchable = true,
+              options = function() return fontOpts("vistaTimeFontPath") end,
+              get = function() return getFont("vistaTimeFontPath") end,
+              set = function(v) setDB("vistaTimeFontPath", v) end,
+              displayFn = displayFont },
+            { type = "slider", name = L["Time font size"] or "Time font size",
+              dbKey = "vistaTimeFontSize", min = 7, max = 20,
+              get = function() return math.max(7, math.min(20, tonumber(getDB("vistaTimeFontSize", 10)) or 10)) end,
+              set = function(v) setDB("vistaTimeFontSize", math.max(7, math.min(20, v))) end },
+            { type = "color", name = L["Time text color"] or "Time text color",
+              desc = L["Color of the time text."] or "Color of the time text.",
+              dbKey = "vistaTimeColor",
+              get = function()
+                  return getDB("vistaTimeColorR", 0.55), getDB("vistaTimeColorG", 0.65), getDB("vistaTimeColorB", 0.75)
+              end,
+              set = function(r, g, b)
+                  setDB("vistaTimeColorR", r); setDB("vistaTimeColorG", g); setDB("vistaTimeColorB", b)
+              end },
+            { type = "section", name = L["Difficulty Text"] or "Difficulty Text" },
+            { type = "color", name = L["Difficulty text color (fallback)"] or "Difficulty text color (fallback)",
+              desc = L["Default color when no per-difficulty color is set."] or "Default color when no per-difficulty color is set.",
+              dbKey = "vistaDiffColor",
+              get = function()
+                  return getDB("vistaDiffColorR", 0.55), getDB("vistaDiffColorG", 0.65), getDB("vistaDiffColorB", 0.75)
+              end,
+              set = function(r, g, b)
+                  setDB("vistaDiffColorR", r); setDB("vistaDiffColorG", g); setDB("vistaDiffColorB", b)
+              end },
+            { type = "dropdown", name = L["Difficulty font"] or "Difficulty font",
+              desc = L["Font for the instance difficulty text."] or "Font for the instance difficulty text.",
+              dbKey = "vistaDiffFontPath", searchable = true,
+              options = function() return fontOpts("vistaDiffFontPath") end,
+              get = function() return getFont("vistaDiffFontPath") end,
+              set = function(v) setDB("vistaDiffFontPath", v) end,
+              displayFn = displayFont },
+            { type = "slider", name = L["Difficulty font size"] or "Difficulty font size",
+              dbKey = "vistaDiffFontSize", min = 7, max = 24,
+              get = function() return math.max(7, math.min(24, tonumber(getDB("vistaDiffFontSize", 10)) or 10)) end,
+              set = function(v) setDB("vistaDiffFontSize", math.max(7, math.min(24, v))) end },
+            { type = "section", name = L["Per-Difficulty Colors"] or "Per-Difficulty Colors" },
+            { type = "color", name = L["Mythic color"] or "Mythic color",
+              desc = L["Color for Mythic difficulty text."] or "Color for Mythic difficulty text.",
+              dbKey = "vistaDiffColor_mythic",
+              get = function() return getDB("vistaDiffColor_mythic_R", 0.64), getDB("vistaDiffColor_mythic_G", 0.21), getDB("vistaDiffColor_mythic_B", 0.93) end,
+              set = function(r, g, b) setDB("vistaDiffColor_mythic_R", r); setDB("vistaDiffColor_mythic_G", g); setDB("vistaDiffColor_mythic_B", b) end },
+            { type = "color", name = L["Heroic color"] or "Heroic color",
+              desc = L["Color for Heroic difficulty text."] or "Color for Heroic difficulty text.",
+              dbKey = "vistaDiffColor_heroic",
+              get = function() return getDB("vistaDiffColor_heroic_R", 1.00), getDB("vistaDiffColor_heroic_G", 0.12), getDB("vistaDiffColor_heroic_B", 0.12) end,
+              set = function(r, g, b) setDB("vistaDiffColor_heroic_R", r); setDB("vistaDiffColor_heroic_G", g); setDB("vistaDiffColor_heroic_B", b) end },
+            { type = "color", name = L["Normal color"] or "Normal color",
+              desc = L["Color for Normal difficulty text."] or "Color for Normal difficulty text.",
+              dbKey = "vistaDiffColor_normal",
+              get = function() return getDB("vistaDiffColor_normal_R", 0.12), getDB("vistaDiffColor_normal_G", 0.83), getDB("vistaDiffColor_normal_B", 0.12) end,
+              set = function(r, g, b) setDB("vistaDiffColor_normal_R", r); setDB("vistaDiffColor_normal_G", g); setDB("vistaDiffColor_normal_B", b) end },
+            { type = "color", name = L["LFR color"] or "LFR color",
+              desc = L["Color for Looking For Raid difficulty text."] or "Color for Looking For Raid difficulty text.",
+              dbKey = "vistaDiffColor_lfr",
+              get = function() return getDB("vistaDiffColor_looking_for_raid_R", 0.00), getDB("vistaDiffColor_looking_for_raid_G", 0.70), getDB("vistaDiffColor_looking_for_raid_B", 1.00) end,
+              set = function(r, g, b) setDB("vistaDiffColor_looking_for_raid_R", r); setDB("vistaDiffColor_looking_for_raid_G", g); setDB("vistaDiffColor_looking_for_raid_B", b) end },
+        } end,
     },
     {
         key = "VistaButtons",

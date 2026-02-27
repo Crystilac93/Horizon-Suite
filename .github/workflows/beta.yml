@@ -6,6 +6,7 @@ on:
       - main
     paths-ignore:
       - '.github/**'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -100,6 +101,18 @@ jobs:
           printf '%s\n' "$BODY" >> $GITHUB_OUTPUT
           echo "CHANGELOG_EOF" >> $GITHUB_OUTPUT
 
+          # Write Discord webhook payload to avoid multiline YAML interpolation issues.
+          printf '%s' "$BODY" | jq -Rs 'if length > 4096 then .[0:4096] else . end' > /tmp/changelog-desc.json
+          REPO_NAME="${GITHUB_REPOSITORY##*/}"
+          jq -n \
+            --arg user "Addon Beta Bot" \
+            --arg avatar "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" \
+            --arg title "New Beta Build: ${REPO_NAME}" \
+            --arg url "https://github.com/${GITHUB_REPOSITORY}/releases/tag/beta" \
+            --slurpfile desc /tmp/changelog-desc.json \
+            '{username: $user, avatar_url: $avatar, embeds: [{title: $title, url: $url, description: $desc[0]}]}' \
+            > .release/discord-payload.json
+
       - name: Create or update Beta release
         if: steps.check.outputs.skip != 'true'
         env:
@@ -117,11 +130,10 @@ jobs:
       - name: Post to Discord
         if: success() && steps.check.outputs.skip != 'true'
         continue-on-error: true
-        uses: tsickert/discord-webhook@v5.3.0
-        with:
-          webhook-url: ${{ secrets.DISCORD_WEBHOOK_BETA }}
-          username: "Addon Beta Bot"
-          avatar-url: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
-          embed-title: "New Beta Build: ${{ github.event.repository.name }}"
-          embed-url: "https://github.com/${{ github.repository }}/releases/tag/beta"
-          embed-description: ${{ steps.extract_changelog.outputs.changelog }}
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_BETA }}
+        run: |
+          curl -sf -X POST \
+            -H "Content-Type: application/json" \
+            -d @.release/discord-payload.json \
+            "$DISCORD_WEBHOOK"
