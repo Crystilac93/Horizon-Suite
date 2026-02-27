@@ -6,6 +6,10 @@ All notable changes to Horizon Suite are documented here.
 
 ## [Unreleased]
 
+### ✨ New Features
+
+- **Beta can install alongside release** — Install both stable and beta versions simultaneously for testing without overwriting each other.
+
 ### 🔧 Improvements
 
 - **(Insight) Suppress tooltip fade-in when refreshing unit tooltips** — Prevents animation flicker when the tooltip is refreshed programmatically rather than shown from scratch.
