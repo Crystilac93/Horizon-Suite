@@ -282,9 +282,10 @@ end
 -- ANIMATION ENGINE
 -- ============================================================================
 
-local fadeState   = "idle"
-local fadeElapsed = 0
-local fadeTarget  = nil
+local fadeState      = "idle"
+local fadeElapsed    = 0
+local fadeTarget     = nil
+local suppressFadeIn = false
 
 local animFrame = CreateFrame("Frame")
 animFrame:Hide()
@@ -314,6 +315,10 @@ end
 local function HookGameTooltipAnimation()
     GameTooltip:HookScript("OnShow", function(self)
         if not IsEnabled() then return end
+        if suppressFadeIn then
+            suppressFadeIn = false
+            return
+        end
         StartFadeIn(self)
         if Insight.accentBar then Insight.accentBar:Hide() end
     end)
@@ -632,6 +637,7 @@ local function ProcessUnitTooltip()
     end
 
     StyleFonts(GameTooltip)
+    suppressFadeIn = true
     GameTooltip:Show()
     ClampTooltipToScreen()
 end
@@ -848,6 +854,7 @@ eventFrame:SetScript("OnEvent", function(self, event, guid)
             -- Refresh the tooltip from scratch so Blizzard's lines are rebuilt
             -- before we append ours — prevents every AddLine running twice.
             if GameTooltip:IsShown() then
+                suppressFadeIn = true
                 GameTooltip:SetUnit("mouseover")
             end
         end
