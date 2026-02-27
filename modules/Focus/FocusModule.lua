@@ -180,11 +180,7 @@ addon:RegisterModule("focus", {
                 addon.RestoreTracker()
             end
         end
-        if not InCombatLockdown() then
-            addon.HS:Hide()
-        else
-            addon.focus.pendingHideAfterCombat = true
-        end
+        addon.HS:Hide()
         if addon.pool then
             for i = 1, addon.POOL_SIZE do
                 if addon.ClearEntry then addon.ClearEntry(addon.pool[i]) end

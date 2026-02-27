@@ -64,21 +64,22 @@ pcall(function() eventFrame:RegisterEvent("CHALLENGE_MODE_START") end)
 -- WORLD_MAP_OPEN: fires when the world map is opened. Used to sync watch-list state.
 eventFrame:RegisterEvent("WORLD_MAP_OPEN")
 
+-- OnUpdate dirty flag breaks taint chain from event-driven C_QuestLog calls.
+local layoutDirtyFrame = CreateFrame("Frame")
+layoutDirtyFrame:Hide()
+layoutDirtyFrame:SetScript("OnUpdate", function(self)
+    self:Hide()
+    addon.focus.refreshPending = false
+    if not addon.focus.enabled then return end
+    addon.focus.layoutPendingAfterCombat = false
+    if addon.FullLayout then addon.FullLayout() end
+end)
+
 local function ScheduleRefresh()
     if not addon.focus.enabled then return end
     if addon.focus.refreshPending then return end
     addon.focus.refreshPending = true
-    C_Timer.After(0.05, function()
-        addon.focus.refreshPending = false
-        if not addon.focus.enabled then return end
-        if InCombatLockdown() then
-            addon.focus.layoutPendingAfterCombat = true
-            if addon.RefreshContentInCombat then addon.RefreshContentInCombat() end
-            return
-        end
-        addon.focus.layoutPendingAfterCombat = false
-        if addon.FullLayout then addon.FullLayout() end
-    end)
+    layoutDirtyFrame:Show()
 end
 
 addon.ScheduleRefresh = ScheduleRefresh
@@ -235,11 +236,7 @@ local function OnPlayerRegenEnabled()
             addon.focus.combat.faded = nil
             if addon.EnsureFocusUpdateRunning then addon.EnsureFocusUpdateRunning() end
         end
-        if addon.FullLayout then
-            addon.FullLayout()
-        else
-            ScheduleRefresh()
-        end
+        ScheduleRefresh()
     end
     if addon.focus.mplusLayoutPendingAfterCombat then
         addon.focus.mplusLayoutPendingAfterCombat = nil
@@ -262,9 +259,7 @@ local function OnInstanceEntered()
     if not addon.focus.enabled then return end
     C_Timer.After(0.2, function()
         if not addon.focus.enabled then return end
-        if addon.FullLayout and not InCombatLockdown() then
-            addon.FullLayout()
-        end
+        ScheduleRefresh()
     end)
 end
 
@@ -279,11 +274,7 @@ local function OnPlayerLoginOrEnteringWorld()
         ScheduleRefresh()
         C_Timer.After(0.4, function()
             if not addon.focus.enabled then return end
-            if addon.FullLayout then
-                addon.FullLayout()
-            else
-                ScheduleRefresh()
-            end
+            ScheduleRefresh()
         end)
         C_Timer.After(1.5, function() if addon.focus.enabled then ScheduleRefresh() end end)
         -- Prime endeavor cache so GetInitiativeTaskInfo returns objectives without user opening the panel (Blizz bug workaround)
@@ -428,11 +419,7 @@ local function OnZoneChanged(event)
     C_Timer.After(0.4, function()
         if not addon.focus.enabled then return end
         RunMplusHeightTransitionCheck()
-        if addon.FullLayout then
-            addon.FullLayout()
-        else
-            ScheduleRefresh()
-        end
+        ScheduleRefresh()
     end)
     C_Timer.After(1.5, function() if addon.focus.enabled then ScheduleRefresh() end end)
 end
@@ -570,26 +557,6 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             if floatingBtn then floatingBtn:Hide() end
             if addon.UpdateFloatingQuestItem then addon.UpdateFloatingQuestItem(nil) end
             if addon.UpdateMplusBlock then addon.UpdateMplusBlock() end
-        end
-        local pending = addon.focus.pendingEntryHideAfterCombat
-        if pending then
-            addon.focus.pendingEntryHideAfterCombat = nil
-            for entry in next, pending do
-                entry:Hide()
-                if entry.itemBtn then entry.itemBtn:Hide() end
-                if entry.trackBar then entry.trackBar:Hide() end
-                if entry.affixText then entry.affixText:Hide() end
-                if entry.affixShadow then entry.affixShadow:Hide() end
-                if entry.wqTimerText then entry.wqTimerText:Hide() end
-                if entry.wqProgressBg then entry.wqProgressBg:Hide() end
-                if entry.wqProgressFill then entry.wqProgressFill:Hide() end
-                if entry.wqProgressText then entry.wqProgressText:Hide() end
-                if entry.scenarioTimerBars then
-                    for _, bar in ipairs(entry.scenarioTimerBars) do
-                        bar:Hide()
-                    end
-                end
-            end
         end
     end
     if event ~= "ADDON_LOADED" and not addon.focus.enabled then

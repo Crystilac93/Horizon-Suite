@@ -123,25 +123,20 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
     elseif cmd == "nearby" then
         local show = not addon.GetDB("showNearbyGroup", true)
         addon.SetDB("showNearbyGroup", show)
-        if not InCombatLockdown() then
-            if show then
-                if addon.GetDB("animations", true) and addon.StartNearbyTurnOnTransition then
-                    addon.StartNearbyTurnOnTransition()
-                else
-                    if _G.HorizonSuite_RequestRefresh then _G.HorizonSuite_RequestRefresh() end
-                    if addon.FullLayout then addon.FullLayout() end
-                end
+        if show then
+            if addon.GetDB("animations", true) and addon.StartNearbyTurnOnTransition then
+                addon.StartNearbyTurnOnTransition()
             else
-                if addon.GetDB("animations", true) and addon.StartGroupCollapseVisual then
-                    addon.StartGroupCollapseVisual("NEARBY")
-                else
-                    if _G.HorizonSuite_RequestRefresh then _G.HorizonSuite_RequestRefresh() end
-                    if addon.FullLayout then addon.FullLayout() end
-                end
+                if _G.HorizonSuite_RequestRefresh then _G.HorizonSuite_RequestRefresh() end
+                if addon.FullLayout then addon.FullLayout() end
             end
         else
-            if _G.HorizonSuite_RequestRefresh then _G.HorizonSuite_RequestRefresh() end
-            if addon.FullLayout then addon.FullLayout() end
+            if addon.GetDB("animations", true) and addon.StartGroupCollapseVisual then
+                addon.StartGroupCollapseVisual("NEARBY")
+            else
+                if _G.HorizonSuite_RequestRefresh then _G.HorizonSuite_RequestRefresh() end
+                if addon.FullLayout then addon.FullLayout() end
+            end
         end
         if show then
             print("|cFF00CCFFHorizon Suite - Focus:|r Nearby group shown.")

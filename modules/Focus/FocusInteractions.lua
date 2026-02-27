@@ -396,8 +396,8 @@ for i = 1, addon.POOL_SIZE do
                     if wqtPanel and wqtPanel:IsShown() then
                         wqtPanel:Hide()
                     end
-                    if addon.FullLayout and not InCombatLockdown() then
-                        addon.FullLayout()
+                    if addon.FullLayout then
+                        addon.ScheduleRefresh()
                     end
                     return
                 end
@@ -407,8 +407,8 @@ for i = 1, addon.POOL_SIZE do
                     wqtPanel:Hide()
                 end
             end
-            if addon.FullLayout and not InCombatLockdown() then
-                addon.FullLayout()
+            if addon.FullLayout then
+                addon.ScheduleRefresh()
             end
         elseif button == "RightButton" then
             if self.entryKey then
@@ -522,8 +522,8 @@ for i = 1, addon.POOL_SIZE do
                         if wqtPanel and wqtPanel:IsShown() then
                             wqtPanel:Hide()
                         end
-                        if addon.FullLayout and not InCombatLockdown() then
-                            addon.FullLayout()
+                        if addon.FullLayout then
+                            addon.ScheduleRefresh()
                         end
                         return
                     end

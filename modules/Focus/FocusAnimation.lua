@@ -64,10 +64,8 @@ local HS          = addon.HS
 local pool         = addon.pool
 local sectionPool  = addon.sectionPool
 local scrollChild  = addon.scrollChild
-local scrollFrame  = addon.scrollFrame
 
 local function SetPanelHeight(h)
-    if InCombatLockdown() then return end
     if addon.GetDB("growUp", false) then
         HS:SetHeight(h)
         return
@@ -315,14 +313,10 @@ local function UpdateCombatFade(dt, useAnim)
                 end
             end
         elseif not useAnim then
-            if not InCombatLockdown() then
-                HS:Hide()
-                if floatingBtn then floatingBtn:Hide() end
-                if addon.UpdateFloatingQuestItem then addon.UpdateFloatingQuestItem(nil) end
-                if addon.UpdateMplusBlock then addon.UpdateMplusBlock() end
-            else
-                addon.focus.pendingHideAfterCombat = true
-            end
+            HS:Hide()
+            if floatingBtn then floatingBtn:Hide() end
+            if addon.UpdateFloatingQuestItem then addon.UpdateFloatingQuestItem(nil) end
+            if addon.UpdateMplusBlock then addon.UpdateMplusBlock() end
             addon.focus.combat.fadeState = nil
             addon.focus.combat.fadeTime = 0
             addon.focus.combat.fadeFromAlpha = nil
@@ -333,14 +327,10 @@ local function UpdateCombatFade(dt, useAnim)
             HS:SetAlpha(alpha)
             if floatingBtn and floatingBtn:IsShown() then floatingBtn:SetAlpha(alpha) end
             if p >= 1 then
-                if not InCombatLockdown() then
-                    HS:Hide()
-                    if floatingBtn then floatingBtn:Hide() end
-                    if addon.UpdateFloatingQuestItem then addon.UpdateFloatingQuestItem(nil) end
-                    if addon.UpdateMplusBlock then addon.UpdateMplusBlock() end
-                else
-                    addon.focus.pendingHideAfterCombat = true
-                end
+                HS:Hide()
+                if floatingBtn then floatingBtn:Hide() end
+                if addon.UpdateFloatingQuestItem then addon.UpdateFloatingQuestItem(nil) end
+                if addon.UpdateMplusBlock then addon.UpdateMplusBlock() end
                 addon.focus.combat.fadeState = nil
                 addon.focus.combat.fadeTime = 0
                 addon.focus.combat.fadeFromAlpha = nil
@@ -399,10 +389,8 @@ local function UpdateEntryAnimations(dt, useAnim)
             e.animTime = e.animTime + dt
             if not useAnim then
                 e:SetAlpha(1)
-                if not InCombatLockdown() then
-                    e:ClearAllPoints()
-                    e:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", e.finalX, e.finalY)
-                end
+                e:ClearAllPoints()
+                e:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", e.finalX, e.finalY)
                 e.animState = "active"
             elseif e.animTime < (e.staggerDelay or 0) then
                 e:SetAlpha(0)
@@ -410,17 +398,13 @@ local function UpdateEntryAnimations(dt, useAnim)
                 local p = GetProgress(e.animTime, e.staggerDelay, anim.dur)
                 local ep = addon.easeOut(p)
                 e:SetAlpha(ep)
-                if not InCombatLockdown() then
-                    local slideX = (1 - ep) * anim.slideInX
-                    e:ClearAllPoints()
-                    e:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", e.finalX + slideX, e.finalY)
-                end
+                local slideX = (1 - ep) * anim.slideInX
+                e:ClearAllPoints()
+                e:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", e.finalX + slideX, e.finalY)
                 if p >= 1 then
                     e:SetAlpha(1)
-                    if not InCombatLockdown() then
-                        e:ClearAllPoints()
-                        e:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", e.finalX, e.finalY)
-                    end
+                    e:ClearAllPoints()
+                    e:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", e.finalX, e.finalY)
                     e.animState = "active"
                 end
             end
@@ -450,11 +434,9 @@ local function UpdateEntryAnimations(dt, useAnim)
                 local p  = GetProgress(e.animTime, 0, anim.dur)
                 local ep = addon.easeIn(p)
                 e:SetAlpha(1 - ep)
-                if not InCombatLockdown() then
-                    local driftY = ep * anim.driftOutY
-                    e:ClearAllPoints()
-                    e:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", e.finalX, e.finalY + driftY)
-                end
+                local driftY = ep * anim.driftOutY
+                e:ClearAllPoints()
+                e:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", e.finalX, e.finalY + driftY)
                 if p >= 1 then
                     local wasPromotion = e.promotionFadeOut
                     if wasPromotion then
@@ -477,11 +459,9 @@ local function UpdateEntryAnimations(dt, useAnim)
                 local p = GetProgress(e.animTime, 0, anim.dur)
                 local ep = addon.easeIn(p)
                 e:SetAlpha(1 - ep)
-                if not InCombatLockdown() then
-                    local slideX = ep * anim.slideOutX
-                    e:ClearAllPoints()
-                    e:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", e.finalX + slideX, e.finalY)
-                end
+                local slideX = ep * anim.slideOutX
+                e:ClearAllPoints()
+                e:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", e.finalX + slideX, e.finalY)
                 if p >= 1 then
                     addon.ClearEntry(e)
                 else
@@ -499,11 +479,9 @@ local function UpdateEntryAnimations(dt, useAnim)
                 local p = GetProgress(e.animTime, delay, anim.dur)
                 local ep = addon.easeIn(p)
                 e:SetAlpha(1 - ep)
-                if not InCombatLockdown() then
-                    local slideX = ep * anim.slideOutX
-                    e:ClearAllPoints()
-                    e:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", e.finalX + slideX, e.finalY)
-                end
+                local slideX = ep * anim.slideOutX
+                e:ClearAllPoints()
+                e:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", e.finalX + slideX, e.finalY)
                 if p >= 1 then
                     addon.ClearEntry(e)
                 end
@@ -513,7 +491,7 @@ local function UpdateEntryAnimations(dt, useAnim)
         elseif state == "slideup" then
             e.animTime = e.animTime + dt
             if not useAnim then
-                if not InCombatLockdown() and e.finalX and e.finalY then
+                if e.finalX and e.finalY then
                     e:ClearAllPoints()
                     e:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", e.finalX, e.finalY)
                 end
@@ -525,15 +503,11 @@ local function UpdateEntryAnimations(dt, useAnim)
                     local p = GetProgress(e.animTime, 0, anim.dur)
                     local ep = addon.easeOut(p)
                     local y = startY + (e.finalY - startY) * ep
-                    if not InCombatLockdown() then
-                        e:ClearAllPoints()
-                        e:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", e.finalX, y)
-                    end
+                    e:ClearAllPoints()
+                    e:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", e.finalX, y)
                     if p >= 1 then
-                        if not InCombatLockdown() then
-                            e:ClearAllPoints()
-                            e:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", e.finalX, e.finalY)
-                        end
+                        e:ClearAllPoints()
+                        e:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", e.finalX, e.finalY)
                         e.animState = "active"
                         e.slideUpStartY = nil
                     end
@@ -597,7 +571,7 @@ local function UpdateSectionHeaderFadeOut(dt, useAnim)
     local ep = addon.easeIn(p)
     for i = 1, addon.SECTION_POOL_SIZE do
         local s = sectionPool[i]
-        if shouldFade(s) and not InCombatLockdown() and s.finalX ~= nil then
+        if shouldFade(s) and s.finalX ~= nil then
             s:SetAlpha(1 - ep)
             local slideX = ep * anim.slideOutX
             s:ClearAllPoints()
@@ -627,7 +601,7 @@ local function UpdateSectionHeaderSlideUp(dt, useAnim)
             if s and s.active and s.slideUpStartY ~= nil then
                 s.slideUpStartY = nil
                 s.slideUpAnimTime = nil
-                if not InCombatLockdown() and s.finalX ~= nil and s.finalY ~= nil then
+                if s.finalX ~= nil and s.finalY ~= nil then
                     s:ClearAllPoints()
                     s:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", s.finalX, s.finalY)
                 end
@@ -642,15 +616,11 @@ local function UpdateSectionHeaderSlideUp(dt, useAnim)
             local p = GetProgress(s.slideUpAnimTime, 0, anim.dur)
             local ep = addon.easeOut(p)
             local y = s.slideUpStartY + (s.finalY - s.slideUpStartY) * ep
-            if not InCombatLockdown() then
-                s:ClearAllPoints()
-                s:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", s.finalX, y)
-            end
+            s:ClearAllPoints()
+            s:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", s.finalX, y)
             if p >= 1 then
-                if not InCombatLockdown() then
-                    s:ClearAllPoints()
-                    s:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", s.finalX, s.finalY)
-                end
+                s:ClearAllPoints()
+                s:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", s.finalX, s.finalY)
                 s.slideUpStartY = nil
                 s.slideUpAnimTime = nil
             end
@@ -677,7 +647,7 @@ local function UpdateSectionHeaderFadeIn(dt, useAnim)
         if s.active and s.staggerDelay ~= nil then
             if addon.focus.collapse.sectionHeaderFadeTime < s.staggerDelay then
                 s:SetAlpha(0)
-                if not InCombatLockdown() and s.finalX ~= nil then
+                if s.finalX ~= nil then
                     local slideX = anim.slideInX
                     s:ClearAllPoints()
                     s:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", s.finalX + slideX, s.finalY)
@@ -687,7 +657,7 @@ local function UpdateSectionHeaderFadeIn(dt, useAnim)
                 local p = GetProgress(addon.focus.collapse.sectionHeaderFadeTime, s.staggerDelay, anim.dur)
                 local ep = addon.easeOut(p)
                 s:SetAlpha(ep)
-                if not InCombatLockdown() and s.finalX ~= nil then
+                if s.finalX ~= nil then
                     local slideX = (1 - ep) * anim.slideInX
                     s:ClearAllPoints()
                     s:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", s.finalX + slideX, s.finalY)
@@ -701,7 +671,7 @@ local function UpdateSectionHeaderFadeIn(dt, useAnim)
             local s = sectionPool[i]
             if s.active then
                 s:SetAlpha(1)
-                if not InCombatLockdown() and s.finalX ~= nil then
+                if s.finalX ~= nil then
                     s:ClearAllPoints()
                     s:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", s.finalX, s.finalY)
                 end

@@ -264,7 +264,6 @@ local function GetBlockContentWidth()
 end
 
 local function PositionMplusBlock(pos)
-    if InCombatLockdown() then return end
     local S = addon.Scaled or function(v) return v end
     local panelWidth = GetBlockContentWidth()
     mplusBlock:SetWidth(panelWidth)
@@ -419,18 +418,14 @@ local function UpdateMplusBlockDisplay(data)
         else
             progressBarFill:SetColorTexture(barNormR, barNormG, barNormB, barNormA)
         end
-        if not InCombatLockdown() then
-            mplusProgressBar:SetHeight(math.max(PROGRESS_BAR_HEIGHT, progressSize + 6))
-            mplusProgressBar:Show()
-        end
+        mplusProgressBar:SetHeight(math.max(PROGRESS_BAR_HEIGHT, progressSize + 6))
+        mplusProgressBar:Show()
     else
         progressPercentLabel:SetText("")
         progressPercentShadow:SetText("")
         progressCountLabel:SetText("")
         progressCountShadow:SetText("")
-        if not InCombatLockdown() then
-            mplusProgressBar:Hide()
-        end
+        mplusProgressBar:Hide()
     end
 
     -- Line 4: Affixes (one per line)
@@ -477,9 +472,10 @@ local function UpdateMplusBlockDisplay(data)
     -- Block width matches panel so resize works both ways. Content wraps
     -- within that; progress bar stays stable. Use live HS width during drag.
     -- Protected ops (SetWidth, SetHeight, ClearAllPoints, SetPoint, SetSize)
-    -- must not run during combat; defer via mplusLayoutPendingAfterCombat.
     -- ----------------------------------------------------------------
-    if not InCombatLockdown() then
+    -- Layout positioning — all plain frames, safe during combat.
+    -- ----------------------------------------------------------------
+    do
         local heroLeft = 4          -- small inset from block edge (no icon column needed)
         local sidePadding = heroLeft + 4  -- left + right inset
 
@@ -539,8 +535,6 @@ local function UpdateMplusBlockDisplay(data)
         local heightNeeded = -y + 4  -- y is negative, add bottom padding
         local finalHeight = math.max(MPLUS_MIN_HEIGHT, heightNeeded)
         mplusBlock:SetHeight(finalHeight)
-    else
-        addon.focus.mplusLayoutPendingAfterCombat = true
     end
 end
 

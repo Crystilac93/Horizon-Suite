@@ -9,10 +9,9 @@ local addon = _G.HorizonSuite
 -- FLOATING QUEST ITEM BUTTON
 -- ============================================================================
 
-local floatingQuestItemBtn = CreateFrame("Button", "HSFloatingQuestItem", UIParent, "SecureActionButtonTemplate")
+local floatingQuestItemBtn = CreateFrame("Button", "HSFloatingQuestItem", UIParent)
 floatingQuestItemBtn:SetSize(addon.GetDB("floatingQuestItemSize", 36) or 36, addon.GetDB("floatingQuestItemSize", 36) or 36)
 floatingQuestItemBtn:SetPoint("RIGHT", addon.HS, "LEFT", -12, 0)
-floatingQuestItemBtn:SetAttribute("type", "item")
 floatingQuestItemBtn:RegisterForClicks("AnyDown", "AnyUp")
 floatingQuestItemBtn:SetMovable(true)
 floatingQuestItemBtn:RegisterForDrag("LeftButton")
@@ -57,6 +56,22 @@ end)
 floatingQuestItemBtn:SetScript("OnLeave", function(self)
     self:SetAlpha(0.9)
     if GameTooltip and GameTooltip:GetOwner() == self then GameTooltip:Hide() end
+end)
+floatingQuestItemBtn:SetScript("OnClick", function(self, button)
+    local questID = self._questID
+    if not questID then return end
+    local logIndex = C_QuestLog.GetLogIndexForQuestID(questID)
+    if not logIndex then return end
+    if IsModifiedClick("CHATLINK") and ChatFrameUtil and ChatFrameUtil.GetActiveWindow and ChatFrameUtil.GetActiveWindow() then
+        local link = GetQuestLogSpecialItemInfo(logIndex)
+        if link and ChatFrameUtil.InsertLink then
+            ChatFrameUtil.InsertLink(link)
+        end
+    else
+        if UseQuestLogSpecialItem then
+            UseQuestLogSpecialItem(logIndex)
+        end
+    end
 end)
 floatingQuestItemBtn:SetAlpha(0.9)
 
@@ -130,49 +145,45 @@ local function UpdateFloatingQuestItem(questsFlat)
         return q.isNearby or (q.zoneName and playerZone and q.zoneName:lower() == playerZone:lower())
     end
 
-    local chosenLink, chosenTex
+    local chosenLink, chosenTex, chosenQuestID
     if mode == "currentZone" then
         -- Current zone mode: super-tracked in zone first, else first in-zone with item, else first with item
-        local superTrackedInZoneLink, superTrackedInZoneTex
-        local firstInZoneLink, firstInZoneTex
-        local firstAnyLink, firstAnyTex
+        local superTrackedInZoneLink, superTrackedInZoneTex, superTrackedInZoneQID
+        local firstInZoneLink, firstInZoneTex, firstInZoneQID
+        local firstAnyLink, firstAnyTex, firstAnyQID
         for _, q in ipairs(questsFlat or {}) do
             if q.questID and q.itemLink and q.itemTexture then
                 local inZone = inCurrentZone(q)
                 if q.questID == superTracked and inZone then
-                    superTrackedInZoneLink, superTrackedInZoneTex = q.itemLink, q.itemTexture
+                    superTrackedInZoneLink, superTrackedInZoneTex, superTrackedInZoneQID = q.itemLink, q.itemTexture, q.questID
                 end
                 if not firstInZoneLink and inZone then
-                    firstInZoneLink, firstInZoneTex = q.itemLink, q.itemTexture
+                    firstInZoneLink, firstInZoneTex, firstInZoneQID = q.itemLink, q.itemTexture, q.questID
                 end
                 if not firstAnyLink then
-                    firstAnyLink, firstAnyTex = q.itemLink, q.itemTexture
+                    firstAnyLink, firstAnyTex, firstAnyQID = q.itemLink, q.itemTexture, q.questID
                 end
             end
         end
         chosenLink = superTrackedInZoneLink or firstInZoneLink or firstAnyLink
         chosenTex = superTrackedInZoneTex or firstInZoneTex or firstAnyTex
+        chosenQuestID = superTrackedInZoneQID or firstInZoneQID or firstAnyQID
     else
         -- Super-tracked mode: super-tracked first, else first with item
         for _, q in ipairs(questsFlat or {}) do
             if q.questID and q.itemLink and q.itemTexture then
                 if q.questID == superTracked then
-                    chosenLink, chosenTex = q.itemLink, q.itemTexture
+                    chosenLink, chosenTex, chosenQuestID = q.itemLink, q.itemTexture, q.questID
                     break
                 end
-                if not chosenLink then chosenLink, chosenTex = q.itemLink, q.itemTexture end
+                if not chosenLink then chosenLink, chosenTex, chosenQuestID = q.itemLink, q.itemTexture, q.questID end
             end
         end
     end
     if chosenLink and chosenTex then
         floatingQuestItemBtn.icon:SetTexture(chosenTex)
-        if not InCombatLockdown() then
-            -- Extract the item name from the hyperlink for the secure attribute.
-            -- SecureActionButtonTemplate type="item" works best with the plain item name.
-            local itemName = chosenLink:match("%[(.-)%]")
-            floatingQuestItemBtn:SetAttribute("item", itemName or chosenLink)
-        end
         floatingQuestItemBtn._itemLink = chosenLink
+        floatingQuestItemBtn._questID = chosenQuestID
         local sz = (addon.Scaled or function(v) return v end)(tonumber(addon.GetDB("floatingQuestItemSize", 36)) or 36)
         floatingQuestItemBtn:SetSize(sz, sz)
         local savedPoint = addon.GetDB("floatingQuestItemPoint", nil)

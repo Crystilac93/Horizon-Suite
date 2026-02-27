@@ -1223,14 +1223,15 @@ function addon.GetCollapsedHeight()
     return addon.GetScaledPadding() + addon.GetHeaderHeight() + addon.Scaled(6)
 end
 
-local scrollFrame = CreateFrame("ScrollFrame", nil, HS)
+local scrollFrame = CreateFrame("Frame", nil, HS)
+scrollFrame:SetClipsChildren(true)
 scrollFrame:SetPoint("TOPLEFT", HS, "TOPLEFT", 0, addon.GetContentTop())
 scrollFrame:SetPoint("BOTTOMRIGHT", HS, "BOTTOMRIGHT", 0, addon.PADDING)
 
 local scrollChild = CreateFrame("Frame", nil, scrollFrame)
 scrollChild:SetWidth(addon.GetPanelWidth())
 scrollChild:SetHeight(1)
-scrollFrame:SetScrollChild(scrollChild)
+scrollChild:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 0, 0)
 
 addon.focus = addon.focus or {}
 addon.focus.layout = addon.focus.layout or {
@@ -1241,14 +1242,18 @@ addon.focus.layout = addon.focus.layout or {
 }
 addon.focus.layout.scrollOffset = 0
 
+local function ApplyScrollOffset(offset)
+    scrollChild:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 0, offset)
+end
+addon.ApplyScrollOffset = ApplyScrollOffset
+
 local function HandleScroll(delta)
-    if InCombatLockdown() then return end
     local childH  = scrollChild:GetHeight() or 0
     local frameH  = scrollFrame:GetHeight() or 0
     local maxScr  = math.max(childH - frameH, 0)
     local lo = addon.focus.layout
     lo.scrollOffset = math.max(0, math.min(lo.scrollOffset - delta * addon.GetScaledScrollStep(), maxScr))
-    scrollFrame:SetVerticalScroll(lo.scrollOffset)
+    ApplyScrollOffset(lo.scrollOffset)
     if addon.UpdateScrollIndicators then addon.UpdateScrollIndicators() end
 end
 
@@ -1278,13 +1283,12 @@ arrowBottomTex:SetTexture("Interface\\BUTTONS\\Arrow-Down-Up")
 arrowBottomTex:SetAlpha(0.60)
 arrowBottomTex:SetDesaturated(true)
 arrowBottomFrame:SetScript("OnClick", function()
-    if InCombatLockdown() then return end
     local childH = scrollChild:GetHeight() or 0
     local frameH = scrollFrame:GetHeight() or 0
     local maxScr = math.max(childH - frameH, 0)
     local lo = addon.focus.layout
     lo.scrollOffset = maxScr
-    scrollFrame:SetVerticalScroll(lo.scrollOffset)
+    ApplyScrollOffset(lo.scrollOffset)
     if addon.UpdateScrollIndicators then addon.UpdateScrollIndicators() end
 end)
 arrowBottomFrame:SetScript("OnEnter", function() arrowBottomTex:SetAlpha(1) end)
@@ -1302,10 +1306,9 @@ arrowTopTex:SetTexture("Interface\\BUTTONS\\Arrow-Up-Up")
 arrowTopTex:SetAlpha(0.60)
 arrowTopTex:SetDesaturated(true)
 arrowTopFrame:SetScript("OnClick", function()
-    if InCombatLockdown() then return end
     local lo = addon.focus.layout
     lo.scrollOffset = 0
-    scrollFrame:SetVerticalScroll(0)
+    ApplyScrollOffset(0)
     if addon.UpdateScrollIndicators then addon.UpdateScrollIndicators() end
 end)
 arrowTopFrame:SetScript("OnEnter", function() arrowTopTex:SetAlpha(1) end)
@@ -1617,7 +1620,7 @@ resizeHandle:SetScript("OnDragStop", function(self)
     addon.EnsureDB()
     -- DB values already saved during drag; just finalize layout
     if addon.ApplyDimensions then addon.ApplyDimensions() end
-    if addon.FullLayout and not InCombatLockdown() then addon.FullLayout() end
+    if addon.FullLayout then addon.FullLayout() end
     if addon.OptionsPanel_Refresh then addon.OptionsPanel_Refresh() end
 end)
 

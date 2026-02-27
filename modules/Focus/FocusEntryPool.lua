@@ -68,14 +68,14 @@ local function CreateQuestEntry(parent, index)
     e.highlightBorderR:SetColorTexture(0.40, 0.70, 1.00, 0.6)
     e.highlightBorderR:Hide()
 
-    -- Quest item button: lives in the right-side gutter alongside the LFG button.
-    -- Anchor is set dynamically by the renderer; default to top-right of entry.
     local btnName = "HSItemBtn" .. index
-    e.itemBtn = CreateFrame("Button", btnName, e, "SecureActionButtonTemplate")
+    e.itemBtn = CreateFrame("Button", btnName, UIParent)
     e.itemBtn:SetSize(_S(addon.ITEM_BTN_SIZE), _S(addon.ITEM_BTN_SIZE))
     e.itemBtn:SetPoint("TOPRIGHT", e, "TOPRIGHT", 0, 2)
-    e.itemBtn:SetAttribute("type", "item")
     e.itemBtn:RegisterForClicks("AnyDown", "AnyUp")
+    e.itemBtn:SetFrameStrata("MEDIUM")
+    e.itemBtn:SetFrameLevel(e:GetFrameLevel() + 10)
+    e.itemBtn._ownerEntry = e
 
     addon.StyleQuestItemButton(e.itemBtn)
 
@@ -88,8 +88,8 @@ local function CreateQuestEntry(parent, index)
 
     e.itemBtn:SetScript("OnEnter", function(self)
         self:SetAlpha(1)
-        local entry = self:GetParent()
-        if entry.itemLink then
+        local entry = self._ownerEntry
+        if entry and entry.itemLink then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             pcall(GameTooltip.SetHyperlink, GameTooltip, entry.itemLink)
             GameTooltip:Show()
@@ -102,6 +102,23 @@ local function CreateQuestEntry(parent, index)
         end
     end)
     e.itemBtn:SetAlpha(0.9)
+
+    e.itemBtn:SetScript("OnClick", function(self, button)
+        local entry = self._ownerEntry
+        if not entry or not entry.questID then return end
+        local logIndex = C_QuestLog.GetLogIndexForQuestID(entry.questID)
+        if not logIndex then return end
+        if IsModifiedClick("CHATLINK") and ChatFrameUtil and ChatFrameUtil.GetActiveWindow and ChatFrameUtil.GetActiveWindow() then
+            local link = GetQuestLogSpecialItemInfo(logIndex)
+            if link and ChatFrameUtil.InsertLink then
+                ChatFrameUtil.InsertLink(link)
+            end
+        else
+            if UseQuestLogSpecialItem then
+                UseQuestLogSpecialItem(logIndex)
+            end
+        end
+    end)
 
     e.itemBtn:Hide()
 
@@ -542,10 +559,6 @@ local function ApplyTypography()
 end
 
 local function ApplyDimensions(widthOverride)
-    if InCombatLockdown() then
-        addon.focus.pendingDimensionsAfterCombat = true
-        return
-    end
     addon.focus.pendingDimensionsAfterCombat = false
     local S = addon.Scaled or function(v) return v end
     local w = (widthOverride and type(widthOverride) == "number") and widthOverride or addon.GetPanelWidth()
@@ -611,9 +624,7 @@ local function ClearEntry(entry, full)
     entry._inlineTimerBaseTitle, entry._inlineTimerStr, entry._inlineTimerDuration, entry._inlineTimerStartTime = nil, nil, nil, nil
     if full ~= false then
         entry:SetAlpha(0)
-        if not InCombatLockdown() then
-            entry:SetHitRectInsets(0, 0, 0, 0)
-        end
+        entry:SetHitRectInsets(0, 0, 0, 0)
         if entry.scenarioTimerBars then
             for _, bar in ipairs(entry.scenarioTimerBars) do
                 bar.duration = nil
@@ -621,38 +632,35 @@ local function ClearEntry(entry, full)
                 bar._expiredAt = nil
             end
         end
-        if not InCombatLockdown() then
-            entry:Hide()
-            if entry.itemBtn then entry.itemBtn:Hide() end
-            if entry.lfgBtn then entry.lfgBtn:Hide() end
-            if entry.trackBar then entry.trackBar:Hide() end
-            if entry.affixText then entry.affixText:Hide() end
-            if entry.affixShadow then entry.affixShadow:Hide() end
-            if entry.wqTimerText then entry.wqTimerText:Hide() end
-            if entry.inlineTimerText then entry.inlineTimerText:Hide() end
-            if entry.wqProgressBg then entry.wqProgressBg:Hide() end
-            if entry.wqProgressFill then entry.wqProgressFill:Hide() end
-            if entry.wqProgressText then entry.wqProgressText:Hide() end
-            if entry.scenarioTimerBars then
-                for _, bar in ipairs(entry.scenarioTimerBars) do
-                    bar:Hide()
+        entry:Hide()
+        if entry.itemBtn then
+            entry.itemBtn:Hide()
+        end
+        if entry.lfgBtn then entry.lfgBtn:Hide() end
+        if entry.trackBar then entry.trackBar:Hide() end
+        if entry.affixText then entry.affixText:Hide() end
+        if entry.affixShadow then entry.affixShadow:Hide() end
+        if entry.wqTimerText then entry.wqTimerText:Hide() end
+        if entry.inlineTimerText then entry.inlineTimerText:Hide() end
+        if entry.wqProgressBg then entry.wqProgressBg:Hide() end
+        if entry.wqProgressFill then entry.wqProgressFill:Hide() end
+        if entry.wqProgressText then entry.wqProgressText:Hide() end
+        if entry.scenarioTimerBars then
+            for _, bar in ipairs(entry.scenarioTimerBars) do
+                bar:Hide()
+            end
+        end
+        if entry.objectives then
+            for j = 1, addon.MAX_OBJECTIVES do
+                local obj = entry.objectives[j]
+                if obj then
+                    obj._hsFinished = nil
+                    obj._hsAlpha = nil
+                    if obj.progressBarBg then obj.progressBarBg:Hide() end
+                    if obj.progressBarFill then obj.progressBarFill:Hide() end
+                    if obj.progressBarLabel then obj.progressBarLabel:Hide() end
                 end
             end
-            if entry.objectives then
-                for j = 1, addon.MAX_OBJECTIVES do
-                    local obj = entry.objectives[j]
-                    if obj then
-                        obj._hsFinished = nil
-                        obj._hsAlpha = nil
-                        if obj.progressBarBg then obj.progressBarBg:Hide() end
-                        if obj.progressBarFill then obj.progressBarFill:Hide() end
-                        if obj.progressBarLabel then obj.progressBarLabel:Hide() end
-                    end
-                end
-            end
-        else
-            addon.focus.pendingEntryHideAfterCombat = addon.focus.pendingEntryHideAfterCombat or {}
-            addon.focus.pendingEntryHideAfterCombat[entry] = true
         end
     end
 end

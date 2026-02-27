@@ -203,11 +203,6 @@ local nearbyToggleKeybindBtn = CreateFrame("Button", "HSNearbyToggleButton", nil
 nearbyToggleKeybindBtn:SetScript("OnClick", function()
     local newShow = not addon.GetDB("showNearbyGroup", true)
     addon.SetDB("showNearbyGroup", newShow)
-    if InCombatLockdown() then
-        if _G.HorizonSuite_RequestRefresh then _G.HorizonSuite_RequestRefresh() end
-        if _G.HorizonSuite_FullLayout then _G.HorizonSuite_FullLayout() end
-        return
-    end
     if newShow then
         if addon.GetDB("animations", true) and addon.StartNearbyTurnOnTransition then
             addon.StartNearbyTurnOnTransition()
@@ -260,10 +255,6 @@ end
 local lastMinimal = false
 local function FullLayout()
     if not addon.focus.enabled then return end
-    if InCombatLockdown() then
-        addon.focus.layoutPendingAfterCombat = true
-        return
-    end
     addon.focus.layoutPendingAfterCombat = false
 
     if not addon.ShouldShowInInstance() then
@@ -454,7 +445,7 @@ local function FullLayout()
             end
             local totalContentH = math.max(-yOff, 1)
             scrollChild:SetHeight(totalContentH)
-            scrollFrame:SetVerticalScroll(0)
+            addon.ApplyScrollOffset(0)
             addon.focus.layout.scrollOffset = 0
             if addon.UpdateScrollIndicators then addon.UpdateScrollIndicators() end
             local headerArea
@@ -908,7 +899,7 @@ local function FullLayout()
     local frameH = scrollFrame:GetHeight() or 0
     local maxScr = math.max(totalContentH - frameH, 0)
     addon.focus.layout.scrollOffset = math.min(prevScroll, maxScr)
-    scrollFrame:SetVerticalScroll(addon.focus.layout.scrollOffset)
+    addon.ApplyScrollOffset(addon.focus.layout.scrollOffset)
     if addon.UpdateScrollIndicators then addon.UpdateScrollIndicators() end
 
     local headerArea

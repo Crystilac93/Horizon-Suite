@@ -883,18 +883,11 @@ local function PopulateEntry(entry, questData, groupKey)
     if showItemBtn then
         entry.itemLink = questData.itemLink
         entry.itemBtn.icon:SetTexture(questData.itemTexture)
-        if not InCombatLockdown() then
-            entry.itemBtn:SetAttribute("type", "item")
-            local itemName = questData.itemLink and questData.itemLink:match("%[(.-)%]")
-            entry.itemBtn:SetAttribute("item", itemName or questData.itemLink)
-        end
         entry.itemBtn:SetSize(itemBtnSize, itemBtnSize)
         entry.itemBtn:ClearAllPoints()
         if showLfgBtn then
-            -- Item button sits to the left of the LFG button.
             entry.itemBtn:SetPoint("TOPRIGHT", entry, "TOPRIGHT", -(lfgBtnSize + gutterGap), 2)
         else
-            -- Item button is the only gutter element, sits at the right edge.
             entry.itemBtn:SetPoint("TOPRIGHT", entry, "TOPRIGHT", 0, 2)
         end
         entry.itemBtn:Show()
@@ -902,13 +895,8 @@ local function PopulateEntry(entry, questData, groupKey)
     else
         entry.itemLink = nil
         entry.itemBtn:Hide()
-        if not InCombatLockdown() then
-            entry.itemBtn:SetAttribute("item", nil)
-        end
     end
-    if not InCombatLockdown() then
-        entry:SetHitRectInsets(0, 0, 0, 0)
-    end
+    entry:SetHitRectInsets(0, 0, 0, 0)
 
     if showLfgBtn then
         entry.lfgBtn:ClearAllPoints()
