@@ -11,6 +11,18 @@
     - WQT  = World Quest / Task Quest (C_TaskQuest API)
 ]]
 
+-- Bootstrap: beta addon uses a separate SavedVariable so profiles don't overwrite release
+do
+    local info = debug.getinfo(1, "S")
+    local source = info and info.source or ""
+    if source:find("HorizonSuiteBeta") then
+        if not _G.HorizonDBBeta then _G.HorizonDBBeta = {} end
+        _G.HorizonDB = _G.HorizonDBBeta
+    elseif not _G.HorizonDB then
+        _G.HorizonDB = {}
+    end
+end
+
 if not _G.HorizonSuite then _G.HorizonSuite = {} end
 local addon = _G.HorizonSuite
 
