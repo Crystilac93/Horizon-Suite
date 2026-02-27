@@ -315,6 +315,12 @@ end
 local function HookGameTooltipAnimation()
     GameTooltip:HookScript("OnShow", function(self)
         if not IsEnabled() then return end
+        if self.GetUnit and self:GetUnit() then
+            C_Timer.After(0, function()
+                local fn = _G.HorizonSuite and _G.HorizonSuite.Insight and _G.HorizonSuite.Insight.StripHealthAndPowerText
+                if fn then fn() end
+            end)
+        end
         if suppressFadeIn then
             suppressFadeIn = false
             return
@@ -432,6 +438,41 @@ local function HideHealthBar()
     end
 end
 
+local function ClearStatusBarText()
+    for i = 1, 5 do
+        local text = _G["GameTooltipStatusBar" .. i .. "Text"]
+        if text then text:SetText("") end
+        local bar = _G["GameTooltipStatusBar" .. i]
+        if bar then bar:Hide() end
+    end
+end
+
+-- Blizzard adds health/power as "current / max (pct%)" on TextLeft or TextRight.
+-- May be wrapped in color codes or have locale-specific formatting.
+local function StripHealthAndPowerText()
+    ClearStatusBarText()
+    local name = GameTooltip:GetName()
+    if not name then return end
+    local numLines = GameTooltip:NumLines()
+    for i = 1, numLines do
+        for _, suffix in ipairs({ "Left", "Right" }) do
+            local font = _G[name .. "Text" .. suffix .. i]
+            if font then
+                local raw = font:GetText() or ""
+                if raw == "" then
+                    -- nothing
+                else
+                    local text = raw:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+                    if text:match("%d[%d,]*%s*/%s*%d[%d,]*") then
+                        font:SetText("")
+                    end
+                end
+            end
+        end
+    end
+end
+Insight.StripHealthAndPowerText = StripHealthAndPowerText
+
 local function ProcessUnitTooltip()
     if not IsEnabled() then return end
     if not GameTooltip or not GameTooltip:IsShown() then return end
@@ -440,6 +481,8 @@ local function ProcessUnitTooltip()
     local unit     = "mouseover"
     local isPlayer = UnitIsPlayer(unit)
     local guid     = UnitGUID(unit)
+
+    StripHealthAndPowerText()
 
     -- Non-player: reaction-coloured name, plain border, no accent bar
     if not isPlayer then
@@ -515,6 +558,7 @@ local function ProcessUnitTooltip()
 
     -- 3. Clean up Blizzard lines: strip "(Player)", remove faction text, style class line
     local numLines = GameTooltip:NumLines()
+    local classLineStyled = false
     for j = 2, numLines do
         local lineLeft = _G["GameTooltipTextLeft" .. j]
         if lineLeft then
@@ -530,14 +574,20 @@ local function ProcessUnitTooltip()
             if text == "Horde" or text == "Alliance" then
                 lineLeft:SetText("")
 
+            -- Blank redundant Hero Talent / second spec line (e.g. "Paladin Unique Mode DPS")
+            -- Blizzard adds this in TWW; we already show spec + role on the primary class line.
+            elseif className and text ~= "" and text:find(className, 1, true) and classLineStyled then
+                lineLeft:SetText("")
+
             -- Guild line: append rank name
             elseif guildName and text == "<" .. guildName .. ">" then
                 if ShowGuildRank() and guildRankName and guildRankName ~= "" then
                     lineLeft:SetText(text .. "  |cffaaaaaa" .. guildRankName .. "|r")
                 end
 
-            -- Style the class line: class colour + spec icon + role badge
+            -- Style the primary class line: class colour + spec icon + role badge
             elseif className and text ~= "" and text:find(className, 1, true) then
+                classLineStyled = true
                 if classColor then
                     lineLeft:SetTextColor(classColor.r, classColor.g, classColor.b)
                 end
@@ -659,6 +709,7 @@ local function ProcessUnitTooltip()
     StyleFonts(GameTooltip)
     suppressFadeIn = true
     GameTooltip:Show()
+    StripHealthAndPowerText()
     ClampTooltipToScreen()
 end
 
