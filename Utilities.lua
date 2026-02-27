@@ -113,6 +113,29 @@ function addon.FormatTimeRemainingFromMinutes(minutes)
     return addon.FormatTimeRemaining(minutes * 60)
 end
 
+--- Timer color based on remaining fraction. Used when timerColorByRemaining is on.
+--- @param remaining number Seconds remaining
+--- @param duration number Total duration in seconds
+--- @return number r, number g, number b
+function addon.GetTimerColorByRemaining(remaining, duration)
+    if not duration or duration <= 0 then
+        local c = addon.TIMER_URGENCY_COLORS and addon.TIMER_URGENCY_COLORS.critical or { 1, 0.35, 0.35 }
+        return c[1], c[2], c[3]
+    end
+    local pct = remaining / duration
+    local t = addon.TIMER_URGENCY_COLORS or {}
+    if pct > 0.25 then
+        local c = t.plenty or { 0.35, 0.90, 0.45 }
+        return c[1], c[2], c[3]
+    elseif pct > 0.10 then
+        local c = t.low or { 1.00, 0.85, 0.25 }
+        return c[1], c[2], c[3]
+    else
+        local c = t.critical or { 1.00, 0.35, 0.35 }
+        return c[1], c[2], c[3]
+    end
+end
+
 -- ============================================================================
 -- BORDERS & TEXT
 -- ============================================================================

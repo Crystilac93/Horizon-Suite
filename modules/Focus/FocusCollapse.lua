@@ -546,15 +546,53 @@ local function RefreshContentInCombat()
                 local showTimerBarsToggle = addon.GetDB("showTimerBars", false)
                 if showTimerBarsToggle and (((isWorld or isScenario) and not questData.isRare) or isGenericTimed) then
                     local timerStr
-                    if questData.timeLeftSeconds and questData.timeLeftSeconds > 0 then
+                    local remainingSec, durationSec
+                    if questData.timerDuration and questData.timerStartTime then
+                        remainingSec = questData.timerDuration - (GetTime() - questData.timerStartTime)
+                        if remainingSec > 0 then
+                            timerStr = addon.FormatTimeRemaining(remainingSec)
+                            durationSec = questData.timerDuration
+                        end
+                    end
+                    if not timerStr and questData.objectives then
+                        for _, o in ipairs(questData.objectives) do
+                            if o.timerDuration and o.timerStartTime then
+                                remainingSec = o.timerDuration - (GetTime() - o.timerStartTime)
+                                if remainingSec > 0 then
+                                    timerStr = addon.FormatTimeRemaining(remainingSec)
+                                    durationSec = o.timerDuration
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    if not timerStr and questData.timeLeftSeconds and questData.timeLeftSeconds > 0 then
                         timerStr = addon.FormatTimeRemaining(questData.timeLeftSeconds)
-                    elseif questData.timeLeft and questData.timeLeft > 0 then
+                        remainingSec = questData.timeLeftSeconds
+                        durationSec = questData.timeLeftSeconds
+                    elseif not timerStr and questData.timeLeft and questData.timeLeft > 0 then
+                        remainingSec = questData.timeLeft * 60
                         timerStr = addon.FormatTimeRemainingFromMinutes(questData.timeLeft)
+                        durationSec = remainingSec
                     end
                     if timerStr then
                         local showTimer = isScenario or isGenericTimed or addon.GetDB("showWorldQuestTimer", true)
                         if showTimer then
-                            entry.wqTimerText:SetText(timerStr)
+                            local timerDisplayMode = addon.GetDB("timerDisplayMode", "inline")
+                            if timerDisplayMode == "inline" and entry.inlineTimerText then
+                                entry.inlineTimerText:SetText(" (" .. timerStr .. ")")
+                                if addon.GetDB("timerColorByRemaining", false) and durationSec and remainingSec then
+                                    local r, g, b = addon.GetTimerColorByRemaining(math.max(0, remainingSec), durationSec)
+                                    local dimAlpha = (addon.GetDB("dimNonSuperTracked", false) and not questData.isSuperTracked) and addon.GetDimAlpha() or 1
+                                    entry.inlineTimerText:SetTextColor(r, g, b, dimAlpha)
+                                end
+                            else
+                                entry.wqTimerText:SetText(timerStr)
+                                if addon.GetDB("timerColorByRemaining", false) and durationSec and remainingSec then
+                                    local r, g, b = addon.GetTimerColorByRemaining(math.max(0, remainingSec), durationSec)
+                                    entry.wqTimerText:SetTextColor(r, g, b, 1)
+                                end
+                            end
                         end
                     end
 

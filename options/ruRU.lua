@@ -380,7 +380,14 @@ L["Show affix names in Delves"]                         = "Показывать 
 L["Show season affix names on the first Delve entry. Requires Blizzard's objective tracker widgets to be populated; may not show when using a full tracker replacement."] = "Показывает сезонные модификаторы на первой записи. Требуются виджеты Blizzard."
 L["Cinematic scenario bar"]                             = "Кинематографическая панель сценария"
 L["Show timer and progress bar for scenario entries."]  = "Показывает таймер и полосу прогресса для сценариев."
-L["Show timer bars"]                                    = "Показывать панели таймера"
+L["Show timer"]                                         = "Показывать таймер"
+L["Show countdown timer on timed quests, events, and scenarios. When off, timers are hidden for all entry types."] = "Показывать обратный отсчёт на квестах с таймером, событиях и сценариях. Выкл. — таймеры скрыты."
+L["Timer display"]                                      = "Отображение таймера"
+L["Color timer by remaining time"]                      = "Цвет таймера по оставшемуся времени"
+L["Green when plenty of time left, yellow when running low, red when critical."] = "Зелёный — много времени, жёлтый — мало, красный — критично."
+L["Where to show the countdown: bar below objectives or text beside the quest name."] = "Где показывать обратный отсчёт: панель под целями или текст рядом с названием задания."
+L["Bar below"]                                          = "Панель внизу"
+L["Inline beside title"]                                = "Текст рядом с названием"
 L["Show countdown timer bars on timed quests, events, and scenarios. When off, timer bars are hidden for all entry types."] = "Показывает панели обратного отсчёта на квестах, событиях и сценариях с таймером. При выключении панели таймера скрыты для всех типов записей."
 
 -- =====================================================================

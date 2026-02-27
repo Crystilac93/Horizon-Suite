@@ -319,6 +319,53 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
     return totalH, prevAnchor
 end
 
+--- Get timer display info for an entry. Returns timerStr and optionally duration/startTime for ticker.
+--- @return string|nil timerStr
+--- @return number|nil duration
+--- @return number|nil startTime
+local function GetTimerDisplayInfo(questData, isWorld, isScenario, isGenericTimed)
+    local hasStructuredTimer = (questData.timerDuration and questData.timerStartTime) and true or false
+    if not hasStructuredTimer and questData.objectives then
+        for _, o in ipairs(questData.objectives) do
+            if o.timerDuration and o.timerStartTime then hasStructuredTimer = true; break end
+        end
+    end
+    local timerStr, duration, startTime
+    if questData.timerDuration and questData.timerStartTime then
+        local now = GetTime()
+        local remaining = questData.timerDuration - (now - questData.timerStartTime)
+        if remaining > 0 then
+            timerStr = addon.FormatTimeRemaining(remaining)
+            duration, startTime = questData.timerDuration, questData.timerStartTime
+        end
+    end
+    if not timerStr and questData.objectives then
+        for _, o in ipairs(questData.objectives) do
+            if o.timerDuration and o.timerStartTime then
+                local now = GetTime()
+                local remaining = o.timerDuration - (now - o.timerStartTime)
+                if remaining > 0 then
+                    timerStr = addon.FormatTimeRemaining(remaining)
+                    duration, startTime = o.timerDuration, o.timerStartTime
+                    break
+                end
+            end
+        end
+    end
+    if not timerStr then
+        if questData.timeLeftSeconds and questData.timeLeftSeconds > 0 then
+            timerStr = addon.FormatTimeRemaining(questData.timeLeftSeconds)
+            duration = questData.timeLeftSeconds
+            startTime = GetTime()
+        elseif questData.timeLeft and questData.timeLeft > 0 then
+            timerStr = addon.FormatTimeRemainingFromMinutes(questData.timeLeft)
+            duration = questData.timeLeft * 60
+            startTime = GetTime()
+        end
+    end
+    return timerStr, duration, startTime
+end
+
 local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor, totalH)
     -- Master toggle for timer / reverse-progress bars.
     local showTimerBars = addon.GetDB("showTimerBars", false)
@@ -328,11 +375,14 @@ local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor
         entry.wqProgressBg:Hide()
         entry.wqProgressFill:Hide()
         entry.wqProgressText:Hide()
+        if entry.inlineTimerText then entry.inlineTimerText:Hide() end
+        entry._inlineTimerStr, entry._inlineTimerDuration, entry._inlineTimerStartTime = nil, nil, nil
         if entry.scenarioTimerBars then
             for _, bar in ipairs(entry.scenarioTimerBars) do bar:Hide() end
         end
         return totalH
     end
+    local timerDisplayMode = addon.GetDB("timerDisplayMode", "inline")
     local isWorld = questData.category == "WORLD" or questData.category == "CALLING"
     local isScenario = questData.category == "SCENARIO"
 
@@ -359,6 +409,8 @@ local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor
         entry.wqProgressBg:Hide()
         entry.wqProgressFill:Hide()
         entry.wqProgressText:Hide()
+        if entry.inlineTimerText then entry.inlineTimerText:Hide() end
+        entry._inlineTimerStr, entry._inlineTimerDuration, entry._inlineTimerStartTime = nil, nil, nil
         if entry.scenarioTimerBars then
             for _, bar in ipairs(entry.scenarioTimerBars) do bar:Hide() end
         end
@@ -369,11 +421,29 @@ local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor
         entry.wqProgressBg:Hide()
         entry.wqProgressFill:Hide()
         entry.wqProgressText:Hide()
+        if entry.inlineTimerText then entry.inlineTimerText:Hide() end
+        entry._inlineTimerStr, entry._inlineTimerDuration, entry._inlineTimerStartTime = nil, nil, nil
         if entry.scenarioTimerBars then
             for _, bar in ipairs(entry.scenarioTimerBars) do bar:Hide() end
         end
         return totalH
     end
+
+    -- Inline mode: timer was positioned beside title in PopulateEntry; skip bar layout.
+    if timerDisplayMode == "inline" and entry._inlineTimerStr then
+        entry.wqTimerText:Hide()
+        entry.wqProgressBg:Hide()
+        entry.wqProgressFill:Hide()
+        entry.wqProgressText:Hide()
+        if entry.scenarioTimerBars then
+            for _, bar in ipairs(entry.scenarioTimerBars) do bar.duration = nil; bar.startTime = nil; bar:Hide() end
+        end
+        return totalH
+    end
+
+    -- Bar mode: hide any stray inline timer from a previous layout.
+    if entry.inlineTimerText then entry.inlineTimerText:Hide() end
+    entry._inlineTimerStr, entry._inlineTimerDuration, entry._inlineTimerStartTime = nil, nil, nil
 
     local S = addon.Scaled or function(v) return v end
     local objIndent = addon.GetObjIndent()
@@ -624,6 +694,33 @@ local function PopulateEntry(entry, questData, groupKey)
         textWidth = textWidth - gutterW
     end
 
+    local titleWidth = textWidth
+    local showTimerBars = addon.GetDB("showTimerBars", false)
+    local timerDisplayMode = addon.GetDB("timerDisplayMode", "inline")
+    local isWorld = questData.category == "WORLD" or questData.category == "CALLING"
+    local isScenario = questData.category == "SCENARIO"
+    local hasStructuredTimer = (questData.timerDuration and questData.timerStartTime) and true or false
+    if not hasStructuredTimer and questData.objectives then
+        for _, o in ipairs(questData.objectives) do
+            if o.timerDuration and o.timerStartTime then hasStructuredTimer = true; break end
+        end
+    end
+    local hasLegacyTimer = (questData.timeLeftSeconds and questData.timeLeftSeconds > 0) or (questData.timeLeft and questData.timeLeft > 0)
+    local isGenericTimed = (not isScenario) and (hasStructuredTimer or hasLegacyTimer) and not questData.isRare
+    local showInlineTimer = showTimerBars and (timerDisplayMode == "inline") and (isWorld or isScenario or isGenericTimed) and not questData.isRare
+    if showInlineTimer then
+        local timerStr, duration, startTime = GetTimerDisplayInfo(questData, isWorld, isScenario, isGenericTimed)
+        if timerStr then
+            entry._inlineTimerStr = timerStr
+            entry._inlineTimerDuration = duration
+            entry._inlineTimerStartTime = startTime
+        else
+            entry._inlineTimerBaseTitle, entry._inlineTimerStr, entry._inlineTimerDuration, entry._inlineTimerStartTime = nil, nil, nil, nil
+        end
+    else
+        entry._inlineTimerBaseTitle, entry._inlineTimerStr, entry._inlineTimerDuration, entry._inlineTimerStartTime = nil, nil, nil, nil
+    end
+
     -- Extra spacing between icon column and title when icons are enabled.
     -- Keep icons-off layout exactly as-is.
     -- NOTE: ApplyHighlightStyle() resets title anchors, so we apply the final title X *after* highlight styling.
@@ -683,8 +780,8 @@ local function PopulateEntry(entry, questData, groupKey)
         entry.trackedFromOtherZoneIcon:Hide()
     end
 
-    entry.titleText:SetWidth(textWidth)
-    entry.titleShadow:SetWidth(textWidth)
+    entry.titleText:SetWidth(titleWidth)
+    entry.titleShadow:SetWidth(titleWidth)
 
     local displayTitle = questData.title
     if not questData._progressBarActive and (addon.GetDB("showCompletedCount", false) or questData.isAchievement or questData.isEndeavor) then
@@ -733,6 +830,32 @@ local function PopulateEntry(entry, questData, groupKey)
     displayTitle = addon.ApplyTextCase(displayTitle, "questTitleCase", "proper")
     entry.titleText:SetText(displayTitle)
     entry.titleShadow:SetText(displayTitle)
+    if entry._inlineTimerStr then
+        entry._inlineTimerBaseTitle = displayTitle
+        if entry.inlineTimerText then
+            entry.inlineTimerText:SetText(" (" .. entry._inlineTimerStr .. ")")
+            entry.inlineTimerText:SetFontObject(addon.TitleFont)
+            entry.inlineTimerText:ClearAllPoints()
+            local titlePixelWidth = entry.titleText:GetStringWidth() or 0
+            local titleAnchorX = math.min(titlePixelWidth, titleWidth or textWidth)
+            entry.inlineTimerText:SetPoint("LEFT", entry.titleText, "LEFT", titleAnchorX + 2, 0)
+            local timerColorByRemaining = addon.GetDB("timerColorByRemaining", false)
+            local r, g, b
+            if timerColorByRemaining and entry._inlineTimerDuration and entry._inlineTimerStartTime then
+                local remaining = entry._inlineTimerDuration - (GetTime() - entry._inlineTimerStartTime)
+                r, g, b = addon.GetTimerColorByRemaining(math.max(0, remaining), entry._inlineTimerDuration)
+            else
+                local sc = addon.GetQuestColor and addon.GetQuestColor(questData.category) or (addon.QUEST_COLORS and addon.QUEST_COLORS[questData.category]) or { 0.38, 0.52, 0.88 }
+                r, g, b = sc[1], sc[2], sc[3]
+            end
+            local inlineDimAlpha = (addon.GetDB("dimNonSuperTracked", false) and not questData.isSuperTracked) and addon.GetDimAlpha() or 1
+            entry.inlineTimerText:SetTextColor(r, g, b, inlineDimAlpha)
+            entry.inlineTimerText:Show()
+        end
+    elseif entry.inlineTimerText then
+        entry.inlineTimerText:Hide()
+    end
+
     local effectiveCat = (addon.GetEffectiveColorCategory and addon.GetEffectiveColorCategory(questData.category, groupKey, questData.baseCategory)) or questData.category
     local c = (addon.GetTitleColor and addon.GetTitleColor(effectiveCat)) or questData.color
     if not c or type(c) ~= "table" or not c[1] or not c[2] or not c[3] then

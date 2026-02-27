@@ -258,6 +258,11 @@ local function CreateQuestEntry(parent, index)
     e.wqTimerText:SetJustifyH("LEFT")
     e.wqTimerText:Hide()
 
+    e.inlineTimerText = e:CreateFontString(nil, "OVERLAY")
+    e.inlineTimerText:SetFontObject(addon.TitleFont)
+    e.inlineTimerText:SetJustifyH("LEFT")
+    e.inlineTimerText:Hide()
+
     e.wqProgressBg = e:CreateTexture(nil, "BACKGROUND")
     e.wqProgressBg:SetHeight(addon.WQ_TIMER_BAR_HEIGHT or 6)
     e.wqProgressBg:SetColorTexture(0.2, 0.2, 0.25, 0.8)
@@ -355,10 +360,16 @@ local function UpdateScenarioBar(bar, now, category)
         progFillColor = addon.GetDB("progressBarFillColor", nil)
         if not progFillColor or type(progFillColor) ~= "table" then progFillColor = { 0.40, 0.65, 0.90 } end
     end
-    local progTextColor = addon.GetDB("progressBarTextColor", nil)
-    if not progTextColor or type(progTextColor) ~= "table" then progTextColor = { 0.95, 0.95, 0.95 } end
+    local labelR, labelG, labelB
+    if addon.GetDB("timerColorByRemaining", false) then
+        labelR, labelG, labelB = addon.GetTimerColorByRemaining(remaining, d)
+    else
+        local progTextColor = addon.GetDB("progressBarTextColor", nil)
+        if not progTextColor or type(progTextColor) ~= "table" then progTextColor = { 0.95, 0.95, 0.95 } end
+        labelR, labelG, labelB = progTextColor[1], progTextColor[2], progTextColor[3]
+    end
     bar.Fill:SetColorTexture(progFillColor[1], progFillColor[2], progFillColor[3], progFillColor[4] or 0.85)
-    bar.Label:SetTextColor(progTextColor[1], progTextColor[2], progTextColor[3], 1)
+    bar.Label:SetTextColor(labelR, labelG, labelB, 1)
 end
 
 function addon.UpdateScenarioTimerBars()
@@ -370,6 +381,24 @@ function addon.UpdateScenarioTimerBars()
             for _, bar in ipairs(entry.scenarioTimerBars) do
                 if bar.duration and bar.startTime then
                     UpdateScenarioBar(bar, now, entry.category)
+                end
+            end
+        end
+        if entry._inlineTimerBaseTitle and entry.inlineTimerText and entry._inlineTimerDuration and entry._inlineTimerStartTime then
+            local remaining = entry._inlineTimerDuration - (now - entry._inlineTimerStartTime)
+            if remaining <= 0 then
+                entry.inlineTimerText:Hide()
+                entry._inlineTimerBaseTitle, entry._inlineTimerStr, entry._inlineTimerDuration, entry._inlineTimerStartTime = nil, nil, nil, nil
+                if addon.ScheduleRefresh then addon.ScheduleRefresh() end
+            else
+                local labelText = addon.FormatTimeRemaining(remaining)
+                if labelText then
+                    entry.inlineTimerText:SetText(" (" .. labelText .. ")")
+                    if addon.GetDB("timerColorByRemaining", false) then
+                        local r, g, b = addon.GetTimerColorByRemaining(remaining, entry._inlineTimerDuration)
+                        local dimAlpha = (addon.GetDB("dimNonSuperTracked", false) and not entry.isSuperTracked) and addon.GetDimAlpha() or 1
+                        entry.inlineTimerText:SetTextColor(r, g, b, dimAlpha)
+                    end
                 end
             end
         end
@@ -579,6 +608,7 @@ local function ClearEntry(entry, full)
     entry.isSuperTracked = nil
     entry.isDungeonQuest = nil
     entry.isGroupQuest   = nil
+    entry._inlineTimerBaseTitle, entry._inlineTimerStr, entry._inlineTimerDuration, entry._inlineTimerStartTime = nil, nil, nil, nil
     if full ~= false then
         entry:SetAlpha(0)
         if not InCombatLockdown() then
@@ -599,6 +629,7 @@ local function ClearEntry(entry, full)
             if entry.affixText then entry.affixText:Hide() end
             if entry.affixShadow then entry.affixShadow:Hide() end
             if entry.wqTimerText then entry.wqTimerText:Hide() end
+            if entry.inlineTimerText then entry.inlineTimerText:Hide() end
             if entry.wqProgressBg then entry.wqProgressBg:Hide() end
             if entry.wqProgressFill then entry.wqProgressFill:Hide() end
             if entry.wqProgressText then entry.wqProgressText:Hide() end

@@ -380,7 +380,14 @@ L["Show affix names in Delves"]                         = "구렁에 시즌 효�
 L["Show season affix names on the first Delve entry. Requires Blizzard's objective tracker widgets to be populated; may not show when using a full tracker replacement."] = "첫 번째 구렁 항목에 시즌 효과 이름을 표시합니다. Blizzard 목표 추적기 위젯이 필요하며, 전체 추적기 대체 시 표시되지 않을 수 있습니다."
 L["Cinematic scenario bar"]                             = "보기 좋은 시나리오 바"
 L["Show timer and progress bar for scenario entries."]  = "시나리오 항목에 시간과 진행 바를 표시합니다."
-L["Show timer bars"]                                    = "타이머 바 표시"
+L["Show timer"]                                         = "타이머 표시"
+L["Show countdown timer on timed quests, events, and scenarios. When off, timers are hidden for all entry types."] = "제한 시간 퀘스트, 이벤트, 시나리오에서 카운트다운 타이머 표시. 끄면 모든 유형의 타이머가 숨겨집니다."
+L["Timer display"]                                      = "타이머 표시"
+L["Color timer by remaining time"]                     = "남은 시간에 따른 타이머 색상"
+L["Green when plenty of time left, yellow when running low, red when critical."] = "여유 있을 때 녹색, 부족할 때 노란색, 위급할 때 빨간색."
+L["Where to show the countdown: bar below objectives or text beside the quest name."] = "카운트다운 표시 위치: 목표 아래 막대 또는 퀘스트 이름 옆 텍스트."
+L["Bar below"]                                          = "아래 막대"
+L["Inline beside title"]                                = "제목 옆"
 L["Show countdown timer bars on timed quests, events, and scenarios. When off, timer bars are hidden for all entry types."] = "시간 제한 퀘스트, 이벤트 및 시나리오에 카운트다운 타이머 바를 표시합니다. 꺼져 있으면 모든 항목에서 타이머 바가 숨겨집니다."
 
 -- =====================================================================

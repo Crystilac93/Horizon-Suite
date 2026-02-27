@@ -380,7 +380,14 @@ L["Show affix names in Delves"]                         = "Mostrar nomes de afix
 L["Show season affix names on the first Delve entry. Requires Blizzard's objective tracker widgets to be populated; may not show when using a full tracker replacement."] = "Mostra nomes de afixos da temporada na primeira entrada de Delve. Requer widgets do rastreador de objetivos da Blizzard; pode não aparecer ao usar um rastreador totalmente substituto."
 L["Cinematic scenario bar"]                             = "Barra de cenário cinematográfica"
 L["Show timer and progress bar for scenario entries."]  = "Mostra cronômetro e barra de progresso para entradas de cenário."
-L["Show timer bars"]                                    = "Mostrar barras de cronômetro"
+L["Show timer"]                                         = "Mostrar cronômetro"
+L["Show countdown timer on timed quests, events, and scenarios. When off, timers are hidden for all entry types."] = "Mostra cronômetro em missões, eventos e cenários cronometrados. Desativado, os cronômetros são ocultados."
+L["Timer display"]                                      = "Exibição do cronômetro"
+L["Color timer by remaining time"]                      = "Cor do cronômetro por tempo restante"
+L["Green when plenty of time left, yellow when running low, red when critical."] = "Verde quando há tempo, amarelo quando está acabando, vermelho quando crítico."
+L["Where to show the countdown: bar below objectives or text beside the quest name."] = "Onde exibir a contagem regressiva: barra abaixo dos objetivos ou texto ao lado do nome da missão."
+L["Bar below"]                                          = "Barra abaixo"
+L["Inline beside title"]                                = "Ao lado do título"
 L["Show countdown timer bars on timed quests, events, and scenarios. When off, timer bars are hidden for all entry types."] = "Mostra barras de contagem regressiva em missões, eventos e cenários cronometrados. Quando desativado, as barras de cronômetro ficam ocultas para todos os tipos de entrada."
 
 -- =====================================================================

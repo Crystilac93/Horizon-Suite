@@ -42,7 +42,9 @@ Drop "Enable", "Show", "Use" where the control type (toggle/dropdown) already im
 | Display   | Show completed count                        | Completed count            |
 | Display   | Show objective progress bar                 | Progress bar               |
 | Display   | Use category color for progress bar         | Category color for bar     |
-| Display   | Show timer bars                             | Show timer bars            |
+| Display   | Show timer                                  | Show timer                 |
+| Display   | Timer display                               | Timer display              |
+| Display   | Color timer by remaining time               | Color timer by remaining time |
 | Display   | Use tick for completed objectives           | Checkmark for completed    |
 | Display   | Show quest type icons                       | Quest type icons           |
 | Display   | Show icon for in-zone auto-tracking         | Auto-track icon            |
@@ -148,7 +150,9 @@ Short `desc` shown inline. Optional `tooltip` shown on hover for detail. "—" m
 | Display    | Current Zone group               | Dedicated section for in-zone quests.                                       | When off, in-zone quests appear in their normal category.                           |
 | Display    | Progress bar                     | Bar under numeric objectives (e.g. 3/250).                                  | Only for entries with a single numeric objective where required > 1.                |
 | Display    | Category color for bar           | Match bar to quest category color.                                          | When off, uses the custom fill color below.                                         |
-| Display    | Show timer bars                  | Show countdown timer bars on timed quests, events, and scenarios.            | When off, timer bars are hidden for all entry types.                                |
+| Display    | Show timer                       | Show countdown timer on timed quests, events, and scenarios.                  | When off, timers are hidden for all entry types.                                     |
+| Display    | Timer display                    | Where to show the countdown: bar below objectives or text beside quest name. | Bar below or inline beside title. Disabled when timer bars are off.                  |
+| Display    | Color timer by remaining time    | Green when plenty of time left, yellow when running low, red when critical.  | Disabled when timer bars are off.                                                    |
 | Display    | Checkmark for completed          | ✓ instead of green for done objectives.                                     | —                                                                                   |
 | Display    | Auto-track icon                  | Icon next to auto-tracked in-zone entries.                                  | For world quests and weeklies not in your quest log.                                |
 | Typography | Progress bar text size           | Font size for bar label and bar height.                                     | Also affects scenario progress and timer bars.                                      |
