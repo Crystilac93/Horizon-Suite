@@ -1,5 +1,5 @@
-# Package name must match TOC so folder name is consistent for installs/updates
-package-as: HorizonSuite
+# Beta package: installs as HorizonSuiteBeta for side-by-side with release
+package-as: HorizonSuiteBeta
 
 manual-changelog:
   filename: CHANGELOG.md
@@ -7,7 +7,6 @@ manual-changelog:
 
 # Exclude CI, config, and dev scripts from the packaged addon
 ignore:
-  - HorizonSuiteBeta.toc
   - .github
   - .gitignore
   - .pkgmeta

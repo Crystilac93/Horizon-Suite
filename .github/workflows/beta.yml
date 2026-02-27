@@ -53,6 +53,9 @@ jobs:
             '{username: $user, avatar_url: $avatar, embeds: [{title: $title, url: $url, description: (if $desc[0] then $desc[0] else $fallback end)}]}' \
             > /tmp/discord-payload.json
 
+      - name: Use beta pkgmeta
+        run: cp .pkgmeta.beta .pkgmeta
+
       - name: Package addon (build only)
         uses: BigWigsMods/packager@v2.5.1
         with:

@@ -1,0 +1,73 @@
+## Interface: 120001
+## Title: Horizon Suite (Beta)
+## Notes: Core addon with pluggable modules. Focus (objective tracker) is the first module.
+## Author: Crystilac
+## Version: 3.2.0-beta
+## SavedVariables: HorizonDB
+## IconTexture: Interface\AddOns\HorizonSuiteBeta\icon
+
+HorizonSuite.lua
+Utilities.lua
+media/MediaRegistry.lua
+core/Config.lua
+core/Core.lua
+
+modules/Focus/FocusState.lua
+modules/Focus/FocusCategories.lua
+modules/Focus/FocusColors.lua
+modules/Focus/FocusDungeons.lua
+modules/Focus/FocusDelves.lua
+modules/Focus/FocusDailies.lua
+modules/Focus/FocusTrackedQuests.lua
+modules/Focus/FocusWorldQuests.lua
+modules/Focus/FocusRares.lua
+modules/Focus/FocusScenario.lua
+modules/Focus/FocusAchievements.lua
+modules/Focus/FocusEndeavors.lua
+modules/Focus/FocusDecor.lua
+modules/Focus/FocusAdventureGuide.lua
+modules/Focus/FocusAggregator.lua
+modules/Focus/FocusEntryPool.lua
+modules/Focus/FocusEntryRenderer.lua
+modules/Focus/FocusSectionHeaders.lua
+modules/Focus/FocusAnimation.lua
+modules/Focus/FocusLayout.lua
+modules/Focus/FocusCollapse.lua
+modules/Focus/FocusFloatingItem.lua
+modules/Focus/FocusMplusBlock.lua
+modules/Focus/FocusInteractions.lua
+modules/Focus/FocusBlizzard.lua
+modules/Focus/FocusEvents.lua
+modules/Focus/FocusUnacceptedPopup.lua
+modules/Focus/FocusSlash.lua
+modules/Focus/FocusModule.lua
+
+modules/Presence/PresenceCore.lua
+modules/Presence/PresenceBlizzard.lua
+modules/Presence/PresenceEvents.lua
+modules/Presence/PresenceErrors.lua
+modules/Presence/PresenceSlash.lua
+modules/Presence/PresenceModule.lua
+
+modules/Yield/YieldState.lua
+modules/Yield/YieldParsing.lua
+modules/Yield/YieldBlizzard.lua
+modules/Yield/YieldCore.lua
+modules/Yield/YieldEvents.lua
+modules/Yield/YieldSlash.lua
+modules/Yield/YieldModule.lua
+
+modules/Vista/VistaCore.lua
+modules/Vista/VistaSlash.lua
+modules/Vista/VistaModule.lua
+
+modules/Insight/InsightCore.lua
+modules/Insight/InsightModule.lua
+
+options/koKR.lua
+options/frFR.lua
+options/ptBR.lua
+options/ruRU.lua
+options/OptionsWidgets.lua
+options/OptionsData.lua
+options/OptionsPanel.lua
