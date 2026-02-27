@@ -53,7 +53,7 @@ local TYPES = {
     ZONE_CHANGE    = { pri = 2, category = "DEFAULT",   subCategory = "CAMPAIGN", sz = 48, dur = 4.0 },
     QUEST_ACCEPT       = { pri = 1, category = "DEFAULT",   subCategory = "DEFAULT", sz = 36, dur = 3.0 },
     WORLD_QUEST_ACCEPT = { pri = 2, category = "WORLD",     subCategory = "DEFAULT", sz = 36, dur = 3.0 },
-    QUEST_UPDATE       = { pri = 1, category = "DEFAULT",   subCategory = "DEFAULT", sz = 20, dur = 2.5, liveUpdate = true, replaceInQueue = true },
+    QUEST_UPDATE       = { pri = 1, category = "DEFAULT",   subCategory = "DEFAULT", sz = 28, dur = 2.5, liveUpdate = true, replaceInQueue = true, subGap = 12 },
     SUBZONE_CHANGE     = { pri = 1, category = "DEFAULT",   subCategory = "CAMPAIGN", sz = 36, dur = 3.0 },
     SCENARIO_START     = { pri = 2, category = "SCENARIO", subCategory = "DEFAULT", sz = 36, dur = 3.5 },
     SCENARIO_UPDATE     = { pri = 1, category = "SCENARIO", subCategory = "DEFAULT", sz = 36, dur = 2.5, liveUpdate = true, replaceInQueue = true },
@@ -274,6 +274,7 @@ local PlayCinematic
 local cachedEntranceDur  = 0.7
 local cachedExitDur      = 0.8
 local cachedHasDiscovery = false
+local cachedSubGap       = 10  -- px below divider; QUEST_UPDATE uses 12 for compact layout
 
 -- Skip-trackers: avoid redundant layout calls when value hasn't changed.
 local lastTitleOffsetY = nil
@@ -464,7 +465,7 @@ local function setSubOffset(L, offsetY)
     if lastSubOffsetY ~= offsetY then
         lastSubOffsetY = offsetY
         L.subText:ClearAllPoints()
-        L.subText:SetPoint("TOP", L.divider, "BOTTOM", 0, -10 + offsetY)
+        L.subText:SetPoint("TOP", L.divider, "BOTTOM", 0, -cachedSubGap + offsetY)
     end
 end
 
@@ -754,7 +755,7 @@ PlayCinematic = function(typeName, title, subtitle, opts)
         end
         if showIcon and atlas then
             L.questTypeIcon:SetAtlas(atlas)
-            -- Scale icon to match title size so it aligns visually (QUEST_UPDATE uses sz=20)
+            -- Scale icon to match title size so it aligns visually
             local iconMax = (addon.GetDB and addon.GetDB("presenceIconSize", 24)) or QUEST_ICON_SIZE
             local iconSz = (mainSz < iconMax) and mainSz or iconMax
             L.questTypeIcon:SetSize(iconSz, iconSz)
@@ -766,10 +767,13 @@ PlayCinematic = function(typeName, title, subtitle, opts)
         end
     end
 
+    -- subGap: distance below divider; QUEST_UPDATE uses 12 for compact layout
+    cachedSubGap = (cfg.subGap) or 10
+    local subAnimDelta = 10  -- entrance anim slides from (gap+delta) to gap
     L.titleText:ClearAllPoints()
     L.titleText:SetPoint("TOP", 0, 20)
     L.subText:ClearAllPoints()
-    L.subText:SetPoint("TOP", L.divider, "BOTTOM", 0, -20)
+    L.subText:SetPoint("TOP", L.divider, "BOTTOM", 0, -(cachedSubGap + subAnimDelta))
 
     if addon.Presence.pendingDiscovery and (typeName == "ZONE_CHANGE" or typeName == "SUBZONE_CHANGE") and (not addon.GetDB or addon.GetDB("showPresenceDiscovery", true)) then
         L.discoveryText:SetText(addon.L["Discovered"])

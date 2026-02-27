@@ -29,5 +29,5 @@
 
 ## Debug
 
-- **`/horizon presence debug`** — One-shot dump of state (frame, anim, active, queue, options) to chat.
-- **`/horizon presence debuglive`** — Toggle live debug panel. When on, logs QueueOrPlay, Play, Complete, Queued as they happen to a scrollable panel for review. Each line shows full title/subtitle and `opts.source` (event name, e.g. QUEST_WATCH_UPDATE, QUEST_LOG_UPDATE, UI_INFO_MESSAGE, ZONE_CHANGED_NEW_AREA) when provided.
+- **`/h presence debug`** — One-shot dump of state (frame, anim, active, queue, options) to chat.
+- **`/h presence debuglive`** — Toggle live debug panel. When on, logs QueueOrPlay, Play, Complete, Queued as they happen to a scrollable panel for review. Each line shows full title/subtitle and `opts.source` (event name, e.g. QUEST_WATCH_UPDATE, QUEST_LOG_UPDATE, UI_INFO_MESSAGE, ZONE_CHANGED_NEW_AREA) when provided.

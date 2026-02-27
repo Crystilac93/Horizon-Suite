@@ -81,7 +81,7 @@ local editHint = editOverlay:CreateFontString(nil, "OVERLAY")
 editHint:SetFont(Y.FONT_PATH, (addon.ScaledForModule or addon.Scaled or function(v) return v end)(10, "yield"), "OUTLINE")
 editHint:SetTextColor(0.7, 0.7, 0.7, 1)
 editHint:SetPoint("CENTER", editOverlay, "CENTER", 0, -8)
-editHint:SetText("Drag to reposition  |  /horizon yield edit to hide")
+editHint:SetText("Drag to reposition  |  /h yield edit to hide")
 
 editOverlay:Hide()
 

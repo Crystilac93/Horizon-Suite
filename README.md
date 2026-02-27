@@ -70,6 +70,18 @@
 
 ---
 
+## ⌨️ Basic Commands
+
+| Command | Description |
+|---------|-------------|
+| **/h**, **/hopt**, **/hedit** | Core — help, options, edit screen |
+| **/h focus** toggle, collapse, nearby, resetpos | Tracker — enable/disable, collapse, toggle Nearby group, reset position |
+| **/h vista** reset, toggle, lock, scale | Minimap — reset position, show/hide, lock, set scale |
+| **/h yield** edit, reset, toggle | Loot toasts — reposition, reset position, enable/disable |
+| **/h insight** anchor, move, resetpos | Tooltips — anchor mode, reposition, reset position |
+
+---
+
 ## 📦 Modules & Roadmap
 
 **Focus** is the objective tracker. **Presence** adds cinematic zone text and notifications. **Insight** adds cinematic tooltips with class colors, spec display, and faction icons. **Vista** adds a cinematic minimap (square or circular) with zone text, coordinates, addon button collector, and full customisation. **Yield** adds cinematic loot toasts (items, money, currency, reputation). Enable them in options. More modules are planned: Quest Log, Combat Alerts, Unit Frames, Chat.
@@ -85,7 +97,7 @@
 1. Install via [CurseForge](https://www.curseforge.com/projects/1457844), [Wago](https://addons.wago.io/addons/jK8gY56y), or download the [latest release](https://github.com/Crystilac93/Horizon-Suite/releases) and extract the `HorizonSuite` folder. ([Beta](https://github.com/Crystilac93/Horizon-Suite/releases/tag/beta))
 2. Place it in `World of Warcraft\_retail_\Interface\AddOns\`.
 3. Enable **Horizon Suite** in your AddOn list.
-4. Type `/horizon options` to customize.
+4. Type `/h options` or `/hopt` to customize.
 
 [ko-fi](https://ko-fi.com/T6T71TX1Y1) **[Patreon](https://patreon.com/HorizonSuite?utm_medium=unknown&utm_source=join_link&utm_campaign=creatorshare_creator&utm_content=copyLink)** | **[Discord](https://discord.gg/RkkYJgB3PA)** — Bug reports, feature requests, and community.
 

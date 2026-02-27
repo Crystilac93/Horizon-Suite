@@ -1,10 +1,10 @@
 --[[
     Horizon Suite - Yield - Slash Commands
-    /horizon yield [cmd] subcommand dispatch.
+    /h yield [cmd] subcommands. Registers with core via addon.RegisterSlashHandler.
 ]]
 
 local addon = _G.HorizonSuite
-if not addon or not addon.Yield then return end
+if not addon or not addon.Yield or not addon.RegisterSlashHandler then return end
 
 local Y = addon.Yield
 local y = addon.yield
@@ -139,6 +139,32 @@ function Y.HandleYieldSlash(msg)
         return true
     end
 
+    if cmd == "" or cmd == "help" then
+        HSPrint("Yield commands:")
+        HSPrint("  /h yield          - Show this help")
+        HSPrint("  /h yield item     - Test item toast")
+        HSPrint("  /h yield gold     - Test money toast")
+        HSPrint("  /h yield currency - Test currency toast")
+        HSPrint("  /h yield rep      - Test reputation toast")
+        HSPrint("  /h yield all      - Demo reel (all types)")
+        HSPrint("  /h yield toggle   - Enable / disable Yield module")
+        HSPrint("  /h yield edit     - Toggle edit mode (show bounding box)")
+        HSPrint("  /h yield reset    - Reset position to default")
+        return true
+    end
+
+    return false
+end
+
+local function HandleYieldDebugSlash(msg)
+    local cmd = strtrim(msg or ""):lower()
+
+    if cmd == "" or cmd == "help" then
+        HSPrint("Yield debug commands (/h debug yield [cmd]):")
+        HSPrint("  debug - Toggle loot-event logging")
+        return
+    end
+
     if cmd == "debug" then
         y.debugMode = not y.debugMode
         if y.debugMode then
@@ -149,34 +175,12 @@ function Y.HandleYieldSlash(msg)
         else
             HSPrint("Yield debug |cFFFF0000OFF|r")
         end
-        return true
+    else
+        HSPrint("Unknown debug command. Use /h debug yield for help.")
     end
-
-    if cmd == "" or cmd == "help" then
-        HSPrint("Yield commands:")
-        HSPrint("  /horizon yield          - Show this help")
-        HSPrint("  /horizon yield item     - Test item toast")
-        HSPrint("  /horizon yield gold     - Test money toast")
-        HSPrint("  /horizon yield currency - Test currency toast")
-        HSPrint("  /horizon yield rep      - Test reputation toast")
-        HSPrint("  /horizon yield all      - Demo reel (all types)")
-        HSPrint("  /horizon yield toggle   - Enable / disable Yield module")
-        HSPrint("  /horizon yield edit     - Toggle edit mode (show bounding box)")
-        HSPrint("  /horizon yield reset    - Reset position to default")
-        HSPrint("  /horizon yield debug    - Toggle debug output")
-        return true
-    end
-
-    return false
 end
 
--- Wrap existing /horizon handler to add yield subcommands
-local oldHandler = SlashCmdList["MODERNQUESTTRACKER"]
-SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
-    local cmd = strtrim(msg or ""):lower()
-    if cmd == "yield" or cmd:match("^yield ") then
-        local sub = cmd == "yield" and "" or strtrim(cmd:sub(7))
-        if Y.HandleYieldSlash(sub) then return end
-    end
-    if oldHandler then oldHandler(msg) end
+addon.RegisterSlashHandler("yield", Y.HandleYieldSlash)
+if addon.RegisterSlashHandlerDebug then
+    addon.RegisterSlashHandlerDebug("yield", HandleYieldDebugSlash)
 end

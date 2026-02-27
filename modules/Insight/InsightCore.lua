@@ -886,17 +886,13 @@ end)
 -- SLASH COMMANDS
 -- ============================================================================
 
-SLASH_HORIZONSUITEINSIGHT1 = "/insight"
-SLASH_HORIZONSUITEINSIGHT2 = "/hsi"
-SLASH_HORIZONSUITEINSIGHT3 = "/mtt"
-
-SlashCmdList["HORIZONSUITEINSIGHT"] = function(msg)
+local function HandleInsightSlash(msg)
     if not addon:IsModuleEnabled("insight") then
         if addon.HSPrint then addon.HSPrint("Horizon Insight is disabled. Enable it in Horizon Suite options.") end
         return
     end
 
-    local cmd = (msg or ""):lower():trim()
+    local cmd = strtrim(msg or ""):lower()
 
     if cmd == "anchor" then
         local mode = GetAnchorMode()
@@ -969,7 +965,35 @@ SlashCmdList["HORIZONSUITEINSIGHT"] = function(msg)
         ShowAndScheduleSeparators()
         if addon.HSPrint then addon.HSPrint("Horizon Insight: Test tooltip shown at cursor.") end
 
-    elseif cmd == "status" then
+    else
+        if addon.HSPrint then
+            addon.HSPrint("Horizon Insight")
+            addon.HSPrint("  /insight, /h insight     This help")
+            addon.HSPrint("  /insight anchor   Toggle cursor / fixed positioning")
+            addon.HSPrint("  /insight move     Show draggable anchor to set fixed position")
+            addon.HSPrint("  /insight resetpos Reset fixed position to default")
+            addon.HSPrint("  /insight test     Show a sample styled tooltip")
+        end
+    end
+end
+
+SLASH_HORIZONSUITEINSIGHT1 = "/insight"
+SLASH_HORIZONSUITEINSIGHT2 = "/hsi"
+SLASH_HORIZONSUITEINSIGHT3 = "/mtt"
+SlashCmdList["HORIZONSUITEINSIGHT"] = HandleInsightSlash
+
+local function HandleInsightDebugSlash(msg)
+    local cmd = strtrim(msg or ""):lower()
+
+    if cmd == "" or cmd == "help" then
+        if addon.HSPrint then
+            addon.HSPrint("Insight debug commands (/h debug insight [cmd]):")
+            addon.HSPrint("  status - Print config + cache count")
+        end
+        return
+    end
+
+    if cmd == "status" then
         local cacheCount = 0
         for _ in pairs(inspectCache) do cacheCount = cacheCount + 1 end
         if addon.HSPrint then
@@ -978,18 +1002,18 @@ SlashCmdList["HORIZONSUITEINSIGHT"] = function(msg)
             addon.HSPrint("   Anchor  : " .. GetAnchorMode())
             addon.HSPrint("   Cache   : " .. cacheCount .. " inspect entries")
         end
-
     else
         if addon.HSPrint then
-            addon.HSPrint("Horizon Insight")
-            addon.HSPrint("  /insight           This help")
-            addon.HSPrint("  /insight anchor   Toggle cursor / fixed positioning")
-            addon.HSPrint("  /insight move     Show draggable anchor to set fixed position")
-            addon.HSPrint("  /insight resetpos Reset fixed position to default")
-            addon.HSPrint("  /insight test     Show a sample styled tooltip")
-            addon.HSPrint("  /insight status   Print current config")
+            addon.HSPrint("Unknown debug command. Use /h debug insight for help.")
         end
     end
+end
+
+if addon.RegisterSlashHandler then
+    addon.RegisterSlashHandler("insight", HandleInsightSlash)
+end
+if addon.RegisterSlashHandlerDebug then
+    addon.RegisterSlashHandlerDebug("insight", HandleInsightDebugSlash)
 end
 
 addon.Insight = Insight

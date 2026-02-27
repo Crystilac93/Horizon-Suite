@@ -1,6 +1,6 @@
 # Quest log APIs — header count ("in log")
 
-Notes on WoW `C_QuestLog` APIs used to count **accepted** quests in the player's quest log (for the Focus header "in log" value). Run `/horizon headercountdebug` to compare methods in-game.
+Notes on WoW `C_QuestLog` APIs used to count **accepted** quests in the player's quest log (for the Focus header "in log" value). Run `/h focus headercountdebug` to compare methods in-game.
 
 ## Goal
 

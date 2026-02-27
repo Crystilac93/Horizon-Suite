@@ -628,10 +628,12 @@ function addon.DumpWorldQuestDiscovery()
     addon.HSPrint("=== End WQ Discovery Dump ===")
 end
 
--- /hswqdebug
+-- /hswqdebug (backwards-compat alias for /h debug focus wqdebug)
 SLASH_HSWQDEBUG1 = "/hswqdebug"
 SlashCmdList.HSWQDEBUG = function()
-    if addon.DumpWorldQuestDiscovery then
+    if SlashCmdList["MODERNQUESTTRACKER"] then
+        SlashCmdList["MODERNQUESTTRACKER"]("debug focus wqdebug")
+    elseif addon.DumpWorldQuestDiscovery then
         addon.DumpWorldQuestDiscovery()
     end
 end

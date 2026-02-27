@@ -1,10 +1,10 @@
 --[[
     Horizon Suite - Presence - Slash Commands
-    Slash command dispatch for /horizon presence [cmd]. Test playback for all notification types.
+    /h presence [cmd] subcommands. Registers with core via addon.RegisterSlashHandler.
 ]]
 
 local addon = _G.HorizonSuite
-if not addon or not addon.Presence then return end
+if not addon or not addon.Presence or not addon.RegisterSlashHandler then return end
 
 local HSPrint = addon.HSPrint or function(msg) print("|cFF00CCFFHorizon Suite:|r " .. tostring(msg or "")) end
 
@@ -13,28 +13,6 @@ local HSPrint = addon.HSPrint or function(msg) print("|cFF00CCFFHorizon Suite:|r
 --- @return boolean
 local function HandlePresenceSlash(msg)
     local cmd = strtrim(msg or ""):lower()
-
-    -- Debug is read-only; allow during combat
-    if cmd == "debug" then
-        if addon.Presence.DumpDebug then addon.Presence.DumpDebug() end
-        return true
-    end
-
-    if cmd == "debugtypes" then
-        local p = HSPrint
-        if addon.Presence.DumpBlizzardSuppression then
-            addon.Presence.DumpBlizzardSuppression(p)
-        else
-            HSPrint("DumpBlizzardSuppression not available")
-        end
-        return true
-    end
-
-    if cmd == "debuglive" then
-        local on = addon.Presence.ToggleDebugLive and addon.Presence.ToggleDebugLive()
-        HSPrint("Presence live debug: " .. (on and "on" or "off"))
-        return true
-    end
 
     if cmd == "level" then
         local L = addon.L or {}
@@ -99,23 +77,20 @@ local function HandlePresenceSlash(msg)
     elseif cmd == "" or cmd == "help" then
         local L = addon.L or {}
         HSPrint(L["Presence test commands:"])
-        HSPrint(L["  /horizon presence         - Show help + test current zone"])
-        HSPrint(L["  /horizon presence zone     - Test Zone Change"])
-        HSPrint(L["  /horizon presence subzone  - Test Subzone Change"])
-        HSPrint(L["  /horizon presence discover - Test Zone Discovery"])
-        HSPrint(L["  /horizon presence level    - Test Level Up"])
-        HSPrint(L["  /horizon presence boss     - Test Boss Emote"])
-        HSPrint(L["  /horizon presence ach      - Test Achievement"])
-        HSPrint(L["  /horizon presence accept   - Test Quest Accepted"])
-        HSPrint(L["  /horizon presence wqaccept - Test World Quest Accepted"])
-        HSPrint(L["  /horizon presence scenario - Test Scenario Start"])
-        HSPrint(L["  /horizon presence quest    - Test Quest Complete"])
-        HSPrint(L["  /horizon presence wq       - Test World Quest"])
-        HSPrint(L["  /horizon presence update   - Test Quest Update"])
-        HSPrint(L["  /horizon presence all      - Demo reel (all types)"])
-        HSPrint(L["  /horizon presence debug    - Dump state to chat"])
-        HSPrint(L["  /horizon presence debugtypes - Dump notification toggles and Blizzard suppression state"])
-        HSPrint(L["  /horizon presence debuglive - Toggle live debug panel (log as events happen)"])
+        HSPrint(L["  /h presence         - Show help + test current zone"])
+        HSPrint(L["  /h presence zone     - Test Zone Change"])
+        HSPrint(L["  /h presence subzone  - Test Subzone Change"])
+        HSPrint(L["  /h presence discover - Test Zone Discovery"])
+        HSPrint(L["  /h presence level    - Test Level Up"])
+        HSPrint(L["  /h presence boss     - Test Boss Emote"])
+        HSPrint(L["  /h presence ach      - Test Achievement"])
+        HSPrint(L["  /h presence accept   - Test Quest Accepted"])
+        HSPrint(L["  /h presence wqaccept - Test World Quest Accepted"])
+        HSPrint(L["  /h presence scenario - Test Scenario Start"])
+        HSPrint(L["  /h presence quest    - Test Quest Complete"])
+        HSPrint(L["  /h presence wq       - Test World Quest"])
+        HSPrint(L["  /h presence update   - Test Quest Update"])
+        HSPrint(L["  /h presence all      - Demo reel (all types)"])
         addon.Presence.QueueOrPlay("ZONE_CHANGE", GetZoneText() or "Unknown Zone", GetSubZoneText() or "")
     else
         return false
@@ -124,19 +99,38 @@ local function HandlePresenceSlash(msg)
     return true
 end
 
--- Wrap the existing /horizon handler to add presence subcommands
-local oldHandler = SlashCmdList["MODERNQUESTTRACKER"]
-SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
+local function HandlePresenceDebugSlash(msg)
     local cmd = strtrim(msg or ""):lower()
-    if cmd == "presence" or cmd:match("^presence ") then
-        local sub = cmd == "presence" and "" or strtrim(cmd:sub(10))
-        if HandlePresenceSlash(sub) then return end
+
+    if cmd == "" or cmd == "help" then
+        HSPrint("Presence debug commands (/h debug presence [cmd]):")
+        HSPrint("  debug      - Dump state to chat")
+        HSPrint("  debugtypes - Dump notification toggles and Blizzard suppression state")
+        HSPrint("  debuglive  - Toggle live debug panel (log as events happen)")
+        return
     end
-    if oldHandler then oldHandler(msg) end
+
+    if cmd == "debug" then
+        if addon.Presence.DumpDebug then addon.Presence.DumpDebug() end
+
+    elseif cmd == "debugtypes" then
+        if addon.Presence.DumpBlizzardSuppression then
+            addon.Presence.DumpBlizzardSuppression(HSPrint)
+        else
+            HSPrint("DumpBlizzardSuppression not available")
+        end
+
+    elseif cmd == "debuglive" then
+        local on = addon.Presence.ToggleDebugLive and addon.Presence.ToggleDebugLive()
+        HSPrint("Presence live debug: " .. (on and "on" or "off"))
+
+    else
+        HSPrint("Unknown debug command. Use /h debug presence for help.")
+    end
 end
 
--- ============================================================================
--- Exports
--- ============================================================================
-
+addon.RegisterSlashHandler("presence", HandlePresenceSlash)
 addon.Presence.HandlePresenceSlash = HandlePresenceSlash
+if addon.RegisterSlashHandlerDebug then
+    addon.RegisterSlashHandlerDebug("presence", HandlePresenceDebugSlash)
+end

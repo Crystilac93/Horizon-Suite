@@ -13,6 +13,7 @@ Utilities.lua
 media/MediaRegistry.lua
 core/Config.lua
 core/Core.lua
+core/CoreSlash.lua
 
 modules/Focus/FocusState.lua
 modules/Focus/FocusCategories.lua

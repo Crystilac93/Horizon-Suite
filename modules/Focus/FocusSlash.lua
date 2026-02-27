@@ -1,10 +1,10 @@
 --[[
     Horizon Suite - Focus - Slash Commands
-    /horizon and subcommands.
+    /h focus [cmd] subcommands. Registers with core via addon.RegisterSlashHandler.
 ]]
 
 local addon = _G.HorizonSuite
-if not addon then return end
+if not addon or not addon.RegisterSlashHandler then return end
 local HSPrint = addon.HSPrint or function(msg) print("|cFF00CCFFHorizon Suite - Focus:|r " .. tostring(msg or "")) end
 local colorCheckState = nil
 
@@ -92,11 +92,41 @@ local function CollectVisibleColorKeys()
 end
 
 -- ============================================================================
--- SLASH COMMANDS
+-- FOCUS HELP
 -- ============================================================================
 
-SLASH_MODERNQUESTTRACKER1 = "/horizon"
-SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
+local function ShowFocusShortHelp()
+    HSPrint("Focus commands:")
+    HSPrint("  /h focus            - Show this help")
+    HSPrint("  /h focus toggle     - Enable / disable")
+    HSPrint("  /h focus collapse   - Collapse / expand panel")
+    HSPrint("  /h focus nearby     - Toggle Nearby (Current Zone) group")
+    HSPrint("  /h focus reset      - Reset to live data")
+    HSPrint("  /h focus resetpos   - Reset panel to default position")
+    HSPrint("  /h focus test       - Show with test data")
+    HSPrint("  /h focus testitem   - Inject one debug quest with item (real quests stay)")
+    HSPrint("  /h focus testsound  - Play the rare-added notification sound")
+    HSPrint("  /h focus colorcheck - Cycle focus colors (title/objective/zone/section/highlight), then restore")
+    HSPrint("")
+    HSPrint("  Click the header row to collapse / expand.")
+    HSPrint("  Scroll with mouse wheel when content overflows.")
+    HSPrint("  Drag the panel to reposition it (saved across sessions).")
+    HSPrint("  Left-click a quest or rare to super-track; Left-click auto-complete quests to complete them.")
+    HSPrint("  Shift+Left-click opens quest details; Right-click a quest to untrack, rare to clear super-track.")
+end
+
+local function ShowFocusDebugHelp()
+    HSPrint("Focus debug commands (/h debug focus [cmd]):")
+    HSPrint("  wqdebug, scendebug, nearbydebug, headercountdebug, groupdebug")
+    HSPrint("  delvedebug, mplusaffixdebug, mplusdebug, endeavordebug, achievementdebug")
+    HSPrint("  unaccepted, clicktodebug, profiledebug")
+end
+
+-- ============================================================================
+-- FOCUS SLASH HANDLER (user + test/demo)
+-- ============================================================================
+
+local function HandleFocusSlash(msg)
     local cmd = strtrim(msg or ""):lower()
 
     if cmd == "toggle" then
@@ -155,83 +185,6 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
         else
             HSPrint("Could not play sound.")
         end
-
-    elseif cmd == "mplusdebug" then
-        addon.mplusDebugPreview = not addon.mplusDebugPreview
-        if addon.FullLayout then addon.FullLayout() end
-        HSPrint("M+ block debug preview: " .. (addon.mplusDebugPreview and "on" or "off"))
-
-    elseif cmd == "mplusaffixdebug" then
-        -- Debug affix data sources for M+ block (run in dungeon with active keystone)
-        local mapId = C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID and C_ChallengeMode.GetActiveChallengeMapID()
-        HSPrint("--- M+ Affix Debug ---")
-        HSPrint("GetActiveChallengeMapID: " .. (mapId and tostring(mapId) or "nil"))
-        if not mapId then
-            HSPrint("  (Not in an active challenge; run in M+ dungeon with key inserted)")
-            return
-        end
-        if C_ChallengeMode and C_ChallengeMode.GetMapUIInfo then
-            local name, _, timeLimit = C_ChallengeMode.GetMapUIInfo(mapId)
-            HSPrint("MapUIInfo: name=" .. tostring(name) .. " timeLimit=" .. tostring(timeLimit))
-        end
-        if C_ChallengeMode and C_ChallengeMode.GetActiveKeystoneInfo then
-            local ok, level, affixes, wasEnergized = pcall(C_ChallengeMode.GetActiveKeystoneInfo)
-            if ok then
-                HSPrint("GetActiveKeystoneInfo: level=" .. tostring(level) .. " wasEnergized=" .. tostring(wasEnergized))
-                if affixes and type(affixes) == "table" then
-                    local ids = {}
-                    for i = 1, #affixes do ids[#ids + 1] = tostring(affixes[i]) end
-                    HSPrint("  affixes (IDs): " .. (#ids > 0 and table.concat(ids, ", ") or "empty"))
-                    for i = 1, #affixes do
-                        local id = affixes[i]
-                        if id and type(id) == "number" and C_ChallengeMode.GetAffixInfo then
-                            local aOk, name, desc, iconFileID = pcall(C_ChallengeMode.GetAffixInfo, id)
-                            if aOk and name then
-                                HSPrint("    ID " .. tostring(id) .. " -> " .. tostring(name))
-                            else
-                                HSPrint("    ID " .. tostring(id) .. " -> GetAffixInfo error or empty")
-                            end
-                        end
-                    end
-                else
-                    HSPrint("  affixes: " .. (affixes == nil and "nil" or type(affixes)))
-                end
-            else
-                HSPrint("GetActiveKeystoneInfo error: " .. tostring(level))
-            end
-        end
-        if C_MythicPlus and C_MythicPlus.GetCurrentAffixes then
-            local ok, currentAffixes = pcall(C_MythicPlus.GetCurrentAffixes)
-            if ok and currentAffixes and type(currentAffixes) == "table" then
-                local parts = {}
-                for _, a in ipairs(currentAffixes) do
-                    local id = (a and type(a) == "table" and a.id) or (type(a) == "number" and a) or nil
-                    if id then parts[#parts + 1] = tostring(id) end
-                end
-                HSPrint("GetCurrentAffixes: " .. (#parts > 0 and table.concat(parts, ", ") or "empty"))
-            else
-                HSPrint("GetCurrentAffixes: " .. (ok and "empty/nil" or ("error: " .. tostring(currentAffixes))))
-            end
-        else
-            HSPrint("GetCurrentAffixes: API not available")
-        end
-        if addon.GetMplusData then
-            local data = addon.GetMplusData()
-            if data and data.affixes then
-                if #data.affixes > 0 then
-                    local names = {}
-                    for _, a in ipairs(data.affixes) do names[#names + 1] = a.name or "(nil)" end
-                    HSPrint("GetMplusData.affixes (final): " .. table.concat(names, ", "))
-                else
-                    HSPrint("GetMplusData.affixes: empty")
-                end
-            else
-                HSPrint("GetMplusData: nil or no affixes key")
-            end
-        else
-            HSPrint("GetMplusData: not available")
-        end
-        HSPrint("--- End M+ Affix Debug ---")
 
     elseif cmd == "test" then
         HSPrint("Showing test data (10 entries)...")
@@ -332,7 +285,7 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
         addon.FullLayout()
 
     elseif cmd == "testitem" then
-        HSPrint("Injected one debug quest with a quest item (real quests remain). Use /horizon reset to clear.")
+        HSPrint("Injected one debug quest with a quest item (real quests remain). Use /h focus reset to clear.")
         addon.testQuestItem = {
             entryKey       = 89999,
             questID        = 89999,
@@ -375,408 +328,6 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
         addon.SetDB("x", nil)
         addon.SetDB("y", nil)
         HSPrint("Position reset to default.")
-
-    elseif cmd == "options" or cmd == "config" then
-        if _G.HorizonSuite_ShowOptions then
-            _G.HorizonSuite_ShowOptions()
-        else
-            HSPrint("Options not loaded.")
-        end
-
-    elseif cmd == "edit" then
-        if _G.HorizonSuite_ShowEditPanel then
-            _G.HorizonSuite_ShowEditPanel()
-        else
-            HSPrint("Edit panel not loaded.")
-        end
-
-    elseif cmd == "scendebug" then
-        local v = not (addon.GetDB and addon.GetDB("scenarioDebug", false))
-        if addon.SetDB then addon.SetDB("scenarioDebug", v) end
-        HSPrint("Scenario debug logging: " .. (v and "on" or "off"))
-        if addon.ScheduleRefresh then addon.ScheduleRefresh() end
-
-    elseif cmd == "groupdebug" then
-        HSPrint("|cFF00CCFF--- Group Quest Debug ---|r")
-        -- Dump tag info for every quest currently visible in the tracker.
-        local pool = addon.pool
-        if pool then
-            for i = 1, addon.POOL_SIZE do
-                local e = pool[i]
-                if e and e.questID and e.questID > 0 and e:IsShown() then
-                    local qid = e.questID
-                    local title = (e.titleText and e.titleText:GetText()) or tostring(qid)
-                    local parts = { ("|cFFFFFF00%s|r (ID %d):"):format(title, qid) }
-                    -- C_QuestLog.GetQuestTagInfo
-                    if C_QuestLog and C_QuestLog.GetQuestTagInfo then
-                        local ok, ti = pcall(C_QuestLog.GetQuestTagInfo, qid)
-                        if ok and ti then
-                            parts[#parts+1] = ("  tagID=%s worldQuestType=%s tagName=%s"):format(
-                                tostring(ti.tagID), tostring(ti.worldQuestType), tostring(ti.tagName))
-                        else
-                            parts[#parts+1] = "  GetQuestTagInfo: nil"
-                        end
-                    end
-                    -- C_TaskQuest.GetQuestInfoByQuestID
-                    if C_TaskQuest and C_TaskQuest.GetQuestInfoByQuestID then
-                        local ok, info = pcall(C_TaskQuest.GetQuestInfoByQuestID, qid)
-                        if ok and info then
-                            if type(info) == "table" then
-                                local keys = {}
-                                for k, v in pairs(info) do keys[#keys+1] = k .. "=" .. tostring(v) end
-                                parts[#parts+1] = "  TaskQuestInfo: " .. table.concat(keys, ", ")
-                            else
-                                parts[#parts+1] = "  TaskQuestInfo: " .. tostring(info) .. " (type=" .. type(info) .. ")"
-                            end
-                        else
-                            parts[#parts+1] = "  TaskQuestInfo: nil"
-                        end
-                    end
-                    -- suggestedGroup
-                    if C_QuestLog and C_QuestLog.GetLogIndexForQuestID then
-                        local logIdx = C_QuestLog.GetLogIndexForQuestID(qid)
-                        if logIdx and C_QuestLog.GetInfo then
-                            local ok, info = pcall(C_QuestLog.GetInfo, logIdx)
-                            if ok and info then
-                                parts[#parts+1] = ("  suggestedGroup=%s"):format(tostring(info.suggestedGroup))
-                            end
-                        else
-                            parts[#parts+1] = "  Not in quest log"
-                        end
-                    end
-                    -- Final result
-                    local isGroup = addon.IsGroupQuest and addon.IsGroupQuest(qid) or false
-                    parts[#parts+1] = ("  |cFF00FF00IsGroupQuest = %s|r"):format(tostring(isGroup))
-                    for _, line in ipairs(parts) do
-                        HSPrint(line)
-                    end
-                end
-            end
-        end
-        HSPrint("|cFF00CCFF--- End Group Quest Debug ---|r")
-
-    elseif cmd == "nearbydebug" or cmd == "zonedebug" then
-        if addon.GetNearbyDebugInfo then
-            HSPrint("|cFF00CCFF--- Nearby / Current Zone debug ---|r")
-            for _, line in ipairs(addon.GetNearbyDebugInfo()) do
-                HSPrint(line)
-            end
-        else
-            HSPrint("GetNearbyDebugInfo not available.")
-        end
-
-    elseif cmd == "headercountdebug" then
-        if addon.DebugHeaderCount then
-            addon.DebugHeaderCount()
-        else
-            HSPrint("DebugHeaderCount not available.")
-        end
-
-    elseif cmd == "achievementdebug" then
-        HSPrint("|cFF00CCFF--- Achievement Tracking Debug ---|r")
-        local TRACKING_TYPE_ACHIEVEMENT = (Enum and Enum.ContentTrackingType and Enum.ContentTrackingType.Achievement) or 2
-        local idList = {}
-        if C_ContentTracking and C_ContentTracking.GetTrackedIDs then
-            local ids = C_ContentTracking.GetTrackedIDs(TRACKING_TYPE_ACHIEVEMENT)
-            if ids and type(ids) == "table" then
-                for _, id in ipairs(ids) do
-                    if type(id) == "number" and id > 0 then idList[#idList + 1] = id end
-                end
-            end
-        elseif GetTrackedAchievements then
-            for i = 1, 10 do
-                local id = select(i, GetTrackedAchievements())
-                if type(id) == "number" and id > 0 then idList[#idList + 1] = id end
-            end
-        end
-        HSPrint("Tracked achievement IDs: " .. (#idList > 0 and table.concat(idList, ", ") or "none"))
-        for _, achID in ipairs(idList) do
-            HSPrint("|cFFFFCC00Achievement " .. tostring(achID) .. ":|r")
-            -- GetAchievementInfo
-            if GetAchievementInfo then
-                local aOk, id, name, points, completed, month, day, year, description, flags, icon = pcall(GetAchievementInfo, achID)
-                if aOk then
-                    HSPrint("  name=" .. tostring(name) .. "  completed=" .. tostring(completed) .. "  points=" .. tostring(points))
-                    HSPrint("  description=" .. tostring(description))
-                else
-                    HSPrint("  GetAchievementInfo FAILED: " .. tostring(id))
-                end
-            end
-            -- NumCriteria
-            local numCriteria = 0
-            if GetAchievementNumCriteria then
-                local nOk, n = pcall(GetAchievementNumCriteria, achID)
-                if nOk and type(n) == "number" then numCriteria = n end
-                HSPrint("  numCriteria=" .. tostring(nOk and n or "error"))
-            end
-            -- Each criterion
-            if GetAchievementCriteriaInfo and numCriteria > 0 then
-                for ci = 1, math.min(numCriteria, 15) do
-                    local cOk, criteriaString, criteriaType, completedCrit, quantity, reqQuantity, charName, cflags, assetID, quantityString, criteriaID =
-                        pcall(GetAchievementCriteriaInfo, achID, ci)
-                    if cOk then
-                        HSPrint(("  [%d] str=%q type=%s done=%s qty=%s/%s qtyStr=%q criteriaID=%s"):format(
-                            ci,
-                            tostring(criteriaString or ""),
-                            tostring(criteriaType),
-                            tostring(completedCrit),
-                            tostring(quantity),
-                            tostring(reqQuantity),
-                            tostring(quantityString or ""),
-                            tostring(criteriaID or "?")))
-                    else
-                        HSPrint(("  [%d] GetAchievementCriteriaInfo FAILED: %s"):format(ci, tostring(criteriaString)))
-                    end
-                end
-                if numCriteria > 15 then
-                    HSPrint("  ... (" .. tostring(numCriteria - 15) .. " more criteria)")
-                end
-            elseif numCriteria == 0 then
-                HSPrint("  (no criteria)")
-            end
-        end
-        HSPrint("|cFF00CCFF--- End Achievement Debug ---|r")
-
-    elseif cmd == "endeavordebug" then
-        HSPrint("|cFF00CCFF--- Endeavor API debug ---|r")
-        HSPrint("C_ContentTracking: " .. (C_ContentTracking and "yes" or "no"))
-        if Enum and Enum.ContentTrackingType then
-            local t = {}
-            for k, v in pairs(Enum.ContentTrackingType) do
-                if type(v) == "number" then t[#t + 1] = k .. "=" .. tostring(v) end
-            end
-            HSPrint("ContentTrackingType: " .. table.concat(t, ", "))
-        end
-        for _, typ in ipairs({ 0, 1, 2, 3, 4, 5 }) do
-            if C_ContentTracking and C_ContentTracking.GetTrackedIDs then
-                local ok, ids = pcall(C_ContentTracking.GetTrackedIDs, typ)
-                if ok and ids and type(ids) == "table" and #ids > 0 then
-                    HSPrint("  GetTrackedIDs(" .. typ .. "): " .. #ids .. " ids: " .. table.concat(ids, ", "))
-                end
-            end
-        end
-        HSPrint("C_Endeavors: " .. (C_Endeavors and "yes" or "no"))
-        if C_Endeavors then
-            for _, fn in ipairs({ "GetTrackedIDs", "GetEndeavorInfo", "GetInfo", "GetActiveEndeavorID" }) do
-                if C_Endeavors[fn] then HSPrint("  C_Endeavors." .. fn .. ": yes") end
-            end
-        end
-        HSPrint("C_PlayerHousing: " .. (C_PlayerHousing and "yes" or "no"))
-        if C_PlayerHousing then
-            for _, fn in ipairs({ "GetActiveEndeavorID", "GetActiveEndeavorInfo", "GetEndeavorInfo" }) do
-                if C_PlayerHousing[fn] then HSPrint("  C_PlayerHousing." .. fn .. ": yes") end
-            end
-        end
-        HSPrint("C_NeighborhoodInitiative: " .. (C_NeighborhoodInitiative and "yes" or "no"))
-        if C_NeighborhoodInitiative then
-            for _, fn in ipairs({ "GetTrackedInitiativeTasks", "GetInitiativeTaskInfo", "RemoveTrackedInitiativeTask", "GetInitiativeTaskChatLink" }) do
-                if C_NeighborhoodInitiative[fn] then HSPrint("  C_NeighborhoodInitiative." .. fn .. ": yes") end
-            end
-        end
-        HSPrint("HousingFramesUtil: " .. (HousingFramesUtil and "yes" or "no"))
-        if HousingFramesUtil and HousingFramesUtil.OpenFrameToTaskID then
-            HSPrint("  HousingFramesUtil.OpenFrameToTaskID: yes")
-        end
-        HSPrint("ReadTrackedEndeavors count: " .. (addon.ReadTrackedEndeavors and #addon.ReadTrackedEndeavors() or 0))
-        HSPrint("ReadTrackedDecor count: " .. (addon.ReadTrackedDecor and #addon.ReadTrackedDecor() or 0))
-        -- Dump GetInitiativeTaskInfo for each tracked endeavor (find housing XP / reward field names)
-        if C_NeighborhoodInitiative and C_NeighborhoodInitiative.GetTrackedInitiativeTasks and C_NeighborhoodInitiative.GetInitiativeTaskInfo then
-            local ok, result = pcall(C_NeighborhoodInitiative.GetTrackedInitiativeTasks)
-            local ids = {}
-            if ok and result then
-                if result.trackedIDs and type(result.trackedIDs) == "table" then
-                    ids = result.trackedIDs
-                elseif type(result) == "table" and #result > 0 then
-                    ids = result
-                end
-            end
-            if #ids == 0 and addon.GetTrackedEndeavorIDs then
-                ids = addon.GetTrackedEndeavorIDs() or {}
-            end
-            HSPrint("|cFF00CCFF--- GetInitiativeTaskInfo dump (" .. #ids .. " tracked) ---|r")
-            for _, taskID in ipairs(ids) do
-                local getOk, info = pcall(C_NeighborhoodInitiative.GetInitiativeTaskInfo, taskID)
-                if getOk and info and type(info) == "table" then
-                    HSPrint("  Endeavor " .. tostring(taskID) .. " (" .. tostring(info.taskName or "?") .. "):")
-                    local keys = {}
-                    for k in pairs(info) do keys[#keys + 1] = k end
-                    table.sort(keys)
-                    for _, k in ipairs(keys) do
-                        local v = info[k]
-                        if type(v) == "table" then
-                            HSPrint("    " .. tostring(k) .. " = (table, #=" .. tostring(#v) .. ")")
-                        else
-                            HSPrint("    " .. tostring(k) .. " = " .. tostring(v))
-                        end
-                    end
-                else
-                    HSPrint("  Endeavor " .. tostring(taskID) .. ": GetInitiativeTaskInfo returned " .. (getOk and "nil" or ("error: " .. tostring(info))))
-                end
-            end
-        end
-
-    elseif cmd == "unaccepted" or cmd == "dwp" then
-        if addon.ShowUnacceptedPopup then
-            addon.ShowUnacceptedPopup()
-            HSPrint("Opened unaccepted quests popup.")
-        else
-            HSPrint("ShowUnacceptedPopup not available.")
-        end
-
-    elseif cmd == "profiledebug" then
-        HSPrint("|cFF00CCFF--- Profile Routing Debug ---|r")
-        local charName = _G.UnitName and _G.UnitName("player") or "?"
-        local realm = _G.GetNormalizedRealmName and _G.GetNormalizedRealmName() or "?"
-        local charFullKey = tostring(charName) .. "-" .. tostring(realm)
-        HSPrint("Character: " .. charFullKey)
-        local numSpecs = _G.GetNumSpecializations and _G.GetNumSpecializations() or "?"
-        local curSpec = _G.GetSpecialization and _G.GetSpecialization() or "?"
-        HSPrint("Specs: " .. tostring(numSpecs) .. " | Current spec index: " .. tostring(curSpec))
-        if _G.HorizonDB then
-            local db = _G.HorizonDB
-            HSPrint("useGlobalProfile: " .. tostring(db.useGlobalProfile))
-            HSPrint("globalProfileKey: " .. tostring(db.globalProfileKey))
-            HSPrint("usePerSpecProfiles: " .. tostring(db.usePerSpecProfiles))
-            -- Show per-character spec keys
-            local charSpecs = db.charPerSpecKeys and db.charPerSpecKeys[charFullKey:gsub("%s+", "")]
-            if charSpecs then
-                for i = 1, 4 do
-                    if charSpecs[i] then
-                        local specName = _G.GetSpecializationInfo and select(2, _G.GetSpecializationInfo(i)) or ("Spec " .. i)
-                        HSPrint("  charPerSpec[" .. i .. "] (" .. tostring(specName) .. "): " .. tostring(charSpecs[i]))
-                    end
-                end
-            else
-                HSPrint("  charPerSpecKeys: (none for this character)")
-            end
-            HSPrint("charProfileKeys:")
-            if db.charProfileKeys then
-                for ck, pk in pairs(db.charProfileKeys) do
-                    HSPrint("  " .. tostring(ck) .. " -> " .. tostring(pk))
-                end
-            end
-            HSPrint("Existing profiles:")
-            if db.profiles then
-                for k in pairs(db.profiles) do
-                    HSPrint("  " .. tostring(k))
-                end
-            end
-        end
-        local effectiveKey = addon.GetEffectiveProfileKey and addon.GetEffectiveProfileKey() or "?"
-        local activeKey = addon.GetActiveProfileKey and addon.GetActiveProfileKey() or "?"
-        HSPrint("GetEffectiveProfileKey(): " .. tostring(effectiveKey))
-        HSPrint("GetActiveProfileKey(): " .. tostring(activeKey))
-        if addon.GetActiveProfile then
-            local _, profileKey = addon.GetActiveProfile()
-            HSPrint("GetActiveProfile() key: " .. tostring(profileKey))
-        end
-
-    elseif cmd == "clicktodebug" then
-        HSPrint("|cFF00CCFF--- Click-to-complete debug ---|r")
-        if not C_QuestLog then
-            HSPrint("C_QuestLog: not available")
-        else
-            HSPrint("ShowQuestComplete: " .. (ShowQuestComplete and "yes" or "no"))
-            HSPrint("requireModifierForClickToComplete: " .. tostring(addon.GetDB("requireModifierForClickToComplete", false)))
-            local n = C_QuestLog.GetNumQuestWatches and C_QuestLog.GetNumQuestWatches() or 0
-            HSPrint("Tracked quests: " .. tostring(n))
-            local eligible = 0
-            for i = 1, n do
-                local qid = C_QuestLog.GetQuestIDForQuestWatchIndex and C_QuestLog.GetQuestIDForQuestWatchIndex(i)
-                if qid and qid > 0 then
-                    local title = C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(qid) or ("Quest " .. tostring(qid))
-                    local logIdx = C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(qid)
-                    local isComplete = C_QuestLog.IsComplete and C_QuestLog.IsComplete(qid)
-                    local isAuto = false
-                    if logIdx and C_QuestLog.GetInfo then
-                        local ok, info = pcall(C_QuestLog.GetInfo, logIdx)
-                        if ok and info then isAuto = info.isAutoComplete and true or false end
-                    end
-                    local status = (isAuto and isComplete) and "|cFF00FF00eligible|r" or "not eligible"
-                    if isAuto and isComplete then eligible = eligible + 1 end
-                    HSPrint("  [" .. tostring(qid) .. "] " .. tostring(title):sub(1, 40) .. " | complete=" .. tostring(isComplete) .. " | autoComplete=" .. tostring(isAuto) .. " | " .. status)
-                end
-            end
-            HSPrint("Eligible for click-to-complete: " .. tostring(eligible))
-        end
-
-    elseif cmd == "delvedebug" then
-        HSPrint("|cFF00CCFF--- Delve / Tier debug (run inside a Delve) ---|r")
-        if C_PartyInfo and C_PartyInfo.IsDelveInProgress then
-            local ok, v = pcall(C_PartyInfo.IsDelveInProgress)
-            HSPrint("IsDelveInProgress: " .. tostring(ok and v or (ok and "false") or ("error: " .. tostring(v))))
-        else
-            HSPrint("IsDelveInProgress: not available")
-        end
-        -- Primary: table CVar per-delve (Blizzard_DelvesDifficultyPicker)
-        if GetCVarTableValue and C_DelvesUI and C_DelvesUI.GetTieredEntrancePDEID then
-            local ok, pdeID = pcall(C_DelvesUI.GetTieredEntrancePDEID)
-            if ok and pdeID then
-                local vOk, tier = pcall(GetCVarTableValue, "lastSelectedTieredEntranceTier", pdeID, 0)
-                HSPrint("GetCVarTableValue(lastSelectedTieredEntranceTier, pdeID=" .. tostring(pdeID) .. "): " .. (vOk and tostring(tier) or ("error: " .. tostring(tier))))
-            end
-        end
-        -- Fallback: legacy simple CVar (may not exist; GetCVarNumberOrDefault can error if CVar unknown)
-        if GetCVarNumberOrDefault then
-            local ok, cvarTier = pcall(GetCVarNumberOrDefault, "lastSelectedDelvesTier", 1)
-            HSPrint("GetCVarNumberOrDefault(lastSelectedDelvesTier, 1): " .. (ok and tostring(cvarTier) or ("error: " .. tostring(cvarTier))))
-        end
-        if GetInstanceInfo then
-            local ok, name, instType, diffID, diffName = pcall(GetInstanceInfo)
-            if ok then
-                HSPrint("GetInstanceInfo: name=" .. tostring(name) .. " type=" .. tostring(instType) .. " diffID=" .. tostring(diffID) .. " diffName=" .. tostring(diffName))
-            end
-        end
-        -- Affix debug (for quest-block affix display)
-        if addon.GetDelvesAffixes then
-            local affixes = addon.GetDelvesAffixes()
-            if affixes and #affixes > 0 then
-                local names = {}
-                for _, a in ipairs(affixes) do names[#names + 1] = a.name or "(nil)" end
-                HSPrint("GetDelvesAffixes: " .. table.concat(names, ", "))
-            else
-                HSPrint("GetDelvesAffixes: nil or empty")
-                -- Debug: show both widget set sources (scenario step vs objective tracker)
-                if C_UIWidgetManager and C_UIWidgetManager.GetAllWidgetsBySetID and C_UIWidgetManager.GetScenarioHeaderDelvesWidgetVisualizationInfo then
-                    local stepSetID, objSetID
-                    if C_Scenario and C_Scenario.GetStepInfo then
-                        local ok, t = pcall(function() return { C_Scenario.GetStepInfo() } end)
-                        if ok and t and type(t) == "table" and #t >= 12 then
-                            local ws = t[12]
-                            if type(ws) == "number" and ws ~= 0 then stepSetID = ws end
-                        end
-                    end
-                    if C_UIWidgetManager.GetObjectiveTrackerWidgetSetID then
-                        local ok, s = pcall(C_UIWidgetManager.GetObjectiveTrackerWidgetSetID)
-                        if ok and s and type(s) == "number" then objSetID = s end
-                    end
-                    HSPrint(("  widgetSetID: GetStepInfo=%s GetObjectiveTracker=%s"):format(
-                        stepSetID and tostring(stepSetID) or "nil",
-                        objSetID and tostring(objSetID) or "nil"))
-                    local setID = stepSetID or objSetID
-                    if setID then
-                        local wOk, widgets = pcall(C_UIWidgetManager.GetAllWidgetsBySetID, setID)
-                        if wOk and widgets and type(widgets) == "table" then
-                            local n = 0
-                            for _ in pairs(widgets) do n = n + 1 end
-                            local WIDGET_DELVES = (Enum and Enum.UIWidgetVisualizationType and Enum.UIWidgetVisualizationType.ScenarioHeaderDelves) or 29
-                            HSPrint("  widgets: " .. tostring(n))
-                            for k, v in pairs(widgets) do
-                                local testID = (v and type(v) == "table" and v.widgetID) or (type(v) == "number" and v) or nil
-                                if testID and type(testID) == "number" then
-                                    local wType = (v and type(v) == "table") and v.widgetType
-                                    local isDelves = (wType == WIDGET_DELVES) and " [ScenarioHeaderDelves]" or ""
-                                    local dOk, wi = pcall(C_UIWidgetManager.GetScenarioHeaderDelvesWidgetVisualizationInfo, testID)
-                                    local spells = (dOk and wi and wi.spells) and #wi.spells or 0
-                                    HSPrint(("  widget k=%s id=%s type=%s%s -> %d spells"):format(
-                                        tostring(k), tostring(testID), tostring(wType or "?"), isDelves, spells))
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
 
     elseif cmd == "colorcheck" then
         if colorCheckState then
@@ -856,34 +407,479 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
         end
 
     else
-        HSPrint("Commands:")
-        HSPrint("  /horizon            - Show this help")
-        HSPrint("  /horizon toggle     - Enable / disable")
-        HSPrint("  /horizon collapse   - Collapse / expand panel")
-        HSPrint("  /horizon nearby     - Toggle Nearby (Current Zone) group")
-        HSPrint("  /horizon options    - Open options window")
-        HSPrint("  /horizon edit       - Open edit screen")
-        HSPrint("  /horizon testsound  - Play the rare-added notification sound")
-        HSPrint("  /horizon test       - Show with test data")
-        HSPrint("  /horizon testitem   - Inject one debug quest with item (real quests stay)")
-        HSPrint("  /horizon reset      - Reset to live data")
-        HSPrint("  /horizon resetpos   - Reset panel to default position")
-        HSPrint("  /horizon scendebug  - Toggle scenario timer debug logging")
-        HSPrint("  /horizon nearbydebug     - Print Current Zone / Nearby map and quest debug info")
-        HSPrint("  /horizon headercountdebug - Print header count (in-log) breakdown for debugging")
-        HSPrint("  /horizon delvedebug      - Dump Delve/tier APIs (run inside a Delve to find tier number)")
-        HSPrint("  /horizon mplusaffixdebug - Dump M+ affix APIs (run in M+ dungeon with key inserted)")
-        HSPrint("  /horizon endeavordebug   - Dump Endeavor APIs + GetInitiativeTaskInfo fields (for tooltip/rewards)")
-        HSPrint("  /horizon achievementdebug - Dump tracked achievement criteria/progress (diagnose missing progress)")
-        HSPrint("  /horizon unaccepted      - Show popup of unaccepted quests in current zone with type labels (test)")
-        HSPrint("  /horizon clicktodebug    - Debug: list tracked quests and which are eligible for click-to-complete")
-        HSPrint("  /horizon profiledebug    - Dump profile routing: char key, effective key, global/perSpec state")
-        HSPrint("  /horizon colorcheck      - Cycle focus colors (title/objective/zone/section/highlight), then restore")
-        HSPrint("")
-        HSPrint("  Click the header row to collapse / expand.")
-        HSPrint("  Scroll with mouse wheel when content overflows.")
-        HSPrint("  Drag the panel to reposition it (saved across sessions).")
-        HSPrint("  Left-click a quest or rare to super-track; Left-click auto-complete quests to complete them.")
-        HSPrint("  Shift+Left-click opens quest details; Right-click a quest to untrack, rare to clear super-track.")
+        ShowFocusShortHelp()
     end
+end
+
+-- ============================================================================
+-- FOCUS DEBUG HANDLER
+-- ============================================================================
+
+local function HandleFocusDebugSlash(msg)
+    local cmd = strtrim(msg or ""):lower()
+
+    if cmd == "" or cmd == "help" then
+        ShowFocusDebugHelp()
+        return
+    end
+
+    if cmd == "wqdebug" then
+        if addon.DumpWorldQuestDiscovery then
+            addon.DumpWorldQuestDiscovery()
+        else
+            HSPrint("DumpWorldQuestDiscovery not available.")
+        end
+
+    elseif cmd == "scendebug" then
+        local v = not (addon.GetDB and addon.GetDB("scenarioDebug", false))
+        if addon.SetDB then addon.SetDB("scenarioDebug", v) end
+        HSPrint("Scenario debug logging: " .. (v and "on" or "off"))
+        if addon.ScheduleRefresh then addon.ScheduleRefresh() end
+
+    elseif cmd == "mplusdebug" then
+        addon.mplusDebugPreview = not addon.mplusDebugPreview
+        if addon.FullLayout then addon.FullLayout() end
+        HSPrint("M+ block debug preview: " .. (addon.mplusDebugPreview and "on" or "off"))
+
+    elseif cmd == "mplusaffixdebug" then
+        local mapId = C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID and C_ChallengeMode.GetActiveChallengeMapID()
+        HSPrint("--- M+ Affix Debug ---")
+        HSPrint("GetActiveChallengeMapID: " .. (mapId and tostring(mapId) or "nil"))
+        if not mapId then
+            HSPrint("  (Not in an active challenge; run in M+ dungeon with key inserted)")
+            return
+        end
+        if C_ChallengeMode and C_ChallengeMode.GetMapUIInfo then
+            local name, _, timeLimit = C_ChallengeMode.GetMapUIInfo(mapId)
+            HSPrint("MapUIInfo: name=" .. tostring(name) .. " timeLimit=" .. tostring(timeLimit))
+        end
+        if C_ChallengeMode and C_ChallengeMode.GetActiveKeystoneInfo then
+            local ok, level, affixes, wasEnergized = pcall(C_ChallengeMode.GetActiveKeystoneInfo)
+            if ok then
+                HSPrint("GetActiveKeystoneInfo: level=" .. tostring(level) .. " wasEnergized=" .. tostring(wasEnergized))
+                if affixes and type(affixes) == "table" then
+                    local ids = {}
+                    for i = 1, #affixes do ids[#ids + 1] = tostring(affixes[i]) end
+                    HSPrint("  affixes (IDs): " .. (#ids > 0 and table.concat(ids, ", ") or "empty"))
+                    for i = 1, #affixes do
+                        local id = affixes[i]
+                        if id and type(id) == "number" and C_ChallengeMode.GetAffixInfo then
+                            local aOk, name, desc, iconFileID = pcall(C_ChallengeMode.GetAffixInfo, id)
+                            if aOk and name then
+                                HSPrint("    ID " .. tostring(id) .. " -> " .. tostring(name))
+                            else
+                                HSPrint("    ID " .. tostring(id) .. " -> GetAffixInfo error or empty")
+                            end
+                        end
+                    end
+                else
+                    HSPrint("  affixes: " .. (affixes == nil and "nil" or type(affixes)))
+                end
+            else
+                HSPrint("GetActiveKeystoneInfo error: " .. tostring(level))
+            end
+        end
+        if C_MythicPlus and C_MythicPlus.GetCurrentAffixes then
+            local ok, currentAffixes = pcall(C_MythicPlus.GetCurrentAffixes)
+            if ok and currentAffixes and type(currentAffixes) == "table" then
+                local parts = {}
+                for _, a in ipairs(currentAffixes) do
+                    local id = (a and type(a) == "table" and a.id) or (type(a) == "number" and a) or nil
+                    if id then parts[#parts + 1] = tostring(id) end
+                end
+                HSPrint("GetCurrentAffixes: " .. (#parts > 0 and table.concat(parts, ", ") or "empty"))
+            else
+                HSPrint("GetCurrentAffixes: " .. (ok and "empty/nil" or ("error: " .. tostring(currentAffixes))))
+            end
+        else
+            HSPrint("GetCurrentAffixes: API not available")
+        end
+        if addon.GetMplusData then
+            local data = addon.GetMplusData()
+            if data and data.affixes then
+                if #data.affixes > 0 then
+                    local names = {}
+                    for _, a in ipairs(data.affixes) do names[#names + 1] = a.name or "(nil)" end
+                    HSPrint("GetMplusData.affixes (final): " .. table.concat(names, ", "))
+                else
+                    HSPrint("GetMplusData.affixes: empty")
+                end
+            else
+                HSPrint("GetMplusData: nil or no affixes key")
+            end
+        else
+            HSPrint("GetMplusData: not available")
+        end
+        HSPrint("--- End M+ Affix Debug ---")
+
+    elseif cmd == "groupdebug" then
+        HSPrint("|cFF00CCFF--- Group Quest Debug ---|r")
+        local pool = addon.pool
+        if pool then
+            for i = 1, addon.POOL_SIZE do
+                local e = pool[i]
+                if e and e.questID and e.questID > 0 and e:IsShown() then
+                    local qid = e.questID
+                    local title = (e.titleText and e.titleText:GetText()) or tostring(qid)
+                    local parts = { ("|cFFFFFF00%s|r (ID %d):"):format(title, qid) }
+                    if C_QuestLog and C_QuestLog.GetQuestTagInfo then
+                        local ok, ti = pcall(C_QuestLog.GetQuestTagInfo, qid)
+                        if ok and ti then
+                            parts[#parts+1] = ("  tagID=%s worldQuestType=%s tagName=%s"):format(
+                                tostring(ti.tagID), tostring(ti.worldQuestType), tostring(ti.tagName))
+                        else
+                            parts[#parts+1] = "  GetQuestTagInfo: nil"
+                        end
+                    end
+                    if C_TaskQuest and C_TaskQuest.GetQuestInfoByQuestID then
+                        local ok, info = pcall(C_TaskQuest.GetQuestInfoByQuestID, qid)
+                        if ok and info then
+                            if type(info) == "table" then
+                                local keys = {}
+                                for k, v in pairs(info) do keys[#keys+1] = k .. "=" .. tostring(v) end
+                                parts[#parts+1] = "  TaskQuestInfo: " .. table.concat(keys, ", ")
+                            else
+                                parts[#parts+1] = "  TaskQuestInfo: " .. tostring(info) .. " (type=" .. type(info) .. ")"
+                            end
+                        else
+                            parts[#parts+1] = "  TaskQuestInfo: nil"
+                        end
+                    end
+                    if C_QuestLog and C_QuestLog.GetLogIndexForQuestID then
+                        local logIdx = C_QuestLog.GetLogIndexForQuestID(qid)
+                        if logIdx and C_QuestLog.GetInfo then
+                            local ok, info = pcall(C_QuestLog.GetInfo, logIdx)
+                            if ok and info then
+                                parts[#parts+1] = ("  suggestedGroup=%s"):format(tostring(info.suggestedGroup))
+                            end
+                        else
+                            parts[#parts+1] = "  Not in quest log"
+                        end
+                    end
+                    local isGroup = addon.IsGroupQuest and addon.IsGroupQuest(qid) or false
+                    parts[#parts+1] = ("  |cFF00FF00IsGroupQuest = %s|r"):format(tostring(isGroup))
+                    for _, line in ipairs(parts) do
+                        HSPrint(line)
+                    end
+                end
+            end
+        end
+        HSPrint("|cFF00CCFF--- End Group Quest Debug ---|r")
+
+    elseif cmd == "nearbydebug" then
+        if addon.GetNearbyDebugInfo then
+            HSPrint("|cFF00CCFF--- Nearby / Current Zone debug ---|r")
+            for _, line in ipairs(addon.GetNearbyDebugInfo()) do
+                HSPrint(line)
+            end
+        else
+            HSPrint("GetNearbyDebugInfo not available.")
+        end
+
+    elseif cmd == "headercountdebug" then
+        if addon.DebugHeaderCount then
+            addon.DebugHeaderCount()
+        else
+            HSPrint("DebugHeaderCount not available.")
+        end
+
+    elseif cmd == "achievementdebug" then
+        HSPrint("|cFF00CCFF--- Achievement Tracking Debug ---|r")
+        local TRACKING_TYPE_ACHIEVEMENT = (Enum and Enum.ContentTrackingType and Enum.ContentTrackingType.Achievement) or 2
+        local idList = {}
+        if C_ContentTracking and C_ContentTracking.GetTrackedIDs then
+            local ids = C_ContentTracking.GetTrackedIDs(TRACKING_TYPE_ACHIEVEMENT)
+            if ids and type(ids) == "table" then
+                for _, id in ipairs(ids) do
+                    if type(id) == "number" and id > 0 then idList[#idList + 1] = id end
+                end
+            end
+        elseif GetTrackedAchievements then
+            for i = 1, 10 do
+                local id = select(i, GetTrackedAchievements())
+                if type(id) == "number" and id > 0 then idList[#idList + 1] = id end
+            end
+        end
+        HSPrint("Tracked achievement IDs: " .. (#idList > 0 and table.concat(idList, ", ") or "none"))
+        for _, achID in ipairs(idList) do
+            HSPrint("|cFFFFCC00Achievement " .. tostring(achID) .. ":|r")
+            if GetAchievementInfo then
+                local aOk, id, name, points, completed, month, day, year, description, flags, icon = pcall(GetAchievementInfo, achID)
+                if aOk then
+                    HSPrint("  name=" .. tostring(name) .. "  completed=" .. tostring(completed) .. "  points=" .. tostring(points))
+                    HSPrint("  description=" .. tostring(description))
+                else
+                    HSPrint("  GetAchievementInfo FAILED: " .. tostring(id))
+                end
+            end
+            local numCriteria = 0
+            if GetAchievementNumCriteria then
+                local nOk, n = pcall(GetAchievementNumCriteria, achID)
+                if nOk and type(n) == "number" then numCriteria = n end
+                HSPrint("  numCriteria=" .. tostring(nOk and n or "error"))
+            end
+            if GetAchievementCriteriaInfo and numCriteria > 0 then
+                for ci = 1, math.min(numCriteria, 15) do
+                    local cOk, criteriaString, criteriaType, completedCrit, quantity, reqQuantity, charName, cflags, assetID, quantityString, criteriaID =
+                        pcall(GetAchievementCriteriaInfo, achID, ci)
+                    if cOk then
+                        HSPrint(("  [%d] str=%q type=%s done=%s qty=%s/%s qtyStr=%q criteriaID=%s"):format(
+                            ci, tostring(criteriaString or ""), tostring(criteriaType), tostring(completedCrit),
+                            tostring(quantity), tostring(reqQuantity), tostring(quantityString or ""), tostring(criteriaID or "?")))
+                    else
+                        HSPrint(("  [%d] GetAchievementCriteriaInfo FAILED: %s"):format(ci, tostring(criteriaString)))
+                    end
+                end
+                if numCriteria > 15 then
+                    HSPrint("  ... (" .. tostring(numCriteria - 15) .. " more criteria)")
+                end
+            elseif numCriteria == 0 then
+                HSPrint("  (no criteria)")
+            end
+        end
+        HSPrint("|cFF00CCFF--- End Achievement Debug ---|r")
+
+    elseif cmd == "endeavordebug" then
+        HSPrint("|cFF00CCFF--- Endeavor API debug ---|r")
+        HSPrint("C_ContentTracking: " .. (C_ContentTracking and "yes" or "no"))
+        if Enum and Enum.ContentTrackingType then
+            local t = {}
+            for k, v in pairs(Enum.ContentTrackingType) do
+                if type(v) == "number" then t[#t + 1] = k .. "=" .. tostring(v) end
+            end
+            HSPrint("ContentTrackingType: " .. table.concat(t, ", "))
+        end
+        for _, typ in ipairs({ 0, 1, 2, 3, 4, 5 }) do
+            if C_ContentTracking and C_ContentTracking.GetTrackedIDs then
+                local ok, ids = pcall(C_ContentTracking.GetTrackedIDs, typ)
+                if ok and ids and type(ids) == "table" and #ids > 0 then
+                    HSPrint("  GetTrackedIDs(" .. typ .. "): " .. #ids .. " ids: " .. table.concat(ids, ", "))
+                end
+            end
+        end
+        HSPrint("C_Endeavors: " .. (C_Endeavors and "yes" or "no"))
+        if C_Endeavors then
+            for _, fn in ipairs({ "GetTrackedIDs", "GetEndeavorInfo", "GetInfo", "GetActiveEndeavorID" }) do
+                if C_Endeavors[fn] then HSPrint("  C_Endeavors." .. fn .. ": yes") end
+            end
+        end
+        HSPrint("C_PlayerHousing: " .. (C_PlayerHousing and "yes" or "no"))
+        if C_PlayerHousing then
+            for _, fn in ipairs({ "GetActiveEndeavorID", "GetActiveEndeavorInfo", "GetEndeavorInfo" }) do
+                if C_PlayerHousing[fn] then HSPrint("  C_PlayerHousing." .. fn .. ": yes") end
+            end
+        end
+        HSPrint("C_NeighborhoodInitiative: " .. (C_NeighborhoodInitiative and "yes" or "no"))
+        if C_NeighborhoodInitiative then
+            for _, fn in ipairs({ "GetTrackedInitiativeTasks", "GetInitiativeTaskInfo", "RemoveTrackedInitiativeTask", "GetInitiativeTaskChatLink" }) do
+                if C_NeighborhoodInitiative[fn] then HSPrint("  C_NeighborhoodInitiative." .. fn .. ": yes") end
+            end
+        end
+        HSPrint("HousingFramesUtil: " .. (HousingFramesUtil and "yes" or "no"))
+        if HousingFramesUtil and HousingFramesUtil.OpenFrameToTaskID then
+            HSPrint("  HousingFramesUtil.OpenFrameToTaskID: yes")
+        end
+        HSPrint("ReadTrackedEndeavors count: " .. (addon.ReadTrackedEndeavors and #addon.ReadTrackedEndeavors() or 0))
+        HSPrint("ReadTrackedDecor count: " .. (addon.ReadTrackedDecor and #addon.ReadTrackedDecor() or 0))
+        if C_NeighborhoodInitiative and C_NeighborhoodInitiative.GetTrackedInitiativeTasks and C_NeighborhoodInitiative.GetInitiativeTaskInfo then
+            local ok, result = pcall(C_NeighborhoodInitiative.GetTrackedInitiativeTasks)
+            local ids = {}
+            if ok and result then
+                if result.trackedIDs and type(result.trackedIDs) == "table" then
+                    ids = result.trackedIDs
+                elseif type(result) == "table" and #result > 0 then
+                    ids = result
+                end
+            end
+            if #ids == 0 and addon.GetTrackedEndeavorIDs then
+                ids = addon.GetTrackedEndeavorIDs() or {}
+            end
+            HSPrint("|cFF00CCFF--- GetInitiativeTaskInfo dump (" .. #ids .. " tracked) ---|r")
+            for _, taskID in ipairs(ids) do
+                local getOk, info = pcall(C_NeighborhoodInitiative.GetInitiativeTaskInfo, taskID)
+                if getOk and info and type(info) == "table" then
+                    HSPrint("  Endeavor " .. tostring(taskID) .. " (" .. tostring(info.taskName or "?") .. "):")
+                    local keys = {}
+                    for k in pairs(info) do keys[#keys + 1] = k end
+                    table.sort(keys)
+                    for _, k in ipairs(keys) do
+                        local v = info[k]
+                        if type(v) == "table" then
+                            HSPrint("    " .. tostring(k) .. " = (table, #=" .. tostring(#v) .. ")")
+                        else
+                            HSPrint("    " .. tostring(k) .. " = " .. tostring(v))
+                        end
+                    end
+                else
+                    HSPrint("  Endeavor " .. tostring(taskID) .. ": GetInitiativeTaskInfo returned " .. (getOk and "nil" or ("error: " .. tostring(info))))
+                end
+            end
+        end
+
+    elseif cmd == "unaccepted" then
+        if addon.ShowUnacceptedPopup then
+            addon.ShowUnacceptedPopup()
+            HSPrint("Opened unaccepted quests popup.")
+        else
+            HSPrint("ShowUnacceptedPopup not available.")
+        end
+
+    elseif cmd == "profiledebug" then
+        HSPrint("|cFF00CCFF--- Profile Routing Debug ---|r")
+        local charName = _G.UnitName and _G.UnitName("player") or "?"
+        local realm = _G.GetNormalizedRealmName and _G.GetNormalizedRealmName() or "?"
+        local charFullKey = tostring(charName) .. "-" .. tostring(realm)
+        HSPrint("Character: " .. charFullKey)
+        local numSpecs = _G.GetNumSpecializations and _G.GetNumSpecializations() or "?"
+        local curSpec = _G.GetSpecialization and _G.GetSpecialization() or "?"
+        HSPrint("Specs: " .. tostring(numSpecs) .. " | Current spec index: " .. tostring(curSpec))
+        if _G.HorizonDB then
+            local db = _G.HorizonDB
+            HSPrint("useGlobalProfile: " .. tostring(db.useGlobalProfile))
+            HSPrint("globalProfileKey: " .. tostring(db.globalProfileKey))
+            HSPrint("usePerSpecProfiles: " .. tostring(db.usePerSpecProfiles))
+            local charSpecs = db.charPerSpecKeys and db.charPerSpecKeys[charFullKey:gsub("%s+", "")]
+            if charSpecs then
+                for i = 1, 4 do
+                    if charSpecs[i] then
+                        local specName = _G.GetSpecializationInfo and select(2, _G.GetSpecializationInfo(i)) or ("Spec " .. i)
+                        HSPrint("  charPerSpec[" .. i .. "] (" .. tostring(specName) .. "): " .. tostring(charSpecs[i]))
+                    end
+                end
+            else
+                HSPrint("  charPerSpecKeys: (none for this character)")
+            end
+            HSPrint("charProfileKeys:")
+            if db.charProfileKeys then
+                for ck, pk in pairs(db.charProfileKeys) do
+                    HSPrint("  " .. tostring(ck) .. " -> " .. tostring(pk))
+                end
+            end
+            HSPrint("Existing profiles:")
+            if db.profiles then
+                for k in pairs(db.profiles) do
+                    HSPrint("  " .. tostring(k))
+                end
+            end
+        end
+        local effectiveKey = addon.GetEffectiveProfileKey and addon.GetEffectiveProfileKey() or "?"
+        local activeKey = addon.GetActiveProfileKey and addon.GetActiveProfileKey() or "?"
+        HSPrint("GetEffectiveProfileKey(): " .. tostring(effectiveKey))
+        HSPrint("GetActiveProfileKey(): " .. tostring(activeKey))
+        if addon.GetActiveProfile then
+            local _, profileKey = addon.GetActiveProfile()
+            HSPrint("GetActiveProfile() key: " .. tostring(profileKey))
+        end
+
+    elseif cmd == "clicktodebug" then
+        HSPrint("|cFF00CCFF--- Click-to-complete debug ---|r")
+        if not C_QuestLog then
+            HSPrint("C_QuestLog: not available")
+        else
+            HSPrint("ShowQuestComplete: " .. (ShowQuestComplete and "yes" or "no"))
+            HSPrint("requireModifierForClickToComplete: " .. tostring(addon.GetDB("requireModifierForClickToComplete", false)))
+            local n = C_QuestLog.GetNumQuestWatches and C_QuestLog.GetNumQuestWatches() or 0
+            HSPrint("Tracked quests: " .. tostring(n))
+            local eligible = 0
+            for i = 1, n do
+                local qid = C_QuestLog.GetQuestIDForQuestWatchIndex and C_QuestLog.GetQuestIDForQuestWatchIndex(i)
+                if qid and qid > 0 then
+                    local title = C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(qid) or ("Quest " .. tostring(qid))
+                    local logIdx = C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(qid)
+                    local isComplete = C_QuestLog.IsComplete and C_QuestLog.IsComplete(qid)
+                    local isAuto = false
+                    if logIdx and C_QuestLog.GetInfo then
+                        local ok, info = pcall(C_QuestLog.GetInfo, logIdx)
+                        if ok and info then isAuto = info.isAutoComplete and true or false end
+                    end
+                    local status = (isAuto and isComplete) and "|cFF00FF00eligible|r" or "not eligible"
+                    if isAuto and isComplete then eligible = eligible + 1 end
+                    HSPrint("  [" .. tostring(qid) .. "] " .. tostring(title):sub(1, 40) .. " | complete=" .. tostring(isComplete) .. " | autoComplete=" .. tostring(isAuto) .. " | " .. status)
+                end
+            end
+            HSPrint("Eligible for click-to-complete: " .. tostring(eligible))
+        end
+
+    elseif cmd == "delvedebug" then
+        HSPrint("|cFF00CCFF--- Delve / Tier debug (run inside a Delve) ---|r")
+        if C_PartyInfo and C_PartyInfo.IsDelveInProgress then
+            local ok, v = pcall(C_PartyInfo.IsDelveInProgress)
+            HSPrint("IsDelveInProgress: " .. tostring(ok and v or (ok and "false") or ("error: " .. tostring(v))))
+        else
+            HSPrint("IsDelveInProgress: not available")
+        end
+        if GetCVarTableValue and C_DelvesUI and C_DelvesUI.GetTieredEntrancePDEID then
+            local ok, pdeID = pcall(C_DelvesUI.GetTieredEntrancePDEID)
+            if ok and pdeID then
+                local vOk, tier = pcall(GetCVarTableValue, "lastSelectedTieredEntranceTier", pdeID, 0)
+                HSPrint("GetCVarTableValue(lastSelectedTieredEntranceTier, pdeID=" .. tostring(pdeID) .. "): " .. (vOk and tostring(tier) or ("error: " .. tostring(tier))))
+            end
+        end
+        if GetCVarNumberOrDefault then
+            local ok, cvarTier = pcall(GetCVarNumberOrDefault, "lastSelectedDelvesTier", 1)
+            HSPrint("GetCVarNumberOrDefault(lastSelectedDelvesTier, 1): " .. (ok and tostring(cvarTier) or ("error: " .. tostring(cvarTier))))
+        end
+        if GetInstanceInfo then
+            local ok, name, instType, diffID, diffName = pcall(GetInstanceInfo)
+            if ok then
+                HSPrint("GetInstanceInfo: name=" .. tostring(name) .. " type=" .. tostring(instType) .. " diffID=" .. tostring(diffID) .. " diffName=" .. tostring(diffName))
+            end
+        end
+        if addon.GetDelvesAffixes then
+            local affixes = addon.GetDelvesAffixes()
+            if affixes and #affixes > 0 then
+                local names = {}
+                for _, a in ipairs(affixes) do names[#names + 1] = a.name or "(nil)" end
+                HSPrint("GetDelvesAffixes: " .. table.concat(names, ", "))
+            else
+                HSPrint("GetDelvesAffixes: nil or empty")
+                if C_UIWidgetManager and C_UIWidgetManager.GetAllWidgetsBySetID and C_UIWidgetManager.GetScenarioHeaderDelvesWidgetVisualizationInfo then
+                    local stepSetID, objSetID
+                    if C_Scenario and C_Scenario.GetStepInfo then
+                        local ok, t = pcall(function() return { C_Scenario.GetStepInfo() } end)
+                        if ok and t and type(t) == "table" and #t >= 12 then
+                            local ws = t[12]
+                            if type(ws) == "number" and ws ~= 0 then stepSetID = ws end
+                        end
+                    end
+                    if C_UIWidgetManager.GetObjectiveTrackerWidgetSetID then
+                        local ok, s = pcall(C_UIWidgetManager.GetObjectiveTrackerWidgetSetID)
+                        if ok and s and type(s) == "number" then objSetID = s end
+                    end
+                    HSPrint(("  widgetSetID: GetStepInfo=%s GetObjectiveTracker=%s"):format(
+                        stepSetID and tostring(stepSetID) or "nil",
+                        objSetID and tostring(objSetID) or "nil"))
+                    local setID = stepSetID or objSetID
+                    if setID then
+                        local wOk, widgets = pcall(C_UIWidgetManager.GetAllWidgetsBySetID, setID)
+                        if wOk and widgets and type(widgets) == "table" then
+                            local n = 0
+                            for _ in pairs(widgets) do n = n + 1 end
+                            local WIDGET_DELVES = (Enum and Enum.UIWidgetVisualizationType and Enum.UIWidgetVisualizationType.ScenarioHeaderDelves) or 29
+                            HSPrint("  widgets: " .. tostring(n))
+                            for k, v in pairs(widgets) do
+                                local testID = (v and type(v) == "table" and v.widgetID) or (type(v) == "number" and v) or nil
+                                if testID and type(testID) == "number" then
+                                    local wType = (v and type(v) == "table") and v.widgetType
+                                    local isDelves = (wType == WIDGET_DELVES) and " [ScenarioHeaderDelves]" or ""
+                                    local dOk, wi = pcall(C_UIWidgetManager.GetScenarioHeaderDelvesWidgetVisualizationInfo, testID)
+                                    local spells = (dOk and wi and wi.spells) and #wi.spells or 0
+                                    HSPrint(("  widget k=%s id=%s type=%s%s -> %d spells"):format(
+                                        tostring(k), tostring(testID), tostring(wType or "?"), isDelves, spells))
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+    else
+        ShowFocusDebugHelp()
+    end
+end
+
+addon.RegisterSlashHandler("focus", HandleFocusSlash)
+if addon.RegisterSlashHandlerDebug then
+    addon.RegisterSlashHandlerDebug("focus", HandleFocusDebugSlash)
 end
