@@ -897,11 +897,15 @@ local function PopulateEntry(entry, questData, groupKey)
             -- Item button is the only gutter element, sits at the right edge.
             entry.itemBtn:SetPoint("TOPRIGHT", entry, "TOPRIGHT", 0, 2)
         end
-        entry.itemBtn:Show()
+        if not InCombatLockdown() then
+            entry.itemBtn:Show()
+        end
         addon.ApplyItemCooldown(entry.itemBtn.cooldown, questData.itemLink)
     else
         entry.itemLink = nil
-        entry.itemBtn:Hide()
+        if not InCombatLockdown() then
+            entry.itemBtn:Hide()
+        end
         if not InCombatLockdown() then
             entry.itemBtn:SetAttribute("item", nil)
         end

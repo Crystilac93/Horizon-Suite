@@ -6,6 +6,10 @@ All notable changes to Horizon Suite are documented here.
 
 ## [Unreleased]
 
+### 🐛 Fixes
+
+- **(Focus)** Full layout now runs during combat — Accepting, completing, or abandoning quests while in combat immediately adds/removes/updates entries instead of deferring all changes until combat ends. Only secure button operations (quest item buttons) are deferred.
+
 <!-- Changelog entries are generated from closed GitHub Issues at release time. -->
 
 ---

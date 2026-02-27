@@ -260,11 +260,9 @@ end
 local lastMinimal = false
 local function FullLayout()
     if not addon.focus.enabled then return end
-    if InCombatLockdown() then
-        addon.focus.layoutPendingAfterCombat = true
-        return
+    if not InCombatLockdown() then
+        addon.focus.layoutPendingAfterCombat = false
     end
-    addon.focus.layoutPendingAfterCombat = false
 
     if not addon.ShouldShowInInstance() then
         addon.HS:Hide()

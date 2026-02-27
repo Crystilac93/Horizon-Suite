@@ -621,38 +621,42 @@ local function ClearEntry(entry, full)
                 bar._expiredAt = nil
             end
         end
-        if not InCombatLockdown() then
-            entry:Hide()
-            if entry.itemBtn then entry.itemBtn:Hide() end
-            if entry.lfgBtn then entry.lfgBtn:Hide() end
-            if entry.trackBar then entry.trackBar:Hide() end
-            if entry.affixText then entry.affixText:Hide() end
-            if entry.affixShadow then entry.affixShadow:Hide() end
-            if entry.wqTimerText then entry.wqTimerText:Hide() end
-            if entry.inlineTimerText then entry.inlineTimerText:Hide() end
-            if entry.wqProgressBg then entry.wqProgressBg:Hide() end
-            if entry.wqProgressFill then entry.wqProgressFill:Hide() end
-            if entry.wqProgressText then entry.wqProgressText:Hide() end
-            if entry.scenarioTimerBars then
-                for _, bar in ipairs(entry.scenarioTimerBars) do
-                    bar:Hide()
+        -- Hide regular (non-secure) frames immediately — safe during combat.
+        entry:Hide()
+        if entry.lfgBtn then entry.lfgBtn:Hide() end
+        if entry.trackBar then entry.trackBar:Hide() end
+        if entry.affixText then entry.affixText:Hide() end
+        if entry.affixShadow then entry.affixShadow:Hide() end
+        if entry.wqTimerText then entry.wqTimerText:Hide() end
+        if entry.inlineTimerText then entry.inlineTimerText:Hide() end
+        if entry.wqProgressBg then entry.wqProgressBg:Hide() end
+        if entry.wqProgressFill then entry.wqProgressFill:Hide() end
+        if entry.wqProgressText then entry.wqProgressText:Hide() end
+        if entry.scenarioTimerBars then
+            for _, bar in ipairs(entry.scenarioTimerBars) do
+                bar:Hide()
+            end
+        end
+        if entry.objectives then
+            for j = 1, addon.MAX_OBJECTIVES do
+                local obj = entry.objectives[j]
+                if obj then
+                    obj._hsFinished = nil
+                    obj._hsAlpha = nil
+                    if obj.progressBarBg then obj.progressBarBg:Hide() end
+                    if obj.progressBarFill then obj.progressBarFill:Hide() end
+                    if obj.progressBarLabel then obj.progressBarLabel:Hide() end
                 end
             end
-            if entry.objectives then
-                for j = 1, addon.MAX_OBJECTIVES do
-                    local obj = entry.objectives[j]
-                    if obj then
-                        obj._hsFinished = nil
-                        obj._hsAlpha = nil
-                        if obj.progressBarBg then obj.progressBarBg:Hide() end
-                        if obj.progressBarFill then obj.progressBarFill:Hide() end
-                        if obj.progressBarLabel then obj.progressBarLabel:Hide() end
-                    end
-                end
+        end
+        -- SecureActionButton: can only be hidden outside combat.
+        if entry.itemBtn then
+            if not InCombatLockdown() then
+                entry.itemBtn:Hide()
+            else
+                addon.focus.pendingEntryHideAfterCombat = addon.focus.pendingEntryHideAfterCombat or {}
+                addon.focus.pendingEntryHideAfterCombat[entry] = true
             end
-        else
-            addon.focus.pendingEntryHideAfterCombat = addon.focus.pendingEntryHideAfterCombat or {}
-            addon.focus.pendingEntryHideAfterCombat[entry] = true
         end
     end
 end

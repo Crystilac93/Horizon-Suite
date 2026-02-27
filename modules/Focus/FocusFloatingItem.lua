@@ -119,7 +119,9 @@ end)
 
 local function UpdateFloatingQuestItem(questsFlat)
     if addon.ShouldHideInCombat() or not addon.GetDB("showFloatingQuestItem", false) then
-        floatingQuestItemBtn:Hide()
+        if not InCombatLockdown() then
+            floatingQuestItemBtn:Hide()
+        end
         return
     end
     local superTracked = (C_SuperTrack and C_SuperTrack.GetSuperTrackedQuestID) and C_SuperTrack.GetSuperTrackedQuestID() or 0
@@ -201,11 +203,15 @@ local function UpdateFloatingQuestItem(questsFlat)
         elseif addon.focus.combat.faded and addon.GetCombatFadeAlpha then
             floatingQuestItemBtn:SetAlpha(addon.GetCombatFadeAlpha())
         end
-        floatingQuestItemBtn:Show()
+        if not InCombatLockdown() then
+            floatingQuestItemBtn:Show()
+        end
         UpdateKeybindLabel()
         addon.ApplyItemCooldown(floatingQuestItemBtn.cooldown, chosenLink)
     else
-        floatingQuestItemBtn:Hide()
+        if not InCombatLockdown() then
+            floatingQuestItemBtn:Hide()
+        end
     end
 end
 

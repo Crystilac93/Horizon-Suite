@@ -73,10 +73,7 @@ local function ScheduleRefresh()
         if not addon.focus.enabled then return end
         if InCombatLockdown() then
             addon.focus.layoutPendingAfterCombat = true
-            if addon.RefreshContentInCombat then addon.RefreshContentInCombat() end
-            return
         end
-        addon.focus.layoutPendingAfterCombat = false
         if addon.FullLayout then addon.FullLayout() end
     end)
 end
@@ -262,7 +259,7 @@ local function OnInstanceEntered()
     if not addon.focus.enabled then return end
     C_Timer.After(0.2, function()
         if not addon.focus.enabled then return end
-        if addon.FullLayout and not InCombatLockdown() then
+        if addon.FullLayout then
             addon.FullLayout()
         end
     end)
@@ -575,20 +572,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         if pending then
             addon.focus.pendingEntryHideAfterCombat = nil
             for entry in next, pending do
-                entry:Hide()
                 if entry.itemBtn then entry.itemBtn:Hide() end
-                if entry.trackBar then entry.trackBar:Hide() end
-                if entry.affixText then entry.affixText:Hide() end
-                if entry.affixShadow then entry.affixShadow:Hide() end
-                if entry.wqTimerText then entry.wqTimerText:Hide() end
-                if entry.wqProgressBg then entry.wqProgressBg:Hide() end
-                if entry.wqProgressFill then entry.wqProgressFill:Hide() end
-                if entry.wqProgressText then entry.wqProgressText:Hide() end
-                if entry.scenarioTimerBars then
-                    for _, bar in ipairs(entry.scenarioTimerBars) do
-                        bar:Hide()
-                    end
-                end
             end
         end
     end
