@@ -163,8 +163,16 @@ local function OnAddonLoaded(addonName)
     end
     if addonName == "Blizzard_LevelUpDisplay" or addonName == "Blizzard_RaidBossEmoteFrame" or addonName == "Blizzard_EventToastManager" then
         if addon:IsModuleEnabled("presence") and addon.Presence.ApplyBlizzardSuppression then
+            -- Suppress immediately (no delay) so Blizzard can't show frames in between
+            addon.Presence.ApplyBlizzardSuppression()
+            if addonName == "Blizzard_EventToastManager" and addon.Presence.HookEventToastManager then
+                addon.Presence.HookEventToastManager()
+            end
+            -- Also sweep after a short delay to catch deferred init
             C_Timer.After(0.05, function()
-                addon.Presence.ApplyBlizzardSuppression()
+                if addon:IsModuleEnabled("presence") and addon.Presence.ApplyBlizzardSuppression then
+                    addon.Presence.ApplyBlizzardSuppression()
+                end
             end)
         end
     end

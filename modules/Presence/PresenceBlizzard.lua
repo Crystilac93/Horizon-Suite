@@ -18,6 +18,7 @@ local suppressedFrames = {}
 local originalParents = {}
 local originalPoints = {}
 local originalAlphas = {}
+local hookedShowFrames = {}  -- frames with persistent hooksecurefunc("Show") applied
 local ZONE_TEXT_EVENTS = { "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED_NEW_AREA" }
 
 -- Option check with fallback; must match OptionsData/PresenceEvents logic.
@@ -37,11 +38,13 @@ local function KillBlizzardFrame(frame)
     if not frame then return end
     local ok1, err1 = pcall(function()
         frame:UnregisterAllEvents()
+        if not suppressedFrames[frame] then
+            originalParents[frame] = frame:GetParent()
+            local p, r, rp, x, y = frame:GetPoint(1)
+            originalPoints[frame] = p and { p, r, rp, x, y } or nil
+            originalAlphas[frame] = frame:GetAlpha()
+        end
         suppressedFrames[frame] = true
-        originalParents[frame] = frame:GetParent()
-        local p, r, rp, x, y = frame:GetPoint(1)
-        originalPoints[frame] = p and { p, r, rp, x, y } or nil
-        originalAlphas[frame] = frame:GetAlpha()
         frame:SetParent(hiddenParent)
         frame:Hide()
         frame:SetAlpha(0)
@@ -51,6 +54,16 @@ local function KillBlizzardFrame(frame)
         frame:SetScript("OnShow", function(self) self:Hide() end)
     end)
     if not ok2 and addon.HSPrint then addon.HSPrint("Presence KillBlizzardFrame OnShow hook failed: " .. tostring(err2)) end
+    if not hookedShowFrames[frame] then
+        hookedShowFrames[frame] = true
+        pcall(function()
+            hooksecurefunc(frame, "Show", function(self)
+                if suppressedFrames[self] then
+                    self:Hide()
+                end
+            end)
+        end)
+    end
 end
 
 -- pcall: frame methods can throw on protected or invalid frames.
@@ -83,6 +96,9 @@ end
 -- ============================================================================
 -- Public functions
 -- ============================================================================
+
+-- Forward declarations for reload-safe suppression (defined later)
+local HookEventToastManager
 
 --- Apply per-type Blizzard suppression. Suppress only frames for types that are ON;
 --- restore frames for types that are OFF so default WoW notifications show.
@@ -175,6 +191,7 @@ end
 --- @return nil
 local function SuppressBlizzard()
     ApplyBlizzardSuppression()
+    HookEventToastManager()
 end
 
 --- Restore all suppressed Blizzard frames when Presence is disabled.
@@ -256,6 +273,116 @@ local function KillWorldQuestBanner()
 end
 
 -- ============================================================================
+-- RELOAD-SAFE SUPPRESSION
+-- ============================================================================
+-- On reload/login, Blizzard re-initializes frames and may queue pending toasts,
+-- achievements, or scenario updates before our ADDON_LOADED handler runs.
+
+local reloadSweepTicker = nil
+local eventToastHooked = false
+
+local function SweepSuppressedFrames()
+    for frame in pairs(suppressedFrames) do
+        pcall(function()
+            if frame:IsShown() then
+                frame:Hide()
+            end
+            frame:SetAlpha(0)
+            if frame.GetChildren then
+                for _, child in ipairs({ frame:GetChildren() }) do
+                    if child and child.IsShown and child:IsShown() then
+                        pcall(function() child:Hide() end)
+                    end
+                end
+            end
+        end)
+    end
+end
+
+HookEventToastManager = function()
+    if eventToastHooked then return end
+    local etm = EventToastManagerFrame or _G["EventToastManagerFrame"]
+    if not etm then return end
+    eventToastHooked = true
+
+    if etm.DisplayToast then
+        pcall(function()
+            hooksecurefunc(etm, "DisplayToast", function(self)
+                if suppressedFrames[self] then
+                    pcall(function()
+                        self:Hide()
+                        self:SetAlpha(0)
+                    end)
+                end
+            end)
+        end)
+    end
+
+    for _, methodName in ipairs({ "ShowNextToast", "ReleaseToasts", "ShowToast" }) do
+        if etm[methodName] then
+            pcall(function()
+                hooksecurefunc(etm, methodName, function(self)
+                    if suppressedFrames[self] then
+                        pcall(function()
+                            self:Hide()
+                            self:SetAlpha(0)
+                        end)
+                    end
+                end)
+            end)
+        end
+    end
+end
+
+local function DrainAlertFrameQueue()
+    pcall(function()
+        if not AlertFrame then return end
+        if AlertFrame.alertQueue and type(AlertFrame.alertQueue) == "table" then
+            wipe(AlertFrame.alertQueue)
+        end
+        if AlertFrame.GetChildren then
+            for _, child in ipairs({ AlertFrame:GetChildren() }) do
+                if child and child.IsShown and child:IsShown() then
+                    pcall(function() child:Hide() end)
+                end
+            end
+        end
+    end)
+end
+
+local function StartReloadSweep()
+    if reloadSweepTicker then
+        reloadSweepTicker:Cancel()
+        reloadSweepTicker = nil
+    end
+    local sweepCount = 0
+    local MAX_SWEEPS = 20  -- 20 ticks × 0.25s = 5 seconds of sweeping
+    reloadSweepTicker = C_Timer.NewTicker(0.25, function()
+        sweepCount = sweepCount + 1
+        if not addon:IsModuleEnabled("presence") or sweepCount >= MAX_SWEEPS then
+            if reloadSweepTicker then
+                reloadSweepTicker:Cancel()
+                reloadSweepTicker = nil
+            end
+            return
+        end
+        SweepSuppressedFrames()
+        DrainAlertFrameQueue()
+    end)
+end
+
+local reloadGuardFrame = CreateFrame("Frame")
+reloadGuardFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+reloadGuardFrame:SetScript("OnEvent", function(self, event)
+    if not addon:IsModuleEnabled("presence") then return end
+    ApplyBlizzardSuppression()
+    HookEventToastManager()
+    SweepSuppressedFrames()
+    DrainAlertFrameQueue()
+    StartReloadSweep()
+end)
+
+-- ============================================================================
 -- Exports
 -- ============================================================================
 
@@ -265,3 +392,4 @@ addon.Presence.ApplyBlizzardSuppression = ApplyBlizzardSuppression
 addon.Presence.ReapplyZoneSuppression   = ReapplyZoneSuppression
 addon.Presence.DumpBlizzardSuppression = DumpBlizzardSuppression
 addon.Presence.KillWorldQuestBanner     = KillWorldQuestBanner
+addon.Presence.HookEventToastManager   = HookEventToastManager
