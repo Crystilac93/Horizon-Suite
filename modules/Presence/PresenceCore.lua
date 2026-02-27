@@ -739,8 +739,7 @@ PlayCinematic = function(typeName, title, subtitle, opts)
         local showIcon = false
         local atlas
         local questRelated = (typeName == "QUEST_ACCEPT" or typeName == "QUEST_COMPLETE" or typeName == "QUEST_UPDATE" or typeName == "WORLD_QUEST" or typeName == "WORLD_QUEST_ACCEPT")
-        local presenceVal = addon.GetDB and addon.GetDB("showPresenceQuestTypeIcons", nil)
-        local showIcons = (presenceVal ~= nil) and presenceVal or (addon.GetDB and addon.GetDB("showQuestTypeIcons", false))
+        local showIcons = addon.GetDB and addon.GetDB("showPresenceQuestTypeIcons", true)
         if questRelated and opts.questID and addon.GetQuestTypeAtlas and addon.GetDB and showIcons then
             local catForAtlas = "DEFAULT"
             if typeName == "QUEST_COMPLETE" then
@@ -1034,7 +1033,7 @@ local function DumpDebug()
     end
 
     if addon.GetDB then
-        p("Options: showPresenceDiscovery=" .. tostring(addon.GetDB("showPresenceDiscovery", true)) .. ", showPresenceQuestTypeIcons=" .. tostring(addon.GetDB("showPresenceQuestTypeIcons", false)) .. ", presenceIconSize=" .. tostring(addon.GetDB("presenceIconSize", 24)))
+        p("Options: showPresenceDiscovery=" .. tostring(addon.GetDB("showPresenceDiscovery", true)) .. ", showPresenceQuestTypeIcons=" .. tostring(addon.GetDB("showPresenceQuestTypeIcons", true)) .. ", presenceIconSize=" .. tostring(addon.GetDB("presenceIconSize", 24)))
     end
 
     if GetZoneText then

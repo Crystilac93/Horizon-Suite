@@ -632,13 +632,13 @@ local function UpdateMplusBlock()
     end
 
     -- Check visibility settings
-    local showInDungeon = addon.GetDB("showInDungeon", false)
+    local showBlock = addon.GetDB("showMythicPlusBlock", true)
     local alwaysShow = addon.GetDB("mplusAlwaysShow", false)
     local hasActiveKeystone = C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID and C_ChallengeMode.GetActiveChallengeMapID() ~= nil
 
-    -- "Show in dungeon" ON  → show the M+ block.
-    -- "Show in dungeon" OFF → only show if "Always show M+ block" is ON.
-    local shouldShow = hasActiveKeystone and (showInDungeon or alwaysShow)
+    -- "Show Mythic+ block" ON  → show the M+ block.
+    -- "Show Mythic+ block" OFF → only show if "Always show M+ block" is ON.
+    local shouldShow = hasActiveKeystone and (showBlock or alwaysShow)
     
     if not shouldShow then
         mplusBlock:Hide()

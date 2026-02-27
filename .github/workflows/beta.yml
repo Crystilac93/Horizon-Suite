@@ -60,7 +60,8 @@ jobs:
           else
             TAG_DATE="2020-01-01"
           fi
-          # Use Issues API (closed_at) instead of search to avoid index lag; exclude PRs, filter by closed_at >= tag date
+          echo "LAST_TAG=$LAST_TAG TAG_DATE=$TAG_DATE"
+          # Aligned with Release.mdc: gh issue list (issues only), search closed:>=TAG_DATE, filter by closedAt
           FEATURES=""
           IMPROVEMENTS=""
           FIXES=""
@@ -86,7 +87,7 @@ jobs:
             elif [[ "$labels" =~ \bbug\b ]]; then
               FIXES="${FIXES}${bullet}"$'\n'
             fi
-          done < <(gh api "repos/$GITHUB_REPOSITORY/issues?state=closed&sort=updated&direction=desc&per_page=100" 2>/dev/null | jq -c --arg tagdate "$TAG_DATE" '.[] | select(.pull_request == null) | select(.closed_at != null) | select(.closed_at >= ($tagdate + "T00:00:00Z")) | {number, title, labels}' 2>/dev/null || true)
+          done < <(gh issue list --state closed --search "closed:>=${TAG_DATE}" --json number,title,labels,closedAt --limit 100 2>/dev/null | jq -c --arg tagdate "$TAG_DATE" '.[] | select(.closedAt != null) | select(.closedAt >= ($tagdate + "T00:00:00Z")) | {number, title, labels}' 2>/dev/null || true)
           SECTIONS=""
           [ -n "$FEATURES" ] && SECTIONS="${SECTIONS}### ✨ New Features"$'\n\n'"$FEATURES"$'\n'
           [ -n "$IMPROVEMENTS" ] && SECTIONS="${SECTIONS}### 🔧 Improvements"$'\n\n'"$IMPROVEMENTS"$'\n'

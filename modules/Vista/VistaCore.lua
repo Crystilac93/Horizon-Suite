@@ -133,8 +133,8 @@ do
     -- Visibility toggles
     G.ShowZone      = function() return DB("vistaShowZoneText",   true)  end
     G.ShowCoord     = function() return DB("vistaShowCoordText",  true)  end
-    G.ShowTime      = function() return DB("vistaShowTimeText",   false) end
-    G.TimeUseLocal  = function() return DB("vistaTimeUseLocal",   false) end
+    G.ShowTime      = function() return DB("vistaShowTimeText",   true) end
+    G.TimeUseLocal  = function() return DB("vistaTimeUseLocal",   true) end
     G.ZoneDisplayMode = function() return DB("vistaZoneDisplayMode", "zone") end
 
     -- Vertical positions
