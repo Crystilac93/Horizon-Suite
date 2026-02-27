@@ -68,12 +68,28 @@ end
 local easeOut = addon.easeOut or function(t) return 1 - (1 - t) * (1 - t) end
 local TOGGLE_ANIM_DUR = 0.15
 
+-- Apply optional hover tooltip to option rows (desc = inline; tooltip = hover detail).
+local function ApplyOptionTooltip(frame, tooltip)
+    if not tooltip or tooltip == "" then return end
+    local tt = type(tooltip) == "function" and tooltip() or tooltip
+    if not tt or tt == "" then return end
+    frame:EnableMouse(true)
+    frame:SetScript("OnEnter", function()
+        GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
+        GameTooltip:SetText(tt, 1, 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    frame:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+end
+
 -- Rounded pill toggle: 48x22 track with inset for softer look, 18px thumb. On = accent fill, Off = dark.
 local TOGGLE_TRACK_W, TOGGLE_TRACK_H = 48, 22
 local TOGGLE_INSET = 2
 local TOGGLE_THUMB_SIZE = 18
 
-function OptionsWidgets_CreateToggleSwitch(parent, labelText, description, get, set, disabledFn)
+function OptionsWidgets_CreateToggleSwitch(parent, labelText, description, get, set, disabledFn, tooltip)
     local row = CreateFrame("Frame", nil, parent)
     row:SetHeight(38)
     local searchText = (labelText or "") .. " " .. (description or "")
@@ -197,6 +213,7 @@ function OptionsWidgets_CreateToggleSwitch(parent, labelText, description, get, 
     end
 
     row:Refresh()
+    ApplyOptionTooltip(row, tooltip)
     return row
 end
 
@@ -241,6 +258,7 @@ function OptionsWidgets_CreateButton(parent, labelText, onClick, opts)
         SetTextColor(lbl, Def.TextColorLabel)
     end)
 
+    ApplyOptionTooltip(btn, opts.tooltip)
     return btn
 end
 
@@ -248,7 +266,7 @@ end
 local SLIDER_TRACK_HEIGHT = 6
 local SLIDER_THUMB_SIZE = 14
 local SLIDER_TRACK_INSET = 2
-function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, minVal, maxVal, disabledFn, step)
+function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, minVal, maxVal, disabledFn, step, tooltip)
     -- step: snapping increment (default 1 = integer). Use e.g. 0.1 for one decimal place.
     step = step or 1
     local decimals = 0
@@ -448,6 +466,7 @@ function OptionsWidgets_CreateSlider(parent, labelText, description, get, set, m
     end
 
     row:Refresh()
+    ApplyOptionTooltip(row, tooltip)
     return row
 end
 
@@ -463,7 +482,7 @@ local SECTION_CARD_BACKDROP = {
 
 -- Custom dropdown: button + popup list (no UIDropDownMenuTemplate)
 -- When searchable is true, adds an EditBox above the list to filter options by name (e.g. font dropdown).
-function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, options, get, set, displayFn, searchable, disabledFn)
+function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, options, get, set, displayFn, searchable, disabledFn, tooltip)
     local labelFn = type(labelText) == "function" and labelText or nil
     local resolvedLabel = labelFn and labelFn() or labelText
     local row = CreateFrame("Frame", nil, parent)
@@ -834,6 +853,7 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
     end
 
     row:Refresh()
+    ApplyOptionTooltip(row, tooltip)
     return row
 end
 
@@ -928,7 +948,7 @@ end
 -- Color swatch row: label + clickable swatch (for colorMatrix/colorGroup in options panel).
 -- defaultTbl: {r,g,b} or nil (nil => {0.5,0.5,0.5}). getTbl() returns current color or nil. setKeyVal({r,g,b}), notify() on change.
 -- disabledFn: optional function() return boolean end; when true, greys out and disables the swatch.
-function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultTbl, getTbl, setKeyVal, notify, disabledFn, hasAlpha)
+function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultTbl, getTbl, setKeyVal, notify, disabledFn, hasAlpha, tooltip)
     local row = CreateFrame("Frame", nil, parent)
     row:SetSize(280, 24)
     row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -4)
@@ -1058,6 +1078,7 @@ function OptionsWidgets_CreateColorSwatchRow(parent, anchor, labelText, defaultT
         end
     end
     row:Refresh()
+    ApplyOptionTooltip(row, tooltip)
     return row
 end
 
@@ -1618,7 +1639,7 @@ function OptionsWidgets_CreateReorderList(parent, anchor, opt, scrollFrameRef, p
     local presetH = presetRow and (8 + 56) or 0
     local totalH = Def.CardPadding + 14 + presetH + (#keys * (REORDER_ROW_HEIGHT + REORDER_ROW_GAP)) + 6 + 22 + Def.CardPadding
     container:SetHeight(totalH)
-    container.searchText = (opt.name or "order") .. " " .. (opt.desc or opt.tooltip or "")
+    container.searchText = ((opt.name or "order") .. " " .. (opt.desc or "") .. " " .. (opt.tooltip or "")):lower()
     function container:Refresh()
         local newKeys = opt.get and opt.get() or {}
         if type(newKeys) == "function" then newKeys = newKeys() end

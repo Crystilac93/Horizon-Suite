@@ -15,20 +15,6 @@ local COLLAPSE_CANCEL_DEBOUNCE_SEC  = 2
 local COMPLETED_OBJECTIVE_FADE_ALPHA = 0.4
 local MIN_TICK_SIZE                  = 10
 
-local function FormatTimeLeftSeconds(seconds)
-    if not seconds or seconds < 0 then return nil end
-    local m = math.floor(seconds / 60)
-    local s = math.floor(seconds % 60)
-    return ("%02d:%02d"):format(m, s)
-end
-
-local function FormatTimeLeftMinutes(minutes)
-    if not minutes or minutes < 0 then return nil end
-    local m = math.floor(minutes)
-    local s = math.floor((minutes - m) * 60)
-    return ("%02d:%02d"):format(m, s)
-end
-
 --- Toggles full-panel collapsed/expanded state. Starts collapse animation or cancels in-progress collapse.
 local function ToggleCollapse()
     if addon.focus.collapse.animating then
@@ -557,13 +543,13 @@ local function RefreshContentInCombat()
                 local isScenario = questData.category == "SCENARIO"
                 local hasEntryTimer = (questData.timerDuration and questData.timerStartTime) and true or false
                 local isGenericTimed = (not isScenario) and hasEntryTimer and not questData.isRare
-                local showTimerBarsToggle = addon.GetDB("showTimerBars", true)
+                local showTimerBarsToggle = addon.GetDB("showTimerBars", false)
                 if showTimerBarsToggle and (((isWorld or isScenario) and not questData.isRare) or isGenericTimed) then
                     local timerStr
                     if questData.timeLeftSeconds and questData.timeLeftSeconds > 0 then
-                        timerStr = FormatTimeLeftSeconds(questData.timeLeftSeconds)
+                        timerStr = addon.FormatTimeRemaining(questData.timeLeftSeconds)
                     elseif questData.timeLeft and questData.timeLeft > 0 then
-                        timerStr = FormatTimeLeftMinutes(questData.timeLeft)
+                        timerStr = addon.FormatTimeRemainingFromMinutes(questData.timeLeft)
                     end
                     if timerStr then
                         local showTimer = isScenario or isGenericTimed or addon.GetDB("showWorldQuestTimer", true)

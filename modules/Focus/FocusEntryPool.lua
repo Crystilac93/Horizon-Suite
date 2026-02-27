@@ -344,9 +344,8 @@ local function UpdateScenarioBar(bar, now, category)
     local pct = (d > 0) and (remaining / d) or 0
     local w = bar:GetWidth() or 1
     bar.Fill:SetWidth(math.max(2, w * pct))
-    local m = math.floor(remaining / 60)
-    local sec = math.floor(remaining % 60)
-    bar.Label:SetText(("%02d:%02d"):format(m, sec))
+    local labelText = addon.FormatTimeRemaining(remaining)
+    bar.Label:SetText(labelText)
     -- Same format as quest progress bars: use progFillColor and progTextColor
     local colorCat = category or "SCENARIO"
     local progFillColor

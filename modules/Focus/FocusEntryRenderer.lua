@@ -319,23 +319,9 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
     return totalH, prevAnchor
 end
 
-local function FormatTimeLeftSeconds(seconds)
-    if not seconds or seconds < 0 then return nil end
-    local m = math.floor(seconds / 60)
-    local s = math.floor(seconds % 60)
-    return ("%02d:%02d"):format(m, s)
-end
-
-local function FormatTimeLeftMinutes(minutes)
-    if not minutes or minutes < 0 then return nil end
-    local m = math.floor(minutes)
-    local s = math.floor((minutes - m) * 60)
-    return ("%02d:%02d"):format(m, s)
-end
-
 local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor, totalH)
     -- Master toggle for timer / reverse-progress bars.
-    local showTimerBars = addon.GetDB("showTimerBars", true)
+    local showTimerBars = addon.GetDB("showTimerBars", false)
 
     if questData.category == "DELVES" or not showTimerBars then
         entry.wqTimerText:Hide()
@@ -467,9 +453,9 @@ local function ApplyScenarioOrWQTimerBar(entry, questData, textWidth, prevAnchor
 
         local timerStr
         if questData.timeLeftSeconds and questData.timeLeftSeconds > 0 then
-            timerStr = FormatTimeLeftSeconds(questData.timeLeftSeconds)
+            timerStr = addon.FormatTimeRemaining(questData.timeLeftSeconds)
         elseif questData.timeLeft and questData.timeLeft > 0 then
-            timerStr = FormatTimeLeftMinutes(questData.timeLeft)
+            timerStr = addon.FormatTimeRemainingFromMinutes(questData.timeLeft)
         end
 
         local showTimer

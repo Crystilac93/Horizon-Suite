@@ -503,7 +503,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             anchor = currentCard
         elseif opt.type == "toggle" and currentCard then
             local cardContent = currentCard.contentContainer or currentCard
-            local w = OptionsWidgets_CreateToggleSwitch(cardContent, opt.name, opt.desc or opt.tooltip, opt.get, opt.set, opt.disabled)
+            local w = OptionsWidgets_CreateToggleSwitch(cardContent, opt.name, opt.desc or opt.tooltip, opt.get, opt.set, opt.disabled, opt.tooltip)
             w:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -OptionGap)
             w:SetPoint("RIGHT", currentCard, "RIGHT", -CardPadding, 0)
             currentCard.contentAnchor = w
@@ -513,7 +513,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
             table.insert(refreshers, w)
         elseif opt.type == "slider" and currentCard then
             local cardContent = currentCard.contentContainer or currentCard
-            local w = OptionsWidgets_CreateSlider(cardContent, opt.name, opt.desc or opt.tooltip, opt.get, opt.set, opt.min, opt.max, opt.disabled, opt.step)
+            local w = OptionsWidgets_CreateSlider(cardContent, opt.name, opt.desc or opt.tooltip, opt.get, opt.set, opt.min, opt.max, opt.disabled, opt.step, opt.tooltip)
             w:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -OptionGap)
             w:SetPoint("RIGHT", currentCard, "RIGHT", -CardPadding, 0)
             currentCard.contentAnchor = w
@@ -524,7 +524,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
         elseif opt.type == "dropdown" and currentCard then
              local cardContent = currentCard.contentContainer or currentCard
              local searchable = (opt.dbKey == "fontPath") or (opt.searchable == true)
-             local w = OptionsWidgets_CreateCustomDropdown(cardContent, opt.name, opt.desc or opt.tooltip, opt.options or {}, opt.get, opt.set, opt.displayFn, searchable, opt.disabled)
+             local w = OptionsWidgets_CreateCustomDropdown(cardContent, opt.name, opt.desc or opt.tooltip, opt.options or {}, opt.get, opt.set, opt.displayFn, searchable, opt.disabled, opt.tooltip)
              w:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -OptionGap)
              w:SetPoint("RIGHT", currentCard, "RIGHT", -CardPadding, 0)
              currentCard.contentAnchor = w
@@ -569,7 +569,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
                 setKeyVal = function(v) setDB(opt.dbKey, v) end
             end
             local cardContent = currentCard.contentContainer or currentCard
-            local row = OptionsWidgets_CreateColorSwatchRow(cardContent, currentCard.contentAnchor, opt.name or "Color", def, getTbl, setKeyVal, notifyMainAddon, nil, hasAlpha)
+            local row = OptionsWidgets_CreateColorSwatchRow(cardContent, currentCard.contentAnchor, opt.name or "Color", def, getTbl, setKeyVal, notifyMainAddon, nil, hasAlpha, opt.tooltip)
             currentCard.contentAnchor = row
             currentCard.contentHeight = currentCard.contentHeight + OptionGap + RowHeights.colorRow
             local oid = opt.dbKey or (addon.OptionCategories[tabIndex].key .. "_" .. (opt.name or ""):gsub("%s+", "_"))
@@ -586,7 +586,7 @@ local function BuildCategory(tab, tabIndex, options, refreshers, optionFrames)
                     end
                 end
                 notifyMainAddon()
-            end, { height = 22 })
+            end, { height = 22, tooltip = opt.tooltip })
             btn:SetPoint("TOPLEFT", currentCard.contentAnchor, "BOTTOMLEFT", 0, -OptionGap)
             btn:SetPoint("RIGHT", currentCard, "RIGHT", -CardPadding, 0)
             currentCard.contentAnchor = btn

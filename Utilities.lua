@@ -81,6 +81,39 @@ function addon.ApplyBlizzardFloatingQuestItemStyle(btn)
 end
 
 -- ============================================================================
+-- TIME FORMATTING
+-- ============================================================================
+
+--- Format remaining time in seconds as "Xd Xh Xm Xs" (days, hours, minutes, seconds).
+--- Shows only the most significant non-zero units to keep the string compact.
+--- @param seconds number Remaining time in seconds (>= 0)
+--- @return string|nil Formatted string, or nil if invalid
+function addon.FormatTimeRemaining(seconds)
+    if not seconds or type(seconds) ~= "number" or seconds < 0 then return nil end
+    local s = math.floor(seconds % 60)
+    local m = math.floor(seconds / 60) % 60
+    local h = math.floor(seconds / 3600) % 24
+    local d = math.floor(seconds / 86400)
+    if d > 0 then
+        return ("%dd %dh %dm"):format(d, h, m)
+    elseif h > 0 then
+        return ("%dh %dm %ds"):format(h, m, s)
+    elseif m > 0 then
+        return ("%dm %ds"):format(m, s)
+    else
+        return ("%ds"):format(s)
+    end
+end
+
+--- Convert minutes (e.g. from C_TaskQuest.GetQuestTimeLeftMinutes) to seconds and format.
+--- @param minutes number Time left in minutes
+--- @return string|nil Formatted string, or nil if invalid
+function addon.FormatTimeRemainingFromMinutes(minutes)
+    if not minutes or type(minutes) ~= "number" or minutes < 0 then return nil end
+    return addon.FormatTimeRemaining(minutes * 60)
+end
+
+-- ============================================================================
 -- BORDERS & TEXT
 -- ============================================================================
 
