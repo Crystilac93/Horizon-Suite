@@ -54,6 +54,7 @@ L["Auto-remove completed activities"] = true
 L["Auto-track accepted quests"] = true
 L["Auto-track icon"] = true
 L["AVAILABLE IN ZONE"] = true
+L["EVENTS IN ZONE"] = "Events in Zone"
 L["Azerite Mining"] = true
 L["Backdrop color"] = true
 L["Backdrop opacity"] = true

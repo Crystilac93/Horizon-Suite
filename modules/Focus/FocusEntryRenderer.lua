@@ -856,7 +856,7 @@ local function PopulateEntry(entry, questData, groupKey)
         entry.inlineTimerText:Hide()
     end
 
-    local effectiveCat = (addon.GetEffectiveColorCategory and addon.GetEffectiveColorCategory(questData.category, groupKey, questData.baseCategory)) or questData.category
+    local effectiveCat = (addon.GetEffectiveColorCategory and addon.GetEffectiveColorCategory(questData.category, groupKey, questData.baseCategory, questData.isEventQuest)) or questData.category
     local c = (addon.GetTitleColor and addon.GetTitleColor(effectiveCat)) or questData.color
     if not c or type(c) ~= "table" or not c[1] or not c[2] or not c[3] then
         c = addon.QUEST_COLORS and addon.QUEST_COLORS.DEFAULT or { 0.9, 0.9, 0.9 }
@@ -1015,6 +1015,7 @@ local function PopulateEntry(entry, questData, groupKey)
     end
 
     entry.baseCategory = questData.baseCategory
+    entry.isEventQuest = questData.isEventQuest and true or false
     entry.isComplete = questData.isComplete and true or false
     entry.isSuperTracked = questData.isSuperTracked and true or false
     entry.isDungeonQuest = questData.isDungeonQuest and true or false

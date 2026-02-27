@@ -98,6 +98,7 @@ addon.ZONE_COLOR      = { 0.55, 0.65, 0.75 }
 
 addon.QUEST_COLORS = {
     DEFAULT   = { 0.90, 0.90, 0.90 },
+    AVAILABLE = { 0.25, 0.88, 0.92 },  -- cyan/teal, matches SECTION_COLORS.AVAILABLE (Available in Zone)
     NEARBY    = { 0.35, 0.75, 0.98 },  -- sky blue, matches SECTION_COLORS.NEARBY (Current Zone)
     CAMPAIGN  = { 1.00, 0.82, 0.20 },
     IMPORTANT = { 1.00, 0.45, 0.80 },  -- pink to match importantavailablequesticon
@@ -153,7 +154,7 @@ addon.SECTION_LABELS = {
     RAID      = "RAID",
     DELVES    = "DELVES",
     SCENARIO  = "SCENARIO EVENTS",
-    AVAILABLE = "AVAILABLE IN ZONE",
+    AVAILABLE = "EVENTS IN ZONE",
     NEARBY    = "CURRENT ZONE",
     CAMPAIGN  = "CAMPAIGN",
     IMPORTANT = "IMPORTANT",

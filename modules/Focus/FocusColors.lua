@@ -43,7 +43,8 @@ end
 
 -- When override toggles are on, Completed and Current Zone sections use their row colours for all elements.
 -- When off, COMPLETE/NEARBY use baseCategory (the underlying quest type) for colours.
-local function GetEffectiveColorCategory(category, groupKey, baseCategory)
+-- isEventQuest: when true and groupKey is NEARBY, use AVAILABLE colour so event quests keep it when accepted.
+local function GetEffectiveColorCategory(category, groupKey, baseCategory, isEventQuest)
     if not category then return groupKey or "DEFAULT" end
     local cm = GetColorMatrix()
     local ov = cm and cm.overrides and type(cm.overrides) == "table" and cm.overrides or {}
@@ -53,8 +54,16 @@ local function GetEffectiveColorCategory(category, groupKey, baseCategory)
     if groupKey == "COMPLETE" and baseCategory then
         return baseCategory  -- Use underlying category when override is off
     end
+    -- NEARBY: event quests (moved from Events in Zone when accepted) keep the same colour.
+    if groupKey == "NEARBY" and isEventQuest then
+        return "AVAILABLE"
+    end
     if groupKey == "NEARBY" and ov.useCurrentZoneOverride then
         return "NEARBY"
+    end
+    -- AVAILABLE (Events in Zone): all entries use the same colour.
+    if groupKey == "AVAILABLE" then
+        return "AVAILABLE"
     end
     return category
 end

@@ -336,6 +336,7 @@ local function ReadTrackedQuests()
             isAutoComplete = isAutoComplete,
             isAutoAdded = isAutoAdded,
             isInQuestArea = isInQuestArea,
+            isEventQuest = opts.isEventQuest,
             isGroupQuest = isGroupQuest,
             timerDuration = timerDuration,
             timerStartTime = timerStartTime,

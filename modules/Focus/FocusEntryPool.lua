@@ -617,6 +617,7 @@ local function ClearEntry(entry, full)
     entry.groupKey   = nil
     entry.category   = nil
     entry.baseCategory = nil
+    entry.isEventQuest = nil
     entry.isComplete = nil
     entry.isSuperTracked = nil
     entry.isDungeonQuest = nil

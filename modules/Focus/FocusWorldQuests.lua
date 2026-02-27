@@ -470,7 +470,8 @@ local function GetWorldAndCallingQuestIDsToShow(nearbySet, taskQuestOnlySet)
                 isTracked = true
             end
             local isAutoAdded = (not isTracked) and (not isFromWQT)
-            out[#out + 1] = { questID = questID, isTracked = isTracked, isInQuestArea = isInQuestArea, forceCategory = forceCategory, isAutoAdded = isAutoAdded }
+            local isEventQuest = (fromTaskQuestMap and not isWorld and not isCalling)
+            out[#out + 1] = { questID = questID, isTracked = isTracked, isInQuestArea = isInQuestArea, forceCategory = forceCategory, isAutoAdded = isAutoAdded, isEventQuest = isEventQuest }
         end
     end
     return out
@@ -486,7 +487,7 @@ local function CollectWorldQuests(ctx)
     for _, entry in ipairs(raw) do
         out[#out + 1] = {
             questID = entry.questID,
-            opts = { isTracked = entry.isTracked, isInQuestArea = entry.isInQuestArea, forceCategory = entry.forceCategory, isAutoAdded = entry.isAutoAdded }
+            opts = { isTracked = entry.isTracked, isInQuestArea = entry.isInQuestArea, forceCategory = entry.forceCategory, isAutoAdded = entry.isAutoAdded, isEventQuest = entry.isEventQuest }
         }
     end
     return out
