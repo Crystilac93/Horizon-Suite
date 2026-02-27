@@ -469,6 +469,26 @@ local function ProcessUnitTooltip()
     Insight.sepR, Insight.sepG, Insight.sepB = sepR, sepG, sepB
     local cached = guid and inspectCache[guid]
 
+    -- Self-unit: populate inspect cache directly (no NotifyInspect round-trip)
+    -- to avoid the INSPECT_READY → SetUnit tooltip rebuild flicker.
+    if not cached and isPlayer and UnitIsUnit(unit, "player") then
+        local specIdx = GetSpecialization()
+        if specIdx then
+            local _, specName, _, specIcon, role = GetSpecializationInfo(specIdx)
+            local _, equipped = GetAverageItemLevel()
+            if specName then
+                inspectCache[guid] = {
+                    specName = specName,
+                    specIcon = specIcon,
+                    role     = role,
+                    ilvl     = (equipped and equipped > 0) and equipped or nil,
+                    time     = GetTime(),
+                }
+                cached = inspectCache[guid]
+            end
+        end
+    end
+
     -- 1. Name line: faction icon + faction colour
     local nameLeft = _G["GameTooltipTextLeft1"]
     if nameLeft then
@@ -614,7 +634,7 @@ local function ProcessUnitTooltip()
             EnsureStatsSep()
             GameTooltip:AddLine("Item Level: " .. FormatNumberWithCommas(cached.ilvl), ILVL_COLOR[1], ILVL_COLOR[2], ILVL_COLOR[3])
         end
-    else
+    elseif not UnitIsUnit(unit, "player") then
         RequestInspect(unit)
     end
 
