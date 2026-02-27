@@ -128,6 +128,7 @@ The options panel is localized for:
 - **Korean (koKR)** — `options/koKR.lua`
 - **Brazilian Portuguese (ptBR)** — `options/ptBR.lua`
 - **Russian (ruRU)** — `options/ruRU.lua`
+- **Spanish (esES)** — `options/esES.lua`
 
 Contributions for additional locales are welcome via discord request.
 
