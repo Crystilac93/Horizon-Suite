@@ -3,9 +3,9 @@
     OptionCategories (Profiles, Modules, Layout, Display, Typography, Interactions, Instances, Content, Colors, Hidden Quests, Presence General/Notifications/Typography, Insight, Vista Minimap/Appearance/Addon Buttons, Yield), getDB/setDB/notifyMainAddon, search index.
 ]]
 
-if not HorizonDB then HorizonDB = {} end
-local addon = _G.HorizonSuite
+local addon = _G._HorizonSuite_Loading or _G.HorizonSuiteBeta or _G.HorizonSuite
 if not addon then return end
+if not _G[addon.DB_NAME] then _G[addon.DB_NAME] = {} end
 
 local L = addon.L
 
@@ -322,7 +322,7 @@ end
 
 --- Lightweight notify for live color picker: updates visuals without FullLayout.
 function OptionsData_NotifyMainAddon_Live()
-    local applyTy = _G.HorizonSuite_ApplyTypography or addon.ApplyTypography
+    local applyTy = addon.ApplyTypography or _G.HorizonSuite_ApplyTypography
     if applyTy then applyTy() end
     if addon.ApplyBackdropOpacity then addon.ApplyBackdropOpacity() end
     if addon.ApplyBorderVisibility then addon.ApplyBorderVisibility() end
@@ -331,13 +331,16 @@ function OptionsData_NotifyMainAddon_Live()
 end
 
 function OptionsData_NotifyMainAddon()
-    local applyTy = _G.HorizonSuite_ApplyTypography or addon.ApplyTypography
+    local applyTy = addon.ApplyTypography or _G.HorizonSuite_ApplyTypography
     if applyTy then applyTy() end
-    if _G.HorizonSuite_ApplyDimensions then _G.HorizonSuite_ApplyDimensions() end
+    if addon.ApplyDimensions then addon.ApplyDimensions()
+    elseif _G.HorizonSuite_ApplyDimensions then _G.HorizonSuite_ApplyDimensions() end
     if addon.ApplyBackdropOpacity then addon.ApplyBackdropOpacity() end
     if addon.ApplyBorderVisibility then addon.ApplyBorderVisibility() end
-    if _G.HorizonSuite_RequestRefresh then _G.HorizonSuite_RequestRefresh() end
-    if _G.HorizonSuite_FullLayout and not InCombatLockdown() then _G.HorizonSuite_FullLayout() end
+    if addon.RequestRefresh then addon.RequestRefresh()
+    elseif _G.HorizonSuite_RequestRefresh then _G.HorizonSuite_RequestRefresh() end
+    local fullLayout = addon.FullLayout or _G.HorizonSuite_FullLayout
+    if fullLayout and not InCombatLockdown() then fullLayout() end
 end
 
 -- ---------------------------------------------------------------------------
@@ -852,7 +855,8 @@ local OptionCategories = {
                 if addon.Presence and addon.Presence.ApplyPresenceOptions then addon.Presence.ApplyPresenceOptions() end
                 if addon.Vista and addon.Vista.ApplyScale then addon.Vista.ApplyScale() end
                 if addon.Yield and addon.Yield.ApplyScale then addon.Yield.ApplyScale() end
-                if _G.HorizonSuite_FullLayout and not InCombatLockdown() then _G.HorizonSuite_FullLayout() end
+                local fullLayout = addon.FullLayout or _G.HorizonSuite_FullLayout
+                if fullLayout and not InCombatLockdown() then fullLayout() end
             end
             -- Debounce: write DB immediately on every slider step, but delay the heavy
             -- apply call (typography, dimensions, FullLayout) until the user pauses.
@@ -1091,8 +1095,8 @@ local OptionCategories = {
             { type = "toggle", name = L["Ctrl for focus / untrack"], desc = L["Prevent accidental clicks."], dbKey = "requireCtrlForQuestClicks", get = function() return getDB("requireCtrlForQuestClicks", false) end, set = function(v) setDB("requireCtrlForQuestClicks", v) end, tooltip = L["Ctrl+Left = focus/add, Ctrl+Right = unfocus/untrack."] },
             { type = "toggle", name = L["Classic clicks"], desc = L["L-click opens map, R-click opens menu."], dbKey = "useClassicClickBehaviour", get = function() return getDB("useClassicClickBehaviour", false) end, set = function(v) setDB("useClassicClickBehaviour", v) end, tooltip = L["Off: L-click focuses, R-click untracks. Ctrl+Right shares."] },
             { type = "toggle", name = L["Ctrl to click-complete"], desc = L["Require Ctrl to complete click-completable quests."], dbKey = "requireModifierForClickToComplete", get = function() return getDB("requireModifierForClickToComplete", false) end, set = function(v) setDB("requireModifierForClickToComplete", v) end, tooltip = L["Only for quests that don't need NPC turn-in. Off = Blizzard default."] },
-            { type = "toggle", name = L["Keep campaign in category"], desc = L["Campaign quests stay in Campaign when ready to turn in."], dbKey = "keepCampaignInCategory", get = function() return getDB("keepCampaignInCategory", false) end, set = function(v) setDB("keepCampaignInCategory", v); if _G.HorizonSuite_RequestRefresh then _G.HorizonSuite_RequestRefresh() end; if _G.HorizonSuite_FullLayout then _G.HorizonSuite_FullLayout() end end, tooltip = L["When off, they move to the Complete section."] },
-            { type = "toggle", name = L["Keep important in category"], desc = L["Important quests stay in Important when ready to turn in."], dbKey = "keepImportantInCategory", get = function() return getDB("keepImportantInCategory", false) end, set = function(v) setDB("keepImportantInCategory", v); if _G.HorizonSuite_RequestRefresh then _G.HorizonSuite_RequestRefresh() end; if _G.HorizonSuite_FullLayout then _G.HorizonSuite_FullLayout() end end, tooltip = L["When off, they move to the Complete section."] },
+            { type = "toggle", name = L["Keep campaign in category"], desc = L["Campaign quests stay in Campaign when ready to turn in."], dbKey = "keepCampaignInCategory", get = function() return getDB("keepCampaignInCategory", false) end, set = function(v) setDB("keepCampaignInCategory", v); if addon.RequestRefresh then addon.RequestRefresh() end; if addon.FullLayout then addon.FullLayout() end end, tooltip = L["When off, they move to the Complete section."] },
+            { type = "toggle", name = L["Keep important in category"], desc = L["Important quests stay in Important when ready to turn in."], dbKey = "keepImportantInCategory", get = function() return getDB("keepImportantInCategory", false) end, set = function(v) setDB("keepImportantInCategory", v); if addon.RequestRefresh then addon.RequestRefresh() end; if addon.FullLayout then addon.FullLayout() end end, tooltip = L["When off, they move to the Complete section."] },
             { type = "section", name = L["Tracking"] },
             { type = "toggle", name = L["Auto-track accepted quests"], desc = L["When you accept a quest (quest log only, not world quests), add it to the tracker automatically."], dbKey = "autoTrackOnAccept", get = function() return getDB("autoTrackOnAccept", true) end, set = function(v) setDB("autoTrackOnAccept", v) end },
             { type = "toggle", name = L["Suppress untracked until reload"], desc = L["When on, right-click untrack on world quests and in-zone weeklies/dailies hides them until you reload or start a new session. When off, they reappear when you return to the zone."], dbKey = "suppressUntrackedUntilReload", get = function() return getDB("suppressUntrackedUntilReload", false) end, set = function(v) setDB("suppressUntrackedUntilReload", v) end },
@@ -1111,7 +1115,7 @@ local OptionCategories = {
         options = {
             { type = "section", name = L["Behaviour"] },
             { type = "toggle", name = L["Show Mythic+ block"], desc = L["Show timer, completion %, and affixes in Mythic+ dungeons."], dbKey = "showMythicPlusBlock", get = function() return getDB("showMythicPlusBlock", true) end, set = function(v) setDB("showMythicPlusBlock", v) end },
-            { type = "toggle", name = L["Always show M+ block"], desc = L["Show the M+ block whenever an active keystone is running"], dbKey = "mplusAlwaysShow", get = function() return getDB("mplusAlwaysShow", false) end, set = function(v) setDB("mplusAlwaysShow", v); if _G.HorizonSuite_FullLayout then _G.HorizonSuite_FullLayout() end end },
+            { type = "toggle", name = L["Always show M+ block"], desc = L["Show the M+ block whenever an active keystone is running"], dbKey = "mplusAlwaysShow", get = function() return getDB("mplusAlwaysShow", false) end, set = function(v) setDB("mplusAlwaysShow", v); if addon.FullLayout then addon.FullLayout() end end },
             { type = "toggle", name = L["Show affix icons"], desc = L["Show affix icons next to modifier names in the M+ block."], dbKey = "mplusShowAffixIcons", get = function() return getDB("mplusShowAffixIcons", true) end, set = function(v) setDB("mplusShowAffixIcons", v) end },
             { type = "toggle", name = L["Show affix descriptions in tooltip"], desc = L["Show affix descriptions when hovering over the M+ block."], dbKey = "mplusShowAffixDescriptions", get = function() return getDB("mplusShowAffixDescriptions", true) end, set = function(v) setDB("mplusShowAffixDescriptions", v) end },
             { type = "dropdown", name = L["M+ block position"], desc = L["Position of the Mythic+ block relative to the quest list."], dbKey = "mplusBlockPosition", options = MPLUS_POSITION_OPTIONS, get = function() return getDB("mplusBlockPosition", "top") end, set = function(v) setDB("mplusBlockPosition", v) end },
