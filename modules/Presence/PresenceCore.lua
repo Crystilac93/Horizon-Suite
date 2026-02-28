@@ -197,10 +197,6 @@ local function resolveColors(typeName, cfg, opts)
     end
     local c = getCategoryColor(cat, { 0.9, 0.9, 0.9 })
     local subCat = cfg.subCategory or "DEFAULT"
-    -- Use quest category colour for subtitle when we have questID (QUEST_UPDATE, QUEST_ACCEPT)
-    if opts.questID and (typeName == "QUEST_UPDATE" or typeName == "QUEST_ACCEPT") then
-        subCat = cat
-    end
     local sc = getCategoryColor(subCat, { 1, 1, 1 })
     return c, sc
 end
