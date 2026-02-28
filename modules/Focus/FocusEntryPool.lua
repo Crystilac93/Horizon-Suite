@@ -255,7 +255,8 @@ local function CreateQuestEntry(parent, index)
         copyBtn:SetScript("OnClick", function(self)
             local link = self._itemLink
             if link and ChatEdit_ActivateChat and ChatEdit_InsertLink then
-                ChatEdit_ActivateChat(ChatFrame1)
+                local editBox = ChatFrame1 and ChatFrame1.editBox or ChatFrame1EditBox
+                ChatEdit_ActivateChat(editBox)
                 ChatEdit_InsertLink(link)
             end
         end)

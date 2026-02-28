@@ -629,3 +629,23 @@ function addon.ResolvePlayerMapContext(unit)
         mapIDsToQuery = mapIDsToQuery,
     }
 end
+
+-- ============================================================================
+-- QUALITY COLOR HELPER
+-- ============================================================================
+
+--- Returns r, g, b for item quality, or nil if unavailable.
+-- @param quality number Item quality (0-7)
+-- @return number|nil r, number|nil g, number|nil b
+function addon.GetQualityColorRGB(quality)
+    if type(quality) ~= "number" then return nil end
+    if GetItemQualityColor then
+        local r, g, b = GetItemQualityColor(quality)
+        if r and g and b then return r, g, b end
+    end
+    if ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[quality] then
+        local c = ITEM_QUALITY_COLORS[quality]
+        return c.r, c.g, c.b
+    end
+    return nil
+end

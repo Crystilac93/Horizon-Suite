@@ -540,10 +540,13 @@ function OptionsWidgets_CreateCustomDropdown(parent, labelText, description, opt
     scrollChild:SetHeight(1)
 
     -- Ensure the dropdown list scrolls internally and doesn't forward wheel events to the parent panel.
+    -- SetPropagateMouseMotion is protected in combat; defer if in lockdown.
     scrollFrame:EnableMouseWheel(true)
-    scrollFrame:SetPropagateMouseMotion(false)
     list:EnableMouseWheel(true)
-    list:SetPropagateMouseMotion(false)
+    if not InCombatLockdown() then
+        pcall(scrollFrame.SetPropagateMouseMotion, scrollFrame, false)
+        pcall(list.SetPropagateMouseMotion, list, false)
+    end
 
     local function consumeWheel() end
     scrollFrame:SetScript("OnMouseWheel", function(self, delta)

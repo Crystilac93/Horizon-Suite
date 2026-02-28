@@ -2251,6 +2251,7 @@ local function CollectMinimapButtons()
         -- Rebuild VistaButtons options tab when list changes (e.g. 0 → N on first scan)
         if #newNames ~= oldCount and addon.OptionsPanel_RebuildCategory then
             C_Timer.After(0, function()
+                if InCombatLockdown() then return end
                 addon.OptionsPanel_RebuildCategory("VistaButtons")
             end)
         end

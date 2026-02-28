@@ -368,7 +368,6 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
         -- Clear any injected test data and return to live quest data.
         addon.testQuests = nil
         addon.testQuestItem = nil
-        addon.testRecipeExample = nil
         addon.ScheduleRefresh()
         HSPrint("Reset tracker to live data.")
 
@@ -479,17 +478,11 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
 
     elseif cmd:match("^recipedebug") then
         local arg = cmd:match("^recipedebug%s+(%d+)")
-        if arg and tonumber(arg) then
-            if addon.DebugRecipeReagents then
-                addon.DebugRecipeReagents(tonumber(arg))
-            else
-                HSPrint("DebugRecipeReagents not available.")
-            end
+        local rid = arg and tonumber(arg)
+        if addon.DebugRecipeReagents then
+            addon.DebugRecipeReagents(rid)
         else
-            addon.testRecipeExample = true
-            if addon.ScheduleRefresh then addon.ScheduleRefresh() end
-            if addon.FullLayout then addon.FullLayout() end
-            HSPrint("Example recipe with all sections (required, choice slots, optional, finishing) shown in tracker. Use /horizon reset to clear.")
+            HSPrint("DebugRecipeReagents not available.")
         end
     elseif cmd == "achievementdebug" then
         HSPrint("|cFF00CCFF--- Achievement Tracking Debug ---|r")
@@ -893,7 +886,7 @@ SlashCmdList["MODERNQUESTTRACKER"] = function(msg)
         HSPrint("  /horizon delvedebug      - Dump Delve/tier APIs (run inside a Delve to find tier number)")
         HSPrint("  /horizon mplusaffixdebug - Dump M+ affix APIs (run in M+ dungeon with key inserted)")
         HSPrint("  /horizon endeavordebug   - Dump Endeavor APIs + GetInitiativeTaskInfo fields (for tooltip/rewards)")
-        HSPrint("  /horizon recipedebug      - Show example recipe with all sections in tracker. /horizon recipedebug 12345 dumps that recipe to chat.")
+        HSPrint("  /horizon recipedebug      - Dump tracked recipe reagents to chat. /horizon recipedebug 12345 dumps a specific recipe.")
         HSPrint("  /horizon achievementdebug - Dump tracked achievement criteria/progress (diagnose missing progress)")
         HSPrint("  /horizon unaccepted      - Show popup of unaccepted quests in current zone with type labels (test)")
         HSPrint("  /horizon clicktodebug    - Debug: list tracked quests and which are eligible for click-to-complete")
