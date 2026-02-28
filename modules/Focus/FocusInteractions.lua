@@ -334,7 +334,8 @@ for i = 1, addon.POOL_SIZE do
             -- Plain Left (no Shift): try click-to-complete for auto-complete quests (Blizzard behavior).
             if not IsShiftKeyDown() then
                 local needMod = addon.GetDB("requireModifierForClickToComplete", false)
-                if (not needMod or IsControlKeyDown()) and TryCompleteQuestFromClick(self.questID) then
+                local isAutoComplete = self.isAutoComplete
+                if (not needMod or IsControlKeyDown()) and isAutoComplete and TryCompleteQuestFromClick(self.questID) then
                     return
                 end
             end

@@ -1020,6 +1020,7 @@ local function PopulateEntry(entry, questData, groupKey)
     entry.isSuperTracked = questData.isSuperTracked and true or false
     entry.isDungeonQuest = questData.isDungeonQuest and true or false
     entry.isGroupQuest = questData.isGroupQuest and true or false
+    entry.isAutoComplete = questData.isAutoComplete and true or false
 
     if questData.isRare then
         entry.questID    = nil

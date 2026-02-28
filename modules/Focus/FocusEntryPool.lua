@@ -622,6 +622,7 @@ local function ClearEntry(entry, full)
     entry.isSuperTracked = nil
     entry.isDungeonQuest = nil
     entry.isGroupQuest   = nil
+    entry.isAutoComplete = nil
     entry._inlineTimerBaseTitle, entry._inlineTimerStr, entry._inlineTimerDuration, entry._inlineTimerStartTime = nil, nil, nil, nil
     if full ~= false then
         entry:SetAlpha(0)
