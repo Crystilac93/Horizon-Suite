@@ -456,9 +456,17 @@ function addon.AddQuestPartyProgressToTooltip(tooltip, questID)
     if not (C_TooltipInfo and C_TooltipInfo.GetQuestPartyProgress) then return end
     if not (IsInGroup and IsInGroup()) then return end
     local tooltipData = C_TooltipInfo.GetQuestPartyProgress(questID, true)
-    if not tooltipData or not tooltip.ProcessInfo then return end
-    tooltip:AddLine(" ")
-    tooltip:ProcessInfo({ tooltipData = tooltipData, append = true })
+    if not tooltipData then return end
+    if tooltipData.lines and #tooltipData.lines > 0 then
+        tooltip:AddLine(" ")
+        for _, line in ipairs(tooltipData.lines) do
+            local text = line.leftText or ""
+            if text ~= "" then
+                local r, g, b = line.leftColor and line.leftColor.r or 1, line.leftColor and line.leftColor.g or 1, line.leftColor and line.leftColor.b or 1
+                tooltip:AddLine(text, r, g, b, true)
+            end
+        end
+    end
 end
 
 --- Parse a Task POI table into a simple set of quest IDs.

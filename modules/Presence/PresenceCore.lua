@@ -57,6 +57,8 @@ local TYPES = {
     SUBZONE_CHANGE     = { pri = 1, category = "DEFAULT",   subCategory = "CAMPAIGN", sz = 36, dur = 3.0 },
     SCENARIO_START     = { pri = 2, category = "SCENARIO", subCategory = "DEFAULT", sz = 36, dur = 3.5 },
     SCENARIO_UPDATE     = { pri = 1, category = "SCENARIO", subCategory = "DEFAULT", sz = 36, dur = 2.5, liveUpdate = true, replaceInQueue = true },
+    ACHIEVEMENT_PROGRESS = { pri = 1, category = "ACHIEVEMENT", subCategory = "DEFAULT", sz = 28, dur = 2.5, liveUpdate = true, replaceInQueue = true, subGap = 12 },
+    RARE_DEFEATED      = { pri = 2, category = "DEFAULT",  subCategory = "DEFAULT", sz = 36, dur = 3.5 },
 }
 
 local function getFrameY()
@@ -709,8 +711,15 @@ PlayCinematic = function(typeName, title, subtitle, opts)
 
     opts = opts or {}
 
-    if typeName == "QUEST_UPDATE" and subtitle and addon.Presence.NormalizeQuestUpdateText then
-        lastQuestUpdateNorm = addon.Presence.NormalizeQuestUpdateText(subtitle)
+    local originalSubtitle = subtitle
+
+    if typeName == "QUEST_UPDATE" and addon.GetDB and addon.GetDB("presenceHideQuestUpdateTitle", false) then
+        title = subtitle or ""
+        subtitle = ""
+    end
+
+    if typeName == "QUEST_UPDATE" and originalSubtitle and addon.Presence.NormalizeQuestUpdateText then
+        lastQuestUpdateNorm = addon.Presence.NormalizeQuestUpdateText(originalSubtitle)
         lastQuestUpdateTime = GetTime()
     end
     local L = curLayer

@@ -131,7 +131,7 @@ keybindWatcher:SetScript("OnEvent", function(_, event)
 end)
 
 local function UpdateFloatingQuestItem(questsFlat)
-    if addon.ShouldHideInCombat() or not addon.GetDB("showFloatingQuestItem", false) then
+    if addon.ShouldHideInCombat() or not addon.GetDB("showFloatingQuestItem", false) or (addon.ShouldShowInInstance and not addon.ShouldShowInInstance()) then
         floatingQuestItemBtn:Hide()
         return
     end
