@@ -111,7 +111,7 @@ local function ApplyObjectives(entry, questData, textWidth, prevAnchor, totalH, 
         local arithmeticIdx = nil
         local arithmeticNf, arithmeticNr = nil, nil
         for idx, o in ipairs(questData.objectives) do
-            if o.numFulfilled ~= nil and o.numRequired ~= nil and type(o.numFulfilled) == "number" and type(o.numRequired) == "number" and o.numRequired > 1 then
+            if not o.finished and o.numFulfilled ~= nil and o.numRequired ~= nil and type(o.numFulfilled) == "number" and type(o.numRequired) == "number" and o.numRequired > 1 then
                 arithmeticCount = arithmeticCount + 1
                 arithmeticIdx = idx
                 arithmeticNf = o.numFulfilled

@@ -696,3 +696,78 @@ function addon.ResolvePlayerMapContext(unit)
         mapIDsToQuery = mapIDsToQuery,
     }
 end
+
+-- ============================================================================
+-- SECURE ITEM OVERLAY
+-- ============================================================================
+
+local secureItemOverlay
+local overlayTarget
+
+local function CreateSecureItemOverlay()
+    if secureItemOverlay then return end
+    local btn = CreateFrame("Button", "HSSecureItemOverlay", UIParent, "SecureActionButtonTemplate")
+    btn:SetSize(1, 1)
+    btn:SetFrameStrata("HIGH")
+    btn:SetFrameLevel(200)
+    btn:RegisterForClicks("AnyDown", "AnyUp")
+    btn:SetAttribute("type", "item")
+    btn:EnableMouse(true)
+    btn:SetAlpha(0)
+    btn:Hide()
+    btn:SetScript("OnEnter", function(self)
+        if overlayTarget then
+            overlayTarget:SetAlpha(1)
+            local itemLink = overlayTarget._itemLink or (overlayTarget._ownerEntry and overlayTarget._ownerEntry.itemLink)
+            if itemLink and GameTooltip then
+                GameTooltip:SetOwner(overlayTarget, "ANCHOR_RIGHT")
+                pcall(GameTooltip.SetHyperlink, GameTooltip, itemLink)
+                GameTooltip:Show()
+            end
+        end
+    end)
+    btn:SetScript("OnLeave", function(self)
+        local target = overlayTarget
+        if not InCombatLockdown() then
+            self:Hide()
+        end
+        overlayTarget = nil
+        if target then
+            target:SetAlpha(0.9)
+            if GameTooltip:GetOwner() == target then
+                GameTooltip:Hide()
+            end
+        end
+    end)
+    secureItemOverlay = btn
+end
+
+function addon.AttachSecureItemOverlay(itemBtn, itemLink)
+    if not itemBtn or not itemLink then return end
+    if InCombatLockdown() then return end
+    if not secureItemOverlay then CreateSecureItemOverlay() end
+    if overlayTarget == itemBtn and secureItemOverlay:IsShown() then return end
+    overlayTarget = itemBtn
+    secureItemOverlay:SetAttribute("item", itemLink)
+    secureItemOverlay:ClearAllPoints()
+    secureItemOverlay:SetAllPoints(itemBtn)
+    secureItemOverlay:SetParent(itemBtn)
+    secureItemOverlay:SetFrameLevel(itemBtn:GetFrameLevel() + 5)
+    secureItemOverlay:Show()
+end
+
+function addon.DetachSecureItemOverlay(itemBtn)
+    if not secureItemOverlay then return end
+    if overlayTarget ~= itemBtn then return end
+    if secureItemOverlay:IsMouseOver() then return end
+    if InCombatLockdown() then return end
+    secureItemOverlay:Hide()
+    overlayTarget = nil
+end
+
+function addon.SetSecureItemOverlayItem(itemLink)
+    if not secureItemOverlay then CreateSecureItemOverlay() end
+    if InCombatLockdown() then return end
+    secureItemOverlay:SetAttribute("item", itemLink)
+end
+

@@ -52,10 +52,12 @@ floatingQuestItemBtn:SetScript("OnEnter", function(self)
         pcall(GameTooltip.SetHyperlink, GameTooltip, self._itemLink)
         GameTooltip:Show()
     end
+    addon.AttachSecureItemOverlay(self, self._itemLink)
 end)
 floatingQuestItemBtn:SetScript("OnLeave", function(self)
     self:SetAlpha(0.9)
     if GameTooltip and GameTooltip:GetOwner() == self then GameTooltip:Hide() end
+    addon.DetachSecureItemOverlay(self)
 end)
 floatingQuestItemBtn:SetScript("OnClick", function(self, button)
     local questID = self._questID
@@ -66,10 +68,6 @@ floatingQuestItemBtn:SetScript("OnClick", function(self, button)
         local link = GetQuestLogSpecialItemInfo(logIndex)
         if link and ChatFrameUtil.InsertLink then
             ChatFrameUtil.InsertLink(link)
-        end
-    else
-        if UseQuestLogSpecialItem then
-            UseQuestLogSpecialItem(logIndex)
         end
     end
 end)
@@ -184,6 +182,7 @@ local function UpdateFloatingQuestItem(questsFlat)
         floatingQuestItemBtn.icon:SetTexture(chosenTex)
         floatingQuestItemBtn._itemLink = chosenLink
         floatingQuestItemBtn._questID = chosenQuestID
+        addon.SetSecureItemOverlayItem(chosenLink)
         local sz = (addon.Scaled or function(v) return v end)(tonumber(addon.GetDB("floatingQuestItemSize", 36)) or 36)
         floatingQuestItemBtn:SetSize(sz, sz)
         local savedPoint = addon.GetDB("floatingQuestItemPoint", nil)

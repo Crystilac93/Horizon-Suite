@@ -532,6 +532,9 @@ L["Keep campaign quests in category"]                    = "Оставлять �
 L["When on, campaign quests that are ready to turn in remain in the Campaign category instead of moving to Complete."] = "Вкл.: готовые к сдаче кампанийные остаются в категории Кампания."
 L["Keep important quests in category"]                   = "Оставлять важные задания в категории"
 L["When on, important quests that are ready to turn in remain in the Important category instead of moving to Complete."] = "Вкл.: готовые к сдаче важные остаются в категории Важные."
+L["TomTom quest waypoint"]                               = "Точка маршрута TomTom"
+L["Set a TomTom waypoint when focusing a quest."]        = "Устанавливать точку маршрута TomTom при фокусировке на задании."
+L["Requires TomTom. Points the arrow to the next quest objective."] = "Требуется TomTom. Стрелка указывает на следующую цель задания."
 
 -- =====================================================================
 -- OptionsData.lua Blacklist

@@ -532,6 +532,9 @@ L["Keep campaign quests in category"]                   = "대장정 퀘스트�
 L["When on, campaign quests that are ready to turn in remain in the Campaign category instead of moving to Complete."] = "활성화하면 완료 가능한 대장정 퀘스트가 완료 카테고리로 이동하지 않고 캠페인 카테고리에 남습니다."
 L["Keep important quests in category"]                  = "중요 퀘스트를 카테고리에 유지"
 L["When on, important quests that are ready to turn in remain in the Important category instead of moving to Complete."] = "활성화하면 완료 가능한 중요 퀘스트가 완료 카테고리로 이동하지 않고 중요 카테고리에 남습니다."
+L["TomTom quest waypoint"]                               = "TomTom 퀘스트 경유지"
+L["Set a TomTom waypoint when focusing a quest."]        = "퀘스트를 집중할 때 TomTom 경유지를 설정합니다."
+L["Requires TomTom. Points the arrow to the next quest objective."] = "TomTom이 필요합니다. 화살표가 다음 퀘스트 목표를 가리킵니다."
 
 -- =====================================================================
 -- OptionsData.lua Blacklist

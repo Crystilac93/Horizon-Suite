@@ -532,6 +532,9 @@ L["Keep campaign quests in category"]                    = "Garder les quêtes d
 L["When on, campaign quests that are ready to turn in remain in the Campaign category instead of moving to Complete."] = "Quand Activé : les quêtes de campagne prêtes à être rendues restent dans la catégorie Campagne au lieu d'aller dans Terminées."
 L["Keep important quests in category"]                   = "Garder les quêtes importantes dans leur catégorie"
 L["When on, important quests that are ready to turn in remain in the Important category instead of moving to Complete."] = "Quand Activé : les quêtes importantes prêtes à être rendues restent dans la catégorie Important au lieu d'aller dans Terminées."
+L["TomTom quest waypoint"]                               = "Point de repère TomTom"
+L["Set a TomTom waypoint when focusing a quest."]        = "Définir un point de repère TomTom en ciblant une quête."
+L["Requires TomTom. Points the arrow to the next quest objective."] = "Nécessite TomTom. Dirige la flèche vers le prochain objectif de quête."
 
 -- =====================================================================
 -- OptionsData.lua Blacklist

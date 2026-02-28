@@ -172,7 +172,7 @@ local function SetRareWaypoint(entry)
     -- Priority 1: TomTom addon
     local TomTom = _G.TomTom
     if TomTom and TomTom.AddWaypoint and mapID and x and y then
-        pcall(TomTom.AddWaypoint, TomTom, mapID, x, y, { title = name, persistent = false, minimap = true, world = true })
+        pcall(TomTom.AddWaypoint, TomTom, mapID, x, y, { title = name, persistent = false, minimap = true, world = true, crazy = true })
         return
     end
 
