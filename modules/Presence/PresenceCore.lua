@@ -13,7 +13,7 @@
       line; opts.questID is for colour/icon only, never displayed.
 ]]
 
-local addon = _G.HorizonSuite
+local addon = _G._HorizonSuite_Loading or _G.HorizonSuiteBeta or _G.HorizonSuite
 if not addon then return end
 
 addon.Presence = addon.Presence or {}
